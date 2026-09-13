@@ -1,0 +1,10 @@
+﻿services:
+  - type: web
+    name: snake-area
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeployTrigger: commit
+

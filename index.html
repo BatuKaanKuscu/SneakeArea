@@ -1,74 +1,126 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="tr">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Neon Snake Arena</title>
+    <title>Snake Area</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="game-shell" aria-label="Neon Snake Arena">
+    <main class="game-shell" aria-label="Snake Area">
       <canvas id="game" aria-label="Oyun alanı"></canvas>
 
-      <section class="top-hud" aria-label="Oyuncu durumu">
-        <div class="brand">
-          <span class="brand-mark"></span>
-          <span>Neon Snake Arena</span>
+      <nav class="top-hud" aria-label="Üst menü">
+        <div class="nav-left">
+          <div class="session-pill" title="Oturum durumu"><span></span></div>
+          <div class="hud-stat game-stat is-hidden"><span data-i18n="score">Skor</span><strong id="score">0</strong></div>
+          <div class="hud-stat game-stat is-hidden"><span data-i18n="length">Uzunluk</span><strong id="length">12</strong></div>
+          <div class="hud-stat game-stat is-hidden"><span>Boost</span><strong id="boost">100%</strong></div>
+          <div class="hud-stat game-stat mode-stat is-hidden"><span>Mod</span><strong id="modeLabel">Bot</strong></div>
+          <ol id="leaders" class="leaderboard game-stat is-hidden" aria-label="Sıralama"></ol>
         </div>
-        <div class="hud-stat">
-          <span>Skor</span>
-          <strong id="score">0</strong>
+        <div class="nav-actions">
+          <button class="top-icon" id="friendsButton" aria-label="Arkadaşlar" title="Arkadaşlar">A</button>
+          <button class="top-icon" id="shopButton" aria-label="Dükkan" title="Dükkan">D</button>
+          <button class="top-icon" id="questsButton" aria-label="Görevler" title="Görevler">G</button>
+          <button class="top-icon" id="translateButton" aria-label="Dil" title="Dil">TR</button>
+          <button class="top-icon" id="paletteButton" aria-label="Renk kataloğu" title="Renk kataloğu">R</button>
+          <button class="profile-pill" id="profileButton" aria-label="Profil" title="Profil">
+            <span class="profile-mark">P</span>
+            <strong id="topUserName" class="sr-only">NearBacon</strong>
+            <span id="topUserTitle" class="sr-only">Admin</span>
+          </button>
         </div>
-        <div class="hud-stat">
-          <span>Uzunluk</span>
-          <strong id="length">12</strong>
-        </div>
-        <div class="hud-stat">
-          <span>Boost</span>
-          <strong id="boost">100%</strong>
-        </div>
+      </nav>
+
+      <section class="quick-panel is-hidden" id="quickPanel" aria-label="Hızlı panel">
+        <button class="back-button" id="closeQuickPanel" aria-label="Kapat">← ANA SAYFAYA DÖN</button>
+        <div class="quick-head"><h2 id="quickTitle">Profil</h2></div>
+        <div id="quickProfile" class="quick-profile"></div>
+        <div id="quickFriends" class="friend-service is-hidden"></div>
+        <div id="quickShop" class="shop-grid is-hidden"></div>
+        <div id="quickAchievements" class="list-panel is-hidden"></div>
+        <div id="quickQuests" class="list-panel is-hidden"></div>
+        <div id="quickPalette" class="palette-grid is-hidden"></div>
       </section>
 
-      <aside class="leaderboard" aria-label="Skor tablosu">
-        <h2>Canlı Sıralama</h2>
-        <ol id="leaders"></ol>
-      </aside>
-
-      <aside class="radar-wrap" aria-label="Mini harita">
+      <aside class="radar-wrap is-hidden" aria-label="Mini harita">
         <canvas id="radar" width="180" height="180"></canvas>
       </aside>
 
       <section class="start-panel" id="startPanel" aria-label="Oyuna başla">
-        <div class="logo-orbit">
-          <span></span>
+        <input id="profileName" type="hidden" value="NearBacon" />
+        <div class="landing-copy">
+          <div class="logo-tile">S</div>
+          <h1>Snake Area</h1>
+          <p id="startHint">Hesabını aç, arkadaşlarını çağır ve arenada en uzun yılan ol.</p>
         </div>
-        <h1>Neon Snake Arena</h1>
-        <p>Rakipleri kes, parlayan yemleri topla, boost ile risk al ve arenanın tepesine çık.</p>
-        <label class="name-field">
-          <span>Takma ad</span>
-          <input id="playerName" maxlength="14" value="Neon" autocomplete="off" />
-        </label>
-        <div class="skin-row" aria-label="Renk seçimi">
-          <button class="skin is-active" data-skin="cyan" aria-label="Camgöbeği renk"></button>
-          <button class="skin" data-skin="lime" aria-label="Yeşil renk"></button>
-          <button class="skin" data-skin="pink" aria-label="Pembe renk"></button>
-          <button class="skin" data-skin="amber" aria-label="Turuncu renk"></button>
+
+        <div class="start-card">
+          <header class="card-title">
+            <h2>KULLANICI PROFİLİN</h2>
+            <span id="authStatus">Bu cihazda hatırlanır</span>
+          </header>
+
+          <div class="login-row">
+            <div class="avatar" id="profileAvatar">N</div>
+            <div>
+              <strong id="menuProfileName">NearBacon</strong>
+              <span id="menuProfileTitle">Admin</span>
+            </div>
+            <label class="guest-toggle"><input id="guestMode" type="checkbox" /><span>Misafir</span></label>
+          </div>
+
+          <div class="auth-panel" aria-label="Hesap girişi">
+            <label class="name-field compact">
+              <span>Kullanıcı adı</span>
+              <input id="accountName" maxlength="14" placeholder="NearBacon" autocomplete="username" />
+            </label>
+            <label class="name-field compact">
+              <span>Şifre</span>
+              <input id="accountPassword" type="password" maxlength="32" placeholder="En az 3 karakter" autocomplete="current-password" />
+            </label>
+            <div class="auth-actions">
+              <button id="loginButton" type="button">GİRİŞ</button>
+              <button id="registerButton" type="button">HESAP OLUŞTUR</button>
+              <button id="logoutButton" type="button">ÇIKIŞ</button>
+            </div>
+          </div>
+
+          <div class="mode-panel" aria-label="Oyun modu">
+            <div class="segmented three">
+              <button class="mode-button is-active" data-mode="solo">BOTLARLA</button>
+              <button class="mode-button" data-mode="room-create">ODA OLUŞTUR</button>
+              <button class="mode-button" data-mode="room-join">KATIL</button>
+            </div>
+            <div class="room-panel is-hidden" id="roomPanel">
+              <label class="name-field">
+                <span>ODA KODU</span>
+                <input id="roomCodeInput" maxlength="8" placeholder="Sistem verir" autocomplete="off" />
+              </label>
+              <div class="room-code">Aktif oda: <strong id="roomCodeLabel">-</strong></div>
+            </div>
+            <label class="range-field">
+              <span>Bot sayısı</span>
+              <strong id="botCountValue">9</strong>
+              <input id="botCount" type="range" min="0" max="18" value="9" />
+            </label>
+          </div>
+
+          <button class="primary-action" id="playButton">OYUNA GİR</button>
         </div>
-        <button class="primary-action" id="playButton">Arenaya Gir</button>
       </section>
 
       <section class="death-panel is-hidden" id="deathPanel" aria-label="Oyun bitti">
         <h2>Yılan dağıldı</h2>
         <p id="deathText">Skorun 0.</p>
-        <button class="primary-action" id="retryButton">Tekrar Dene</button>
+        <button class="primary-action" id="retryButton">TEKRAR DENE</button>
       </section>
 
-      <div class="touch-stick" id="touchStick" aria-hidden="true">
-        <span></span>
-      </div>
+      <div class="touch-stick" id="touchStick" aria-hidden="true"><span></span></div>
       <button class="boost-button" id="boostButton" aria-label="Boost">BOOST</button>
     </main>
-
     <script src="game.js"></script>
   </body>
 </html>
+
