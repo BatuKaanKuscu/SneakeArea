@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Neon Snake Arena</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="game-shell" aria-label="Neon Snake Arena">
+      <canvas id="game" aria-label="Oyun alanı"></canvas>
+
+      <section class="top-hud" aria-label="Oyuncu durumu">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <span>Neon Snake Arena</span>
+        </div>
+        <div class="hud-stat">
+          <span>Skor</span>
+          <strong id="score">0</strong>
+        </div>
+        <div class="hud-stat">
+          <span>Uzunluk</span>
+          <strong id="length">12</strong>
+        </div>
+        <div class="hud-stat">
+          <span>Boost</span>
+          <strong id="boost">100%</strong>
+        </div>
+      </section>
+
+      <aside class="leaderboard" aria-label="Skor tablosu">
+        <h2>Canlı Sıralama</h2>
+        <ol id="leaders"></ol>
+      </aside>
+
+      <aside class="radar-wrap" aria-label="Mini harita">
+        <canvas id="radar" width="180" height="180"></canvas>
+      </aside>
+
+      <section class="start-panel" id="startPanel" aria-label="Oyuna başla">
+        <div class="logo-orbit">
+          <span></span>
+        </div>
+        <h1>Neon Snake Arena</h1>
+        <p>Rakipleri kes, parlayan yemleri topla, boost ile risk al ve arenanın tepesine çık.</p>
+        <label class="name-field">
+          <span>Takma ad</span>
+          <input id="playerName" maxlength="14" value="Neon" autocomplete="off" />
+        </label>
+        <div class="skin-row" aria-label="Renk seçimi">
+          <button class="skin is-active" data-skin="cyan" aria-label="Camgöbeği renk"></button>
+          <button class="skin" data-skin="lime" aria-label="Yeşil renk"></button>
+          <button class="skin" data-skin="pink" aria-label="Pembe renk"></button>
+          <button class="skin" data-skin="amber" aria-label="Turuncu renk"></button>
+        </div>
+        <button class="primary-action" id="playButton">Arenaya Gir</button>
+      </section>
+
+      <section class="death-panel is-hidden" id="deathPanel" aria-label="Oyun bitti">
+        <h2>Yılan dağıldı</h2>
+        <p id="deathText">Skorun 0.</p>
+        <button class="primary-action" id="retryButton">Tekrar Dene</button>
+      </section>
+
+      <div class="touch-stick" id="touchStick" aria-hidden="true">
+        <span></span>
+      </div>
+      <button class="boost-button" id="boostButton" aria-label="Boost">BOOST</button>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
