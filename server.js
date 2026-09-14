@@ -1,4 +1,4 @@
-﻿const http = require("http");
+const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -21,6 +21,7 @@ const allowedAvatars = new Set(["near", "area", "bolt", "crown", "coin", "wave"]
 const allowedThemes = new Set(["aurora", "ember", "ice", "forest"]);
 let data = loadData();
 let clients = new Map();
+let rooms = new Map();
 
 function loadData() {
   try {
@@ -399,11 +400,43 @@ server.on("upgrade", (req, socket) => {
   sendWs(client, { type: "welcome", id });
 });
 
+function roomMembers(room) {
+  return [...clients.values()].filter((client) => client.room === room);
+}
+
+function roomState(room) {
+  const clean = sanitizeRoom(room);
+  if (!rooms.has(clean)) rooms.set(clean, { hostId: "", started: false });
+  return rooms.get(clean);
+}
+
+function broadcastLobby(room) {
+  const state = rooms.get(room);
+  if (!state) return;
+  const players = roomMembers(room).map((client) => ({ id: client.id, name: client.name, host: client.id === state.hostId }));
+  broadcastToRoom({ type: "lobby", room, hostId: state.hostId, started: state.started, players }, room);
+}
+
+function leaveRoom(client) {
+  const room = client.room;
+  if (!room) return;
+  client.room = null;
+  client.lastState = null;
+  broadcastToRoom({ type: "left", id: client.id }, room);
+  const state = rooms.get(room);
+  if (!state) return;
+  if (state.hostId === client.id) {
+    const nextHost = roomMembers(room)[0];
+    if (nextHost) state.hostId = nextHost.id;
+    else rooms.delete(room);
+  }
+  if (rooms.has(room)) broadcastLobby(room);
+}
 function removeClient(id) {
   const client = clients.get(id);
   if (!client) return;
+  leaveRoom(client);
   clients.delete(id);
-  if (client.room) broadcastToRoom({ type: "left", id }, client.room);
   broadcastOnline();
 }
 
@@ -442,10 +475,16 @@ function handleFrame(client, buffer) {
 
 function handleMessage(client, message) {
   if (message.type === "join") {
+    const nextRoom = sanitizeRoom(message.room);
+    if (client.room && client.room !== nextRoom) leaveRoom(client);
     client.name = sanitizeName(message.name, "Guest");
     client.skin = message.skin || "cyan";
-    client.room = sanitizeRoom(message.room);
+    client.room = nextRoom;
     getProfile(client.name);
+    const state = roomState(client.room);
+    const members = roomMembers(client.room);
+    if (!state.hostId || !members.some((item) => item.id === state.hostId)) state.hostId = client.id;
+    if (message.host && members.length === 1) state.hostId = client.id;
     sendWs(client, { type: "room", room: client.room });
     sendWs(client, {
       type: "players",
@@ -453,10 +492,27 @@ function handleMessage(client, message) {
         .filter((item) => item.room === client.room && item.id !== client.id && item.lastState)
         .map((item) => item.lastState),
     });
+    broadcastLobby(client.room);
     broadcastOnline();
     return;
   }
 
+
+  if (message.type === "start") {
+    if (!client.room) return;
+    const state = roomState(client.room);
+    if (state.hostId !== client.id) return;
+    state.started = true;
+    broadcastToRoom({ type: "start", room: client.room }, client.room);
+    broadcastLobby(client.room);
+    return;
+  }
+
+  if (message.type === "leave") {
+    leaveRoom(client);
+    broadcastOnline();
+    return;
+  }
   if (message.type === "state") {
     client.lastState = {
       type: "remote",
@@ -513,8 +569,3 @@ function socketSafeClose(socket) {
 server.listen(PORT, () => {
   console.log(`Snake Area server: http://localhost:${PORT}`);
 });
-
-
-
-
-

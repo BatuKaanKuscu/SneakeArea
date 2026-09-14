@@ -22,6 +22,7 @@ const languageCode = document.getElementById("languageCode");
 const paletteButton = document.getElementById("paletteButton");
 const quickPanel = document.getElementById("quickPanel");
 const quickTitle = document.getElementById("quickTitle");
+const quickAuth = document.getElementById("quickAuth");
 const quickProfile = document.getElementById("quickProfile");
 const quickFriends = document.getElementById("quickFriends");
 const quickShop = document.getElementById("quickShop");
@@ -36,6 +37,13 @@ const deathText = document.getElementById("deathText");
 const playButton = document.getElementById("playButton");
 const playButtonText = document.getElementById("playButtonText");
 const retryButton = document.getElementById("retryButton");
+const lobbyPanel = document.getElementById("lobbyPanel");
+const lobbyCode = document.getElementById("lobbyCode");
+const lobbyStatus = document.getElementById("lobbyStatus");
+const lobbyPlayersEl = document.getElementById("lobbyPlayers");
+const leaveLobbyButton = document.getElementById("leaveLobbyButton");
+const copyRoomButton = document.getElementById("copyRoomButton");
+const startRoomButton = document.getElementById("startRoomButton");
 const profileName = document.getElementById("profileName");
 const guestMode = document.getElementById("guestMode");
 const profileAvatar = document.getElementById("profileAvatar");
@@ -61,6 +69,7 @@ const roomPanel = document.getElementById("roomPanel");
 const roomCodeInput = document.getElementById("roomCodeInput");
 const roomCodeLabel = document.getElementById("roomCodeLabel");
 const shopGrid = document.getElementById("shopGrid");
+const exitGameButton = document.getElementById("exitGameButton");
 const boostButton = document.getElementById("boostButton");
 const touchStick = document.getElementById("touchStick");
 
@@ -162,6 +171,7 @@ function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function getSkin(id) { return SKINS.find((skin) => skin.id === id) || SKINS[0]; }
 function getAvatar(id) { return AVATARS.find((avatar) => avatar.id === id) || AVATARS[0]; }
 function cleanName(value, fallback) { return (value || "").trim().replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 14) || fallback; }
+function getCurrentPlayerName() { return guestMode && guestMode.checked ? cleanName(profileName ? profileName.value : "", "Guest") : profile.name; }
 function angleLerp(current, target, amount) {
   const diff = ((target - current + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
   return current + diff * amount;
@@ -351,6 +361,7 @@ function showQuickPanel(kind) {
   quickPanel.classList.remove("is-hidden");
   const titleMap = { profile: "Profil", friends: "Arkadaşlar", shop: "Dükkan", achievements: "Başarımlar", quests: "Görevler", palette: "Renk Kataloğu" };
   quickTitle.textContent = titleMap[kind] || "Panel";
+  if (quickAuth) quickAuth.classList.toggle("is-hidden", kind !== "profile");
   quickProfile.classList.toggle("is-hidden", kind !== "profile");
   quickFriends.classList.toggle("is-hidden", kind !== "friends");
   quickShop.classList.toggle("is-hidden", kind !== "shop");
@@ -538,7 +549,7 @@ function toggleLanguage() {
   document.querySelector('[data-i18n="score"]').textContent = en ? "Score" : "Skor";
   document.querySelector('[data-i18n="length"]').textContent = en ? "Length" : "Uzunluk";
   document.getElementById("startHint").textContent = en ? "Play with bots, create a room, or join friends with a room code." : "Botlarla oyna, oda kur veya oda koduyla arkadaşlarınla gir.";
-  if (playButtonText) playButtonText.textContent = en ? "ENTER ARENA" : "OYUNA GİR";
+  if (playButtonText) playButtonText.textContent = gameMode.startsWith("room") ? (en ? "ENTER LOBBY" : "LOBİYE GİR") : (en ? "ENTER ARENA" : "OYUNA GİR");
   saveProfile();
   renderProfile();
 }
@@ -578,6 +589,7 @@ function updateModeButtons() {
     roomCodeInput.classList.remove("system-code");
   }
   roomCodeLabel.textContent = gameMode.startsWith("room") ? (roomCodeInput.value || currentRoom || "-") : "-";
+  if (playButtonText) playButtonText.textContent = gameMode.startsWith("room") ? "LOBİYE GİR" : "OYUNA GİR";
 }
 
 function resize() {
@@ -660,6 +672,104 @@ function makeSnake(name, skinId, options = {}) {
   return { id: options.id || `${Date.now()}-${Math.random()}`, name, skin: skin.id, colors: skin.colors, type, control: options.control || "bot", isPlayer: isHuman, alive: true, x, y, angle, turn: 0.09, segments, targetLength: length, score: Math.max(0, (length - 12) * 14), boost: 100, boostHeld: false, thinkAt: 0, aiAngle: angle, radius: isHuman ? 13 : 12 };
 }
 
+function renderLobby() {
+  if (!lobbyPanel) return;
+  if (lobbyCode) lobbyCode.textContent = currentRoom || "-";
+  const shownName = getCurrentPlayerName();
+  const players = lobbyPlayers.length ? lobbyPlayers : [{ id: wsId || "local", name: shownName, host: isRoomHost }];
+  if (lobbyPlayersEl) {
+    lobbyPlayersEl.innerHTML = players.map((item) => `<article class="lobby-player"><span>${item.host ? "Kurucu" : "Oyuncu"}</span><strong>${item.name || "Guest"}</strong></article>`).join("");
+  }
+  if (startRoomButton) startRoomButton.classList.toggle("is-hidden", !isRoomHost);
+  if (lobbyStatus) lobbyStatus.textContent = isRoomHost ? "Oda hazır. Arkadaşların katılınca oyunu sen başlatırsın." : "Oda kurucusunun oyunu başlatması bekleniyor.";
+}
+
+function enterLobby() {
+  if (gameMode === "room-create") {
+    if (!currentRoom) currentRoom = generateRoomCode();
+    roomCodeInput.value = currentRoom;
+    isRoomHost = true;
+  } else if (gameMode === "room-join") {
+    currentRoom = cleanName(roomCodeInput.value, "").toUpperCase();
+    if (!currentRoom) {
+      roomCodeInput.focus();
+      roomCodeLabel.textContent = "Kod gerekli";
+      return;
+    }
+    roomCodeInput.value = currentRoom;
+    isRoomHost = false;
+  } else {
+    resetGame();
+    return;
+  }
+  lobbyPlayers = [];
+  lobbyHostId = "";
+  roomCodeLabel.textContent = currentRoom;
+  startPanel.classList.add("is-hidden");
+  deathPanel.classList.add("is-hidden");
+  lobbyPanel.classList.remove("is-hidden");
+  setGameHudVisible(false);
+  if (radarWrap) radarWrap.classList.add("is-hidden");
+  hideQuickPanel();
+  renderLobby();
+  connectOnline(true);
+}
+
+function beginRoomGame() {
+  if (lobbyPanel) lobbyPanel.classList.add("is-hidden");
+  resetGame();
+}
+
+function startRoomFromLobby() {
+  if (!isRoomHost) return;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "start" }));
+  } else {
+    beginRoomGame();
+  }
+}
+
+function copyRoomCode() {
+  if (!currentRoom) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(currentRoom).catch(() => {});
+  if (lobbyStatus) lobbyStatus.textContent = `Oda kodu hazır: ${currentRoom}`;
+}
+
+function closeOnline() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    try { ws.send(JSON.stringify({ type: "leave" })); } catch {}
+    ws.close();
+  } else if (ws) {
+    try { ws.close(); } catch {}
+  }
+  ws = null;
+  wsId = null;
+  lobbyPlayers = [];
+  lobbyHostId = "";
+}
+
+function exitToMenu() {
+  running = false;
+  matchFinalized = true;
+  snakes = [];
+  localPlayers = [];
+  player = null;
+  focusPlayer = null;
+  effects = [];
+  closeOnline();
+  setGameHudVisible(false);
+  startPanel.classList.remove("is-hidden");
+  if (lobbyPanel) lobbyPanel.classList.add("is-hidden");
+  deathPanel.classList.add("is-hidden");
+  if (radarWrap) radarWrap.classList.add("is-hidden");
+  updateModeButtons();
+  renderProfile();
+}
+
+function handlePlayButton() {
+  if (gameMode.startsWith("room")) enterLobby();
+  else resetGame();
+}
 function resetGame() {
   foods = [];
   effects = [];
@@ -667,7 +777,7 @@ function resetGame() {
   localPlayers = [];
   matchFinalized = false;
   collectCursor = 0;
-  const p1Name = guestMode.checked ? cleanName(profileName.value, "Guest") : profile.name;
+  const p1Name = getCurrentPlayerName();
   if (!guestMode.checked) {
     profile.activeSkin = selectedSkin;
     saveProfile();
@@ -675,7 +785,8 @@ function resetGame() {
   player = makeSnake(p1Name, selectedSkin, { type: "human", control: "p1", x: WORLD / 2 - 70, y: WORLD / 2 });
   snakes.push(player);
   localPlayers.push(player);
-  for (let i = 0; i < botCountSetting; i++) {
+  const botsToSpawn = gameMode.startsWith("room") ? 0 : botCountSetting;
+  for (let i = 0; i < botsToSpawn; i++) {
     const skin = SKINS[Math.floor(random(0, SKINS.length))];
     snakes.push(makeSnake(BOT_NAMES[i % BOT_NAMES.length], skin.id, { type: "bot" }));
   }
@@ -699,16 +810,19 @@ function resetGame() {
   modeLabel.textContent = gameMode.startsWith("room") ? "Oda" : "Bot";
   startPanel.classList.add("is-hidden");
   deathPanel.classList.add("is-hidden");
+  if (lobbyPanel) lobbyPanel.classList.add("is-hidden");
   if (radarWrap) radarWrap.classList.remove("is-hidden");
   startLoop();
   if (gameMode.startsWith("room")) connectOnline();
 }
 
-function connectOnline() {
+function connectOnline(fromLobby = false) {
   if (!currentRoom) currentRoom = "LOBBY";
   roomCodeLabel.textContent = currentRoom;
+  const joinMessage = () => JSON.stringify({ type: "join", name: getCurrentPlayerName(), skin: selectedSkin, room: currentRoom, host: isRoomHost });
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "join", name: player.name, skin: selectedSkin, room: currentRoom }));
+    ws.send(joinMessage());
+    if (fromLobby) renderLobby();
     return;
   }
   if (ws && ws.readyState === WebSocket.CONNECTING) return;
@@ -717,7 +831,8 @@ function connectOnline() {
   if (serverStatus) serverStatus.textContent = "Bağlanıyor";
   ws.addEventListener("open", () => {
     if (serverStatus) serverStatus.textContent = "Online";
-    ws.send(JSON.stringify({ type: "join", name: player.name, skin: selectedSkin, room: currentRoom }));
+    ws.send(joinMessage());
+    if (fromLobby) renderLobby();
   });
   ws.addEventListener("message", (event) => handleOnlineMessage(JSON.parse(event.data)));
   ws.addEventListener("close", () => { if (serverStatus) serverStatus.textContent = "Koptu"; ws = null; });
@@ -726,7 +841,14 @@ function connectOnline() {
 
 function handleOnlineMessage(message) {
   if (message.type === "welcome") wsId = message.id;
-  if (message.type === "room") { currentRoom = message.room; roomCodeLabel.textContent = currentRoom; renderProfile(); }
+  if (message.type === "room") { currentRoom = message.room; roomCodeLabel.textContent = currentRoom; renderProfile(); renderLobby(); }
+  if (message.type === "lobby") {
+    lobbyPlayers = message.players || [];
+    lobbyHostId = message.hostId || "";
+    isRoomHost = Boolean(wsId && lobbyHostId === wsId);
+    renderLobby();
+  }
+  if (message.type === "start") beginRoomGame();
   if (message.type === "online") {
     onlineNames = message.names || [];
     renderFriends();
@@ -1018,7 +1140,7 @@ function startLoop() {
 
 function bindControls() {
   window.addEventListener("resize", resize);
-  window.addEventListener("keydown", (event) => { keys.add(event.key.length === 1 ? event.key.toLowerCase() : event.key); keys.add(event.code); if (event.code === "Space") { event.preventDefault(); if (player) player.boostHeld = true; } if (event.key === "Enter" && !running) resetGame(); });
+  window.addEventListener("keydown", (event) => { const typing = event.target && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName); keys.add(event.key.length === 1 ? event.key.toLowerCase() : event.key); keys.add(event.code); if (event.code === "Space" && !typing) { event.preventDefault(); if (player) player.boostHeld = true; } if (event.key === "Enter" && !running && !typing) handlePlayButton(); });
   window.addEventListener("keyup", (event) => { keys.delete(event.key.length === 1 ? event.key.toLowerCase() : event.key); keys.delete(event.code); if (event.code === "Space" && player) player.boostHeld = false; });
   canvas.addEventListener("pointermove", (event) => { pointer = { x: event.clientX, y: event.clientY, active: true }; });
   canvas.addEventListener("pointerdown", (event) => { pointer = { x: event.clientX, y: event.clientY, active: true }; if (player) player.boostHeld = true; });
@@ -1038,15 +1160,19 @@ function bindControls() {
   document.querySelectorAll(".mode-button").forEach((button) => button.addEventListener("click", () => { gameMode = button.dataset.mode; updateModeButtons(); }));
   botCountInput.addEventListener("input", () => { botCountSetting = Number(botCountInput.value); botCountValue.textContent = botCountSetting.toString(); });
   if (profileName) profileName.addEventListener("change", () => renderProfile());
-  guestMode.addEventListener("change", () => { renderProfile(); });
+  if (guestMode) guestMode.addEventListener("change", () => { renderProfile(); });
   if (loginButton) loginButton.addEventListener("click", () => loginAccount(false));
   if (registerButton) registerButton.addEventListener("click", () => loginAccount(true));
   if (logoutButton) logoutButton.addEventListener("click", logoutAccount);
   if (accountPassword) accountPassword.addEventListener("keydown", (event) => { if (event.key === "Enter") loginAccount(false); });
   if (addFriendButton) addFriendButton.addEventListener("click", addFriend);
   if (friendName) friendName.addEventListener("keydown", (event) => { if (event.key === "Enter") addFriend(); });
-  playButton.addEventListener("click", resetGame);
+  playButton.addEventListener("click", handlePlayButton);
   retryButton.addEventListener("click", resetGame);
+  if (leaveLobbyButton) leaveLobbyButton.addEventListener("click", exitToMenu);
+  if (copyRoomButton) copyRoomButton.addEventListener("click", copyRoomCode);
+  if (startRoomButton) startRoomButton.addEventListener("click", startRoomFromLobby);
+  if (exitGameButton) exitGameButton.addEventListener("click", exitToMenu);
 }
 
 resize();

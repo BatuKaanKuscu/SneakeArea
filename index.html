@@ -17,6 +17,7 @@
           <div class="hud-stat game-stat is-hidden"><span data-i18n="length">Uzunluk</span><strong id="length">12</strong></div>
           <div class="hud-stat game-stat is-hidden"><span>Boost</span><strong id="boost">100%</strong></div>
           <div class="hud-stat game-stat mode-stat is-hidden"><span>Mod</span><strong id="modeLabel">Bot</strong></div>
+          <button class="top-icon game-stat is-hidden" id="exitGameButton" aria-label="Oyundan çık" title="Oyundan çık"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 4v16h-7"/></svg></button>
           <ol id="leaders" class="leaderboard game-stat is-hidden" aria-label="Sıralama"></ol>
         </div>
         <div class="nav-actions">
@@ -36,7 +37,32 @@
       <section class="quick-panel is-hidden" id="quickPanel" aria-label="Hızlı panel">
         <button class="back-button" id="closeQuickPanel" aria-label="Kapat">← ANA SAYFAYA DÖN</button>
         <div class="quick-head"><h2 id="quickTitle">Profil</h2></div>
-        <div id="quickProfile" class="quick-profile"></div>
+                <div id="quickAuth" class="quick-auth is-hidden" aria-label="Profil girişi">
+          <div class="login-row">
+            <div class="avatar" id="profileAvatar">N</div>
+            <div>
+              <strong id="menuProfileName">NearBacon</strong>
+              <span id="menuProfileTitle">Admin</span>
+            </div>
+            <label class="guest-toggle"><input id="guestMode" type="checkbox" /><span>Misafir</span></label>
+          </div>
+          <div class="profile-status-line" id="authStatus">Bu cihazda hatırlanır</div>
+          <div class="auth-panel" aria-label="Hesap girişi">
+            <label class="name-field compact">
+              <span>Kullanıcı adı</span>
+              <input id="accountName" maxlength="14" placeholder="NearBacon" autocomplete="username" />
+            </label>
+            <label class="name-field compact">
+              <span>Şifre</span>
+              <input id="accountPassword" type="password" maxlength="32" placeholder="En az 3 karakter" autocomplete="current-password" />
+            </label>
+            <div class="auth-actions">
+              <button id="loginButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/></svg><span>GİRİŞ</span></button>
+              <button id="registerButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 21a8 8 0 0 1 10.5-7.6"/><path d="M19 14v6"/><path d="M16 17h6"/></svg><span>HESAP OLUŞTUR</span></button>
+              <button id="logoutButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 17l5-5-5-5"/><path d="M19 12H8"/><path d="M10 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5"/></svg><span>ÇIKIŞ</span></button>
+            </div>
+          </div>
+        </div><div id="quickProfile" class="quick-profile"></div>
         <div id="quickFriends" class="friend-service is-hidden"></div>
         <div id="quickShop" class="shop-grid is-hidden"></div>
         <div id="quickAchievements" class="list-panel is-hidden"></div>
@@ -57,39 +83,14 @@
         </div>
 
         <div class="start-card">
-          <header class="card-title">
-            <h2>KULLANICI PROFİLİN</h2>
-            <span id="authStatus">Bu cihazda hatırlanır</span>
+          <header class="card-title game-card-title">
+            <h2>OYUN MODU</h2>
+            <span>Botlarla oyna veya arkadaşlarınla oda kur</span>
           </header>
-
-          <div class="login-row">
-            <div class="avatar" id="profileAvatar">N</div>
-            <div>
-              <strong id="menuProfileName">NearBacon</strong>
-              <span id="menuProfileTitle">Admin</span>
-            </div>
-            <label class="guest-toggle"><input id="guestMode" type="checkbox" /><span>Misafir</span></label>
-          </div>
-
-          <div class="auth-panel" aria-label="Hesap girişi">
-            <label class="name-field compact">
-              <span>Kullanıcı adı</span>
-              <input id="accountName" maxlength="14" placeholder="NearBacon" autocomplete="username" />
-            </label>
-            <label class="name-field compact">
-              <span>Şifre</span>
-              <input id="accountPassword" type="password" maxlength="32" placeholder="En az 3 karakter" autocomplete="current-password" />
-            </label>
-            <div class="auth-actions">
-              <button id="loginButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/></svg><span>GİRİŞ</span></button>
-              <button id="registerButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 21a8 8 0 0 1 10.5-7.6"/><path d="M19 14v6"/><path d="M16 17h6"/></svg><span>HESAP OLUŞTUR</span></button>
-              <button id="logoutButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 17l5-5-5-5"/><path d="M19 12H8"/><path d="M10 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5"/></svg><span>ÇIKIŞ</span></button>
-            </div>
-          </div>
 
           <div class="mode-panel" aria-label="Oyun modu">
             <div class="segmented three">
-              <button class="mode-button is-active" data-mode="solo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a4 4 0 0 1 4 4v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3a4 4 0 0 1 4-4Z"/><path d="M12 8V4"/><path d="M9 4h6"/><path d="M8.5 13h.1"/><path d="M15.5 13h.1"/></svg><span>BOTLARLA</span></button>
+              <button class="mode-button is-active bot-mode-button" data-mode="solo"><svg class="dual-bot-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 10h6a2.5 2.5 0 0 1 2.5 2.5v3A2.5 2.5 0 0 1 10.5 18h-6A2.5 2.5 0 0 1 2 15.5v-3A2.5 2.5 0 0 1 4.5 10Z"/><path d="M13.5 7h6A2.5 2.5 0 0 1 22 9.5v3a2.5 2.5 0 0 1-2.5 2.5h-6a2.5 2.5 0 0 1-2.5-2.5v-3A2.5 2.5 0 0 1 13.5 7Z"/><path d="M8 10V7"/><path d="M16 7V4"/><path d="M6.5 14h.1"/><path d="M9.5 14h.1"/><path d="M15.5 11h.1"/><path d="M18.5 11h.1"/></svg><span>BOTLARLA</span></button>
               <button class="mode-button" data-mode="room-create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4V5Z"/><path d="M12 9v6"/><path d="M9 12h6"/></svg><span>ODA OLUŞTUR</span></button>
               <button class="mode-button" data-mode="room-join"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M14 4h5v16h-5"/></svg><span>KATIL</span></button>
             </div>
@@ -111,6 +112,24 @@
         </div>
       </section>
 
+
+      <section class="lobby-panel is-hidden" id="lobbyPanel" aria-label="Oda lobisi">
+        <button class="back-button" id="leaveLobbyButton" aria-label="Lobiden çık">← ANA SAYFAYA DÖN</button>
+        <div class="lobby-hero">
+          <span>ODA LOBİSİ</span>
+          <h2>Oyuncular bekleniyor</h2>
+          <p id="lobbyStatus">Oda kodunu arkadaşlarınla paylaş.</p>
+        </div>
+        <div class="lobby-code-box">
+          <span>ODA KODU</span>
+          <strong id="lobbyCode">-</strong>
+        </div>
+        <div class="lobby-actions">
+          <button class="secondary-action" id="copyRoomButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v11H8V8Z"/><path d="M5 16H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span>KODU KOPYALA</span></button>
+          <button class="primary-action" id="startRoomButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7-11-7Z"/></svg><span>OYUNU BAŞLAT</span></button>
+        </div>
+        <div class="lobby-players" id="lobbyPlayers"></div>
+      </section>
       <section class="death-panel is-hidden" id="deathPanel" aria-label="Oyun bitti">
         <h2>Yılan dağıldı</h2>
         <p id="deathText">Skorun 0.</p>
