@@ -74,7 +74,13 @@ const boostButton = document.getElementById("boostButton");
 const touchStick = document.getElementById("touchStick");
 
 const WORLD = 4300;
-const FOOD_COUNT = 900;
+const FOOD_COUNT = 620;
+const FOOD_CELL = 220;
+const FOOD_EXTRA_LIMIT = 180;
+const MAX_EFFECTS = 150;
+const HUD_INTERVAL = 90;
+const LEADERBOARD_INTERVAL = 260;
+const RADAR_INTERVAL = 140;
 const SEGMENT_GAP = 10;
 const BASE_SPEED = 2.45;
 const BOOST_SPEED = 4.35;
@@ -140,6 +146,7 @@ let width = 0;
 let height = 0;
 let scale = 1;
 let foods = [];
+let foodBuckets = new Map();
 let effects = [];
 let snakes = [];
 let player = null;
@@ -158,6 +165,12 @@ let keys = new Set();
 let camera = { x: WORLD / 2, y: WORLD / 2 };
 let viewBounds = { left: 0, right: 0, top: 0, bottom: 0 };
 let collectCursor = 0;
+let vignetteGradient = null;
+let lastHudUpdate = 0;
+let lastLeaderboardUpdate = 0;
+let lastLeaderboardHtml = "";
+let lastRadarDraw = 0;
+let lastIdleRender = 0;
 let profile = loadLocalProfile();
 let authToken = localStorage.getItem(SESSION_KEY) || localStorage.getItem(LEGACY_SESSION_KEY) || "";
 let onlineNames = [];
@@ -593,24 +606,93 @@ function updateModeButtons() {
 }
 
 function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
   width = window.innerWidth;
   height = window.innerHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, width < 780 ? 1 : 1.1);
   canvas.width = Math.floor(width * dpr);
   canvas.height = Math.floor(height * dpr);
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
   scale = width < 720 ? 0.82 : 1;
+  vignetteGradient = null;
+}
+
+function targetFoodCount() {
+  if (width < 720) return 420;
+  if (width < 1100) return 520;
+  return FOOD_COUNT;
+}
+
+function maxFoodCount() {
+  return targetFoodCount() + FOOD_EXTRA_LIMIT;
+}
+
+function foodCell(value) {
+  return Math.floor(value / FOOD_CELL);
+}
+
+function foodBucketKey(cx, cy) {
+  return `${cx}:${cy}`;
+}
+
+function addFoodToBucket(food) {
+  const cx = foodCell(food.x);
+  const cy = foodCell(food.y);
+  food.bucket = foodBucketKey(cx, cy);
+  let bucket = foodBuckets.get(food.bucket);
+  if (!bucket) {
+    bucket = [];
+    foodBuckets.set(food.bucket, bucket);
+  }
+  bucket.push(food);
+}
+
+function removeFoodFromBucket(food) {
+  const bucket = foodBuckets.get(food.bucket);
+  if (!bucket) return;
+  const index = bucket.indexOf(food);
+  if (index >= 0) {
+    const last = bucket.pop();
+    if (index < bucket.length) bucket[index] = last;
+  }
+  if (!bucket.length) foodBuckets.delete(food.bucket);
+}
+
+function addFood(food) {
+  food.index = foods.length;
+  foods.push(food);
+  addFoodToBucket(food);
+}
+
+function removeFood(food) {
+  if (!food) return;
+  removeFoodFromBucket(food);
+  let index = food.index;
+  if (!Number.isInteger(index) || foods[index] !== food) index = foods.indexOf(food);
+  if (index < 0) return;
+  const last = foods.pop();
+  if (last && last !== food) {
+    foods[index] = last;
+    last.index = index;
+  }
+}
+
+function clearFoods() {
+  foods = [];
+  foodBuckets.clear();
 }
 
 function spawnFood(count, burstX, burstY, value = 1) {
-  for (let i = 0; i < count; i++) {
-    const aroundBurst = Number.isFinite(burstX) && Math.random() < 0.85;
+  const burst = Number.isFinite(burstX) && Number.isFinite(burstY);
+  const cap = burst ? maxFoodCount() : targetFoodCount();
+  for (let i = 0; i < count && foods.length < cap; i++) {
+    const aroundBurst = burst && Math.random() < 0.85;
     const x = aroundBurst ? burstX + random(-90, 90) : random(100, WORLD - 100);
     const y = aroundBurst ? burstY + random(-90, 90) : random(100, WORLD - 100);
     const skin = SKINS[Math.floor(random(0, SKINS.length))];
-    foods.push({ x: clamp(x, 36, WORLD - 36), y: clamp(y, 36, WORLD - 36), r: random(3.2, 6.6) + value * 0.35, value, color: skin.colors[Math.floor(random(0, 2))], pulse: random(0, Math.PI * 2) });
+    addFood({ x: clamp(x, 36, WORLD - 36), y: clamp(y, 36, WORLD - 36), r: random(3.2, 6.6) + value * 0.35, value, color: skin.colors[Math.floor(random(0, 2))], pulse: random(0, Math.PI * 2), index: 0, bucket: "" });
   }
 }
 
@@ -628,7 +710,7 @@ function spawnEffectBurst(x, y, color = "#b8ff5d", count = 9) {
       color,
     });
   }
-  if (effects.length > 260) effects.splice(0, effects.length - 260);
+  if (effects.length > MAX_EFFECTS) effects.splice(0, effects.length - MAX_EFFECTS);
 }
 
 function updateEffects(dt) {
@@ -669,9 +751,39 @@ function makeSnake(name, skinId, options = {}) {
   const segments = [];
   for (let i = 0; i < length; i++) segments.push({ x: x - Math.cos(angle) * i * SEGMENT_GAP, y: y - Math.sin(angle) * i * SEGMENT_GAP });
   const skin = getSkin(skinId);
-  return { id: options.id || `${Date.now()}-${Math.random()}`, name, skin: skin.id, colors: skin.colors, type, control: options.control || "bot", isPlayer: isHuman, alive: true, x, y, angle, turn: 0.09, segments, targetLength: length, score: Math.max(0, (length - 12) * 14), boost: 100, boostHeld: false, thinkAt: 0, aiAngle: angle, radius: isHuman ? 13 : 12 };
+  const snake = { id: options.id || `${Date.now()}-${Math.random()}`, name, skin: skin.id, colors: skin.colors, type, control: options.control || "bot", isPlayer: isHuman, alive: true, x, y, angle, turn: 0.09, segments, targetLength: length, score: Math.max(0, (length - 12) * 14), boost: 100, boostHeld: false, thinkAt: 0, aiAngle: angle, radius: isHuman ? 13 : 12, bounds: null, boundsRefreshAt: 0 };
+  refreshSnakeBounds(snake);
+  return snake;
 }
 
+
+function refreshSnakeBounds(snake) {
+  let left = snake.x;
+  let right = snake.x;
+  let top = snake.y;
+  let bottom = snake.y;
+  for (const segment of snake.segments) {
+    if (segment.x < left) left = segment.x;
+    if (segment.x > right) right = segment.x;
+    if (segment.y < top) top = segment.y;
+    if (segment.y > bottom) bottom = segment.y;
+  }
+  const pad = snake.radius + 12;
+  snake.bounds = { left: left - pad, right: right + pad, top: top - pad, bottom: bottom + pad };
+}
+
+function expandSnakeBounds(snake, x, y) {
+  if (!snake.bounds) { refreshSnakeBounds(snake); return; }
+  const pad = snake.radius + 12;
+  if (x - pad < snake.bounds.left) snake.bounds.left = x - pad;
+  if (x + pad > snake.bounds.right) snake.bounds.right = x + pad;
+  if (y - pad < snake.bounds.top) snake.bounds.top = y - pad;
+  if (y + pad > snake.bounds.bottom) snake.bounds.bottom = y + pad;
+}
+
+function boundsOutsideView(bounds, padding) {
+  return bounds && (bounds.right < viewBounds.left - padding || bounds.left > viewBounds.right + padding || bounds.bottom < viewBounds.top - padding || bounds.top > viewBounds.bottom + padding);
+}
 function renderLobby() {
   if (!lobbyPanel) return;
   if (lobbyCode) lobbyCode.textContent = currentRoom || "-";
@@ -756,6 +868,7 @@ function exitToMenu() {
   player = null;
   focusPlayer = null;
   effects = [];
+  clearFoods();
   closeOnline();
   setGameHudVisible(false);
   startPanel.classList.remove("is-hidden");
@@ -771,7 +884,7 @@ function handlePlayButton() {
   else resetGame();
 }
 function resetGame() {
-  foods = [];
+  clearFoods();
   effects = [];
   snakes = [];
   localPlayers = [];
@@ -800,7 +913,7 @@ function resetGame() {
     currentRoom = "";
   }
   roomCodeLabel.textContent = currentRoom || "-";
-  spawnFood(FOOD_COUNT);
+  spawnFood(targetFoodCount());
   focusPlayer = player;
   camera.x = focusPlayer.x;
   camera.y = focusPlayer.y;
@@ -944,36 +1057,53 @@ function moveSnake(snake, dt, now) {
   if (canBoost) {
     snake.boost = Math.max(0, snake.boost - 0.42 * dt);
     snake.targetLength = Math.max(12, snake.targetLength - 0.018 * dt);
-    if (Math.random() < 0.18) spawnFood(1, snake.x - Math.cos(snake.angle) * 18, snake.y - Math.sin(snake.angle) * 18, 0.45);
+    if (Math.random() < 0.12) spawnFood(1, snake.x - Math.cos(snake.angle) * 18, snake.y - Math.sin(snake.angle) * 18, 0.45);
   } else snake.boost = Math.min(100, snake.boost + 0.09 * dt);
   snake.x += Math.cos(snake.angle) * speed;
   snake.y += Math.sin(snake.angle) * speed;
-  snake.segments.unshift({ x: snake.x, y: snake.y });
-  while (snake.segments.length > Math.max(8, Math.floor(snake.targetLength))) snake.segments.pop();
+  const maxSegments = Math.max(8, Math.floor(snake.targetLength));
+  while (snake.segments.length > maxSegments) snake.segments.pop();
+  const segment = snake.segments.length >= maxSegments ? snake.segments.pop() : { x: snake.x, y: snake.y };
+  segment.x = snake.x;
+  segment.y = snake.y;
+  snake.segments.unshift(segment);
+  expandSnakeBounds(snake, snake.x, snake.y);
+  if (now > snake.boundsRefreshAt) {
+    refreshSnakeBounds(snake);
+    snake.boundsRefreshAt = now + 280;
+  }
 }
 
 function collectFood(snake) {
-  if (snake.type === "remote") return;
-  const scanAll = snake.isPlayer;
-  const checks = scanAll ? foods.length : Math.min(110, foods.length);
-  for (let step = 0; step < checks; step++) {
-    const i = scanAll ? foods.length - 1 - step : (collectCursor + step * 5) % foods.length;
-    const food = foods[i];
-    if (!food) continue;
-    const pickup = snake.radius + food.r + 3;
-    const dx = food.x - snake.x;
-    const dy = food.y - snake.y;
-    if (dx * dx + dy * dy < pickup * pickup) {
-      foods.splice(i, 1);
-      snake.targetLength += 0.85 + food.value * 0.55;
-      snake.score += Math.round(10 + food.value * 10);
-      snake.boost = Math.min(100, snake.boost + 2.2);
-      spawnEffectBurst(food.x, food.y, food.color, snake.isPlayer ? 10 : 4);
-      if (!scanAll) break;
+  if (snake.type === "remote" || !foods.length) return;
+  let collected = 0;
+  const cx = foodCell(snake.x);
+  const cy = foodCell(snake.y);
+  collectLoop:
+  for (let gx = cx - 1; gx <= cx + 1; gx++) {
+    for (let gy = cy - 1; gy <= cy + 1; gy++) {
+      const bucket = foodBuckets.get(foodBucketKey(gx, gy));
+      if (!bucket) continue;
+      for (let i = bucket.length - 1; i >= 0; i--) {
+        const food = bucket[i];
+        const pickup = snake.radius + food.r + 3;
+        const dx = food.x - snake.x;
+        const dy = food.y - snake.y;
+        if (dx * dx + dy * dy < pickup * pickup) {
+          removeFood(food);
+          snake.targetLength += 0.85 + food.value * 0.55;
+          snake.score += Math.round(10 + food.value * 10);
+          snake.boost = Math.min(100, snake.boost + 2.2);
+          spawnEffectBurst(food.x, food.y, food.color, snake.isPlayer ? 7 : 2);
+          collected++;
+          if (!snake.isPlayer) break collectLoop;
+        }
+      }
     }
   }
   collectCursor = (collectCursor + 17) % Math.max(1, foods.length);
-  if (foods.length < FOOD_COUNT) spawnFood(Math.min(5, FOOD_COUNT - foods.length));
+  const target = targetFoodCount();
+  if (foods.length < target) spawnFood(Math.min(10, target - foods.length));
 }
 
 function killSnake(snake, killer) {
@@ -1022,10 +1152,14 @@ function resolveCollisions() {
       const headDy = snake.y - other.y;
       if (headDx * headDx + headDy * headDy < headLimit * headLimit) {
         if (snake.targetLength >= other.targetLength) killSnake(other, snake); else killSnake(snake, other);
+        continue;
       }
-      const stride = snake.isPlayer || other.isPlayer ? 2 : 4;
+      const detailed = snake.isPlayer || other.isPlayer || snake.type === "human" || other.type === "human";
+      if (!detailed) continue;
       const hitLimit = snake.radius + 3;
+      if (other.bounds && (snake.x < other.bounds.left - hitLimit || snake.x > other.bounds.right + hitLimit || snake.y < other.bounds.top - hitLimit || snake.y > other.bounds.bottom + hitLimit)) continue;
       const hitLimitSq = hitLimit * hitLimit;
+      const stride = snake.isPlayer || other.isPlayer ? 2 : 4;
       for (let i = 7; i < other.segments.length; i += stride) {
         const seg = other.segments[i];
         const dx = snake.x - seg.x;
@@ -1049,11 +1183,17 @@ function update(dt, now) {
   if (focusPlayer) {
     camera.x += (focusPlayer.x - camera.x) * 0.08;
     camera.y += (focusPlayer.y - camera.y) * 0.08;
-    scoreEl.textContent = Math.round(focusPlayer.score).toLocaleString("tr-TR");
-    lengthEl.textContent = Math.floor(focusPlayer.targetLength).toString();
-    boostEl.textContent = `${Math.round(focusPlayer.boost)}%`;
+    if (now - lastHudUpdate > HUD_INTERVAL) {
+      scoreEl.textContent = Math.round(focusPlayer.score).toLocaleString("tr-TR");
+      lengthEl.textContent = Math.floor(focusPlayer.targetLength).toString();
+      boostEl.textContent = `${Math.round(focusPlayer.boost)}%`;
+      lastHudUpdate = now;
+    }
   }
-  updateLeaderboard();
+  if (now - lastLeaderboardUpdate > LEADERBOARD_INTERVAL) {
+    updateLeaderboard();
+    lastLeaderboardUpdate = now;
+  }
 }
 
 function drawGrid() {
@@ -1073,29 +1213,52 @@ function drawGrid() {
 
 function drawFood(now) {
   const padding = 90;
-  for (const food of foods) {
-    if (food.x < viewBounds.left - padding || food.x > viewBounds.right + padding || food.y < viewBounds.top - padding || food.y > viewBounds.bottom + padding) continue;
-    const pulse = Math.sin(now * 0.006 + food.pulse) * 0.22 + 1;
-    ctx.save(); ctx.shadowBlur = 12; ctx.shadowColor = food.color; ctx.beginPath(); ctx.fillStyle = food.color; ctx.arc(food.x, food.y, food.r * pulse, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  const minX = foodCell(viewBounds.left - padding);
+  const maxX = foodCell(viewBounds.right + padding);
+  const minY = foodCell(viewBounds.top - padding);
+  const maxY = foodCell(viewBounds.bottom + padding);
+  ctx.save();
+  ctx.globalAlpha = 0.96;
+  for (let gx = minX; gx <= maxX; gx++) {
+    for (let gy = minY; gy <= maxY; gy++) {
+      const bucket = foodBuckets.get(foodBucketKey(gx, gy));
+      if (!bucket) continue;
+      for (const food of bucket) {
+        const pulse = Math.sin(now * 0.005 + food.pulse) * 0.16 + 1;
+        ctx.beginPath();
+        ctx.fillStyle = food.color;
+        ctx.arc(food.x, food.y, food.r * pulse, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
+  ctx.restore();
 }
 
 function drawSnake(snake) {
   if (!snake.alive) return;
-  const [primary, secondary] = snake.colors;
   const padding = 190;
+  if (boundsOutsideView(snake.bounds, padding)) return;
+  const [primary, secondary] = snake.colors;
   const headVisible = snake.x > viewBounds.left - padding && snake.x < viewBounds.right + padding && snake.y > viewBounds.top - padding && snake.y < viewBounds.bottom + padding;
   let drewAny = false;
-  for (let i = snake.segments.length - 1; i >= 0; i--) {
+  const segmentCount = snake.segments.length;
+  const drawStep = !snake.isPlayer && segmentCount > 80 ? 2 : 1;
+  for (let i = segmentCount - 1; i >= 0; i -= drawStep) {
     const seg = snake.segments[i];
     if (seg.x < viewBounds.left - padding || seg.x > viewBounds.right + padding || seg.y < viewBounds.top - padding || seg.y > viewBounds.bottom + padding) continue;
     drewAny = true;
-    const t = i / Math.max(1, snake.segments.length - 1);
+    const t = i / Math.max(1, segmentCount - 1);
     const radius = Math.max(5, snake.radius * (1 - t * 0.42));
-    ctx.beginPath(); ctx.fillStyle = i % 2 ? secondary : primary; ctx.globalAlpha = snake.type === "remote" ? 0.78 : 1 - t * 0.12; ctx.shadowBlur = snake.isPlayer && i < 8 ? 10 : 0; ctx.shadowColor = primary; ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.fillStyle = i % 2 ? secondary : primary;
+    ctx.globalAlpha = snake.type === "remote" ? 0.78 : 1 - t * 0.12;
+    ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2);
+    ctx.fill();
   }
-  if (!drewAny || !headVisible) { ctx.globalAlpha = 1; ctx.shadowBlur = 0; return; }
-  ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.fillStyle = "#06110f";
+  if (!drewAny || !headVisible) { ctx.globalAlpha = 1; return; }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#06110f";
   const eyeA = snake.angle + 0.55; const eyeB = snake.angle - 0.55;
   ctx.beginPath(); ctx.arc(snake.x + Math.cos(eyeA) * 8, snake.y + Math.sin(eyeA) * 8, 2.6, 0, Math.PI * 2); ctx.arc(snake.x + Math.cos(eyeB) * 8, snake.y + Math.sin(eyeB) * 8, 2.6, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = snake.type === "remote" ? "#d8f3ff" : snake.control === "p2" ? "#fff06a" : "rgba(255,255,255,0.88)";
@@ -1104,16 +1267,37 @@ function drawSnake(snake) {
 
 function render(now) {
   ctx.clearRect(0, 0, width, height);
-  viewBounds = { left: camera.x - width / (2 * scale), right: camera.x + width / (2 * scale), top: camera.y - height / (2 * scale), bottom: camera.y + height / (2 * scale) };
-  ctx.save(); ctx.translate(width / 2, height / 2); ctx.scale(scale, scale); ctx.translate(-camera.x, -camera.y); drawGrid(); drawFood(now); drawEffects(); for (const snake of snakes) drawSnake(snake); ctx.restore(); drawVignette(); drawRadar();
+  viewBounds.left = camera.x - width / (2 * scale);
+  viewBounds.right = camera.x + width / (2 * scale);
+  viewBounds.top = camera.y - height / (2 * scale);
+  viewBounds.bottom = camera.y + height / (2 * scale);
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.scale(scale, scale);
+  ctx.translate(-camera.x, -camera.y);
+  drawGrid();
+  drawFood(now);
+  drawEffects();
+  for (const snake of snakes) drawSnake(snake);
+  ctx.restore();
+  drawVignette();
+  drawRadar(now);
 }
 
 function drawVignette() {
-  const gradient = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.28, width / 2, height / 2, Math.max(width, height) * 0.72);
-  gradient.addColorStop(0, "rgba(7,17,15,0)"); gradient.addColorStop(1, "rgba(7,17,15,0.5)"); ctx.fillStyle = gradient; ctx.fillRect(0, 0, width, height);
+  if (!vignetteGradient) {
+    vignetteGradient = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.28, width / 2, height / 2, Math.max(width, height) * 0.72);
+    vignetteGradient.addColorStop(0, "rgba(7,17,15,0)");
+    vignetteGradient.addColorStop(1, "rgba(7,17,15,0.5)");
+  }
+  ctx.fillStyle = vignetteGradient;
+  ctx.fillRect(0, 0, width, height);
 }
 
-function drawRadar() {
+function drawRadar(now) {
+  if (!radarWrap || radarWrap.classList.contains("is-hidden")) return;
+  if (now - lastRadarDraw < RADAR_INTERVAL) return;
+  lastRadarDraw = now;
   const rw = radar.width; const rh = radar.height;
   if (!player) { rctx.clearRect(0, 0, rw, rh); return; }
   rctx.clearRect(0, 0, rw, rh); rctx.fillStyle = "rgba(255,255,255,0.04)"; rctx.fillRect(0, 0, rw, rh); rctx.strokeStyle = "rgba(196,255,231,0.16)"; rctx.strokeRect(7, 7, rw - 14, rh - 14);
@@ -1121,14 +1305,23 @@ function drawRadar() {
 }
 
 function updateLeaderboard() {
-  const leaders = snakes.filter((snake) => snake.alive).sort((a, b) => b.score + b.targetLength * 8 - (a.score + a.targetLength * 8)).slice(0, 7);
   if (!leadersEl) return;
-  leadersEl.innerHTML = leaders.map((snake, index) => `<li><span>${index + 1}</span><b>${snake.name}</b><strong>${Math.round(snake.score + snake.targetLength * 8)}</strong></li>`).join("");
+  const leaders = snakes.filter((snake) => snake.alive).sort((a, b) => b.score + b.targetLength * 8 - (a.score + a.targetLength * 8)).slice(0, 7);
+  const html = leaders.map((snake, index) => `<li><span>${index + 1}</span><b>${snake.name}</b><strong>${Math.round(snake.score + snake.targetLength * 8)}</strong></li>`).join("");
+  if (html !== lastLeaderboardHtml) {
+    leadersEl.innerHTML = html;
+    lastLeaderboardHtml = html;
+  }
 }
 
 function frame(now) {
+  if (!running && now - lastIdleRender < 120) { requestAnimationFrame(frame); return; }
+  if (!running) lastIdleRender = now;
   const dt = Math.min(2.2, (now - lastTime) / 16.67);
-  lastTime = now; update(dt, now); render(now); requestAnimationFrame(frame);
+  lastTime = now;
+  update(dt, now);
+  render(now);
+  requestAnimationFrame(frame);
 }
 
 function startLoop() {
@@ -1142,13 +1335,13 @@ function bindControls() {
   window.addEventListener("resize", resize);
   window.addEventListener("keydown", (event) => { const typing = event.target && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName); keys.add(event.key.length === 1 ? event.key.toLowerCase() : event.key); keys.add(event.code); if (event.code === "Space" && !typing) { event.preventDefault(); if (player) player.boostHeld = true; } if (event.key === "Enter" && !running && !typing) handlePlayButton(); });
   window.addEventListener("keyup", (event) => { keys.delete(event.key.length === 1 ? event.key.toLowerCase() : event.key); keys.delete(event.code); if (event.code === "Space" && player) player.boostHeld = false; });
-  canvas.addEventListener("pointermove", (event) => { pointer = { x: event.clientX, y: event.clientY, active: true }; });
-  canvas.addEventListener("pointerdown", (event) => { pointer = { x: event.clientX, y: event.clientY, active: true }; if (player) player.boostHeld = true; });
+  canvas.addEventListener("pointermove", (event) => { pointer.x = event.clientX; pointer.y = event.clientY; pointer.active = true; });
+  canvas.addEventListener("pointerdown", (event) => { pointer.x = event.clientX; pointer.y = event.clientY; pointer.active = true; if (player) player.boostHeld = true; });
   window.addEventListener("pointerup", () => { if (player) player.boostHeld = false; });
   boostButton.addEventListener("pointerdown", (event) => { event.preventDefault(); if (player) player.boostHeld = true; });
   boostButton.addEventListener("pointerup", () => { if (player) player.boostHeld = false; });
   boostButton.addEventListener("pointerleave", () => { if (player) player.boostHeld = false; });
-  touchStick.addEventListener("pointermove", (event) => { pointer = { x: event.clientX, y: event.clientY, active: true }; });
+  touchStick.addEventListener("pointermove", (event) => { pointer.x = event.clientX; pointer.y = event.clientY; pointer.active = true; });
   profileButton.addEventListener("click", () => showQuickPanel("profile"));
   if (friendsButton) friendsButton.addEventListener("click", () => showQuickPanel("friends"));
   shopButton.addEventListener("click", () => showQuickPanel("shop"));
