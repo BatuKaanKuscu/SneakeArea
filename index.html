@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="tr">
   <head>
     <meta charset="utf-8" />
@@ -20,13 +20,13 @@
           <ol id="leaders" class="leaderboard game-stat is-hidden" aria-label="Sıralama"></ol>
         </div>
         <div class="nav-actions">
-          <button class="top-icon" id="friendsButton" aria-label="Arkadaşlar" title="Arkadaşlar">A</button>
-          <button class="top-icon" id="shopButton" aria-label="Dükkan" title="Dükkan">D</button>
-          <button class="top-icon" id="questsButton" aria-label="Görevler" title="Görevler">G</button>
-          <button class="top-icon" id="translateButton" aria-label="Dil" title="Dil">TR</button>
-          <button class="top-icon" id="paletteButton" aria-label="Renk kataloğu" title="Renk kataloğu">R</button>
+          <button class="top-icon" id="friendsButton" aria-label="Arkadaşlar" title="Arkadaşlar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M16 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0"/><path d="M13.5 18.5a4.5 4.5 0 0 1 8 1.5"/></svg></button>
+          <button class="top-icon" id="shopButton" aria-label="Dükkan" title="Dükkan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8a3 3 0 0 1 6 0"/><path d="M8 12h8"/></svg></button>
+          <button class="top-icon" id="questsButton" aria-label="Görevler" title="Görevler"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8l1 3H7l1-3Z"/><path d="M6 6h12v14H6V6Z"/><path d="M9 13l2 2 4-5"/></svg></button>
+          <button class="top-icon" id="translateButton" aria-label="Dil" title="Dil"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h9"/><path d="M8.5 3v2"/><path d="M6 5c.7 3 2.4 5.2 6 7"/><path d="M12 5c-.8 3-2.7 5.5-7 8"/><path d="M14 20l4-10 4 10"/><path d="M16 16h4"/></svg><span class="lang-code" id="languageCode">TR</span></button>
+          <button class="top-icon" id="paletteButton" aria-label="Renk kataloğu" title="Renk kataloğu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18h1.5a2 2 0 0 0 1.1-3.7 1.5 1.5 0 0 1 .8-2.8H17a4 4 0 0 0 0-8.5A8.9 8.9 0 0 0 12 3Z"/><path d="M7.5 11h.1"/><path d="M9.5 7.5h.1"/><path d="M14 7.5h.1"/><path d="M6.5 15h.1"/></svg></button>
           <button class="profile-pill" id="profileButton" aria-label="Profil" title="Profil">
-            <span class="profile-mark">P</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg><span class="profile-mark sr-only">P</span>
             <strong id="topUserName" class="sr-only">NearBacon</strong>
             <span id="topUserTitle" class="sr-only">Admin</span>
           </button>
@@ -81,17 +81,17 @@
               <input id="accountPassword" type="password" maxlength="32" placeholder="En az 3 karakter" autocomplete="current-password" />
             </label>
             <div class="auth-actions">
-              <button id="loginButton" type="button">GİRİŞ</button>
-              <button id="registerButton" type="button">HESAP OLUŞTUR</button>
-              <button id="logoutButton" type="button">ÇIKIŞ</button>
+              <button id="loginButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/></svg><span>GİRİŞ</span></button>
+              <button id="registerButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 21a8 8 0 0 1 10.5-7.6"/><path d="M19 14v6"/><path d="M16 17h6"/></svg><span>HESAP OLUŞTUR</span></button>
+              <button id="logoutButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 17l5-5-5-5"/><path d="M19 12H8"/><path d="M10 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5"/></svg><span>ÇIKIŞ</span></button>
             </div>
           </div>
 
           <div class="mode-panel" aria-label="Oyun modu">
             <div class="segmented three">
-              <button class="mode-button is-active" data-mode="solo">BOTLARLA</button>
-              <button class="mode-button" data-mode="room-create">ODA OLUŞTUR</button>
-              <button class="mode-button" data-mode="room-join">KATIL</button>
+              <button class="mode-button is-active" data-mode="solo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a4 4 0 0 1 4 4v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3a4 4 0 0 1 4-4Z"/><path d="M12 8V4"/><path d="M9 4h6"/><path d="M8.5 13h.1"/><path d="M15.5 13h.1"/></svg><span>BOTLARLA</span></button>
+              <button class="mode-button" data-mode="room-create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4V5Z"/><path d="M12 9v6"/><path d="M9 12h6"/></svg><span>ODA OLUŞTUR</span></button>
+              <button class="mode-button" data-mode="room-join"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M14 4h5v16h-5"/></svg><span>KATIL</span></button>
             </div>
             <div class="room-panel is-hidden" id="roomPanel">
               <label class="name-field">
@@ -107,14 +107,14 @@
             </label>
           </div>
 
-          <button class="primary-action" id="playButton">OYUNA GİR</button>
+          <button class="primary-action" id="playButton"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7-11-7Z"/></svg><span id="playButtonText">OYUNA GİR</span></button>
         </div>
       </section>
 
       <section class="death-panel is-hidden" id="deathPanel" aria-label="Oyun bitti">
         <h2>Yılan dağıldı</h2>
         <p id="deathText">Skorun 0.</p>
-        <button class="primary-action" id="retryButton">TEKRAR DENE</button>
+        <button class="primary-action" id="retryButton"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v6h-6"/></svg><span>TEKRAR DENE</span></button>
       </section>
 
       <div class="touch-stick" id="touchStick" aria-hidden="true"><span></span></div>
@@ -123,4 +123,3 @@
     <script src="game.js"></script>
   </body>
 </html>
-

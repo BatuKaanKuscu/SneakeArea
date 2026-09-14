@@ -1,4 +1,4 @@
-﻿const canvas = document.getElementById("game");
+const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const radar = document.getElementById("radar");
 const rctx = radar.getContext("2d");
@@ -18,6 +18,7 @@ const shopButton = document.getElementById("shopButton");
 const achievementsButton = document.getElementById("achievementsButton");
 const questsButton = document.getElementById("questsButton");
 const translateButton = document.getElementById("translateButton");
+const languageCode = document.getElementById("languageCode");
 const paletteButton = document.getElementById("paletteButton");
 const quickPanel = document.getElementById("quickPanel");
 const quickTitle = document.getElementById("quickTitle");
@@ -33,6 +34,7 @@ const startPanel = document.getElementById("startPanel");
 const deathPanel = document.getElementById("deathPanel");
 const deathText = document.getElementById("deathText");
 const playButton = document.getElementById("playButton");
+const playButtonText = document.getElementById("playButtonText");
 const retryButton = document.getElementById("retryButton");
 const profileName = document.getElementById("profileName");
 const guestMode = document.getElementById("guestMode");
@@ -381,7 +383,7 @@ function renderProfile() {
   selectedSkin = profile.ownedSkins.includes(profile.activeSkin) ? profile.activeSkin : "cyan";
   document.body.classList.remove(...PALETTES.map((palette) => `palette-${palette.id}`));
   document.body.classList.add(`palette-${profile.theme}`);
-  if (translateButton) translateButton.textContent = profile.language === "tr" ? "TR" : "EN";
+  if (languageCode) languageCode.textContent = profile.language === "tr" ? "TR" : "EN";
   if (accountName && !accountName.value) accountName.value = shownName;
   setAuthStatus(guestMode.checked ? "Misafir modundasın" : authToken ? `Oturum açık: ${shownName}` : "Oturum açmadan da oynayabilirsin");
 
@@ -536,7 +538,7 @@ function toggleLanguage() {
   document.querySelector('[data-i18n="score"]').textContent = en ? "Score" : "Skor";
   document.querySelector('[data-i18n="length"]').textContent = en ? "Length" : "Uzunluk";
   document.getElementById("startHint").textContent = en ? "Play with bots, create a room, or join friends with a room code." : "Botlarla oyna, oda kur veya oda koduyla arkadaşlarınla gir.";
-  playButton.textContent = en ? "Enter Arena" : "Arenaya Gir";
+  if (playButtonText) playButtonText.textContent = en ? "ENTER ARENA" : "OYUNA GİR";
   saveProfile();
   renderProfile();
 }
@@ -1056,22 +1058,3 @@ loadServerProfile();
 setGameHudVisible(false);
 startPanel.classList.remove("is-hidden");
 if (radarWrap) radarWrap.classList.add("is-hidden");
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

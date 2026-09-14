@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   color-scheme: dark;
   --purple: #07110f;
   --purple-2: #0f766e;
@@ -1203,4 +1203,148 @@ body.palette-forest .game-shell {
     grid-column: 1 / -1;
     justify-content: center;
   }
+}
+
+/* Final landing alignment and icon-only navbar */
+.start-panel {
+  grid-template-columns: minmax(0, 560px);
+  grid-template-rows: auto auto;
+  place-content: center;
+  place-items: center;
+  gap: 22px;
+  padding: 86px 20px 36px;
+  overflow-y: auto;
+}
+
+.landing-copy,
+.start-card {
+  justify-self: center;
+  width: min(520px, 100%);
+}
+
+.landing-copy {
+  display: grid;
+  justify-items: center;
+  max-width: 560px;
+  text-align: center;
+}
+
+.logo-tile {
+  margin-inline: auto;
+  margin-bottom: 16px;
+}
+
+.landing-copy h1 {
+  max-width: none;
+  font-size: clamp(3.6rem, 7vw, 6rem);
+  line-height: 0.95;
+  text-align: center;
+}
+
+.landing-copy p {
+  max-width: 42ch;
+  margin: 14px auto 0;
+  text-align: center;
+}
+
+.start-card {
+  justify-self: center;
+  align-self: center;
+  width: min(430px, 100%);
+}
+
+.top-icon,
+.profile-pill {
+  display: grid;
+  place-items: center;
+  position: relative;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+}
+
+.top-icon svg,
+.profile-pill svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lang-code {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  min-width: 15px;
+  color: #07110f;
+  font-size: 0.46rem;
+  font-weight: 1000;
+  line-height: 1;
+  text-align: center;
+}
+
+.nav-actions {
+  gap: 7px;
+}
+
+@media (max-width: 620px) {
+  .start-panel {
+    place-content: start center;
+    gap: 16px;
+    padding: 74px 14px 22px;
+  }
+
+  .landing-copy h1 {
+    font-size: clamp(3rem, 15vw, 4.4rem);
+  }
+
+  .landing-copy p {
+    font-size: 0.96rem;
+  }
+}
+
+/* Icon treatment for landing actions */
+.auth-actions button,
+.mode-button,
+.primary-action {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  justify-items: center;
+  gap: 8px;
+}
+
+.auth-actions button svg,
+.mode-button svg,
+.primary-action svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: 0 0 auto;
+}
+
+.auth-actions button span,
+.mode-button span,
+.primary-action span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.primary-action {
+  grid-template-columns: auto auto;
+}
+
+.mode-button {
+  min-height: 46px;
+  padding-inline: 10px;
 }
