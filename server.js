@@ -234,19 +234,26 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/api/users/search") {
     const requester = sessionName(url.searchParams.get("token"));
     const q = sanitizeName(url.searchParams.get("q"), "").toLowerCase();
-    if (!requester || !q) {
+    if (!requester || q.length < 2) {
       sendJson(res, 200, { users: [] });
       return;
     }
+    const requesterProfile = getProfile(requester);
     const online = new Set([...clients.values()].map((client) => client.name).filter(Boolean));
+    const relationFor = (name) => {
+      if ((requesterProfile.friends || []).includes(name)) return "friend";
+      if ((requesterProfile.outgoingRequests || []).includes(name)) return "outgoing";
+      if ((requesterProfile.friendRequests || []).includes(name)) return "incoming";
+      return "none";
+    };
     const users = Object.keys(data.profiles || {})
       .filter((name) => name.toLowerCase().includes(q) && name !== requester)
+      .sort((a, b) => Number(!b.toLowerCase().startsWith(q)) - Number(!a.toLowerCase().startsWith(q)) || a.localeCompare(b))
       .slice(0, 8)
-      .map((name) => ({ name, online: online.has(name) }));
+      .map((name) => ({ name, online: online.has(name), relation: relationFor(name) }));
     sendJson(res, 200, { users });
     return;
   }
-
   if (req.method === "POST" && url.pathname === "/api/friends/request") {
     const body = await readBody(req);
     const name = sessionName(body.token);
@@ -257,13 +264,47 @@ const server = http.createServer(async (req, res) => {
     }
     const profile = getProfile(name);
     const target = getProfile(friend);
-    if (!profile.friends.includes(friend) && !target.friendRequests.includes(name)) target.friendRequests.push(name);
-    if (!profile.outgoingRequests.includes(friend) && !profile.friends.includes(friend)) profile.outgoingRequests.push(friend);
+    if (profile.friends.includes(friend)) {
+      sendJson(res, 409, { error: "already_friends", profile: withFriendStatus(profile) });
+      return;
+    }
+    let accepted = false;
+    if (profile.friendRequests.includes(friend)) {
+      profile.friendRequests = profile.friendRequests.filter((item) => item !== friend);
+      target.outgoingRequests = target.outgoingRequests.filter((item) => item !== name);
+      if (!profile.friends.includes(friend)) profile.friends.push(friend);
+      if (!target.friends.includes(name)) target.friends.push(name);
+      accepted = true;
+    } else {
+      if (!target.friendRequests.includes(name)) target.friendRequests.push(name);
+      if (!profile.outgoingRequests.includes(friend)) profile.outgoingRequests.push(friend);
+    }
+    saveData();
+    sendJson(res, 200, { accepted, profile: withFriendStatus(profile) });
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/api/friends/remove") {
+    const body = await readBody(req);
+    const name = sessionName(body.token);
+    const friend = sanitizeName(body.friend, "");
+    if (!name || !friend) {
+      sendJson(res, 400, { error: "bad_friend" });
+      return;
+    }
+    const profile = getProfile(name);
+    const other = getProfile(friend);
+    profile.friends = profile.friends.filter((item) => item !== friend);
+    other.friends = other.friends.filter((item) => item !== name);
+    profile.outgoingRequests = profile.outgoingRequests.filter((item) => item !== friend);
+    profile.friendRequests = profile.friendRequests.filter((item) => item !== friend);
+    other.outgoingRequests = other.outgoingRequests.filter((item) => item !== name);
+    other.friendRequests = other.friendRequests.filter((item) => item !== name);
+    profile.roomInvites = (profile.roomInvites || []).filter((invite) => invite.from !== friend);
+    other.roomInvites = (other.roomInvites || []).filter((invite) => invite.from !== name);
     saveData();
     sendJson(res, 200, { profile: withFriendStatus(profile) });
     return;
   }
-
   if (req.method === "POST" && url.pathname === "/api/friends/respond") {
     const body = await readBody(req);
     const name = sessionName(body.token);

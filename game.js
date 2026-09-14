@@ -48,6 +48,8 @@ const profileName = document.getElementById("profileName");
 const guestMode = document.getElementById("guestMode");
 const profileAvatar = document.getElementById("profileAvatar");
 const authStatus = document.getElementById("authStatus");
+const authFriendCount = document.getElementById("authFriendCount");
+const authOnlineCount = document.getElementById("authOnlineCount");
 const accountName = document.getElementById("accountName");
 const accountPassword = document.getElementById("accountPassword");
 const loginButton = document.getElementById("loginButton");
@@ -68,6 +70,7 @@ const p2Field = document.getElementById("p2Field");
 const roomPanel = document.getElementById("roomPanel");
 const roomCodeInput = document.getElementById("roomCodeInput");
 const roomCodeLabel = document.getElementById("roomCodeLabel");
+const roomCodeHintText = document.getElementById("roomCodeHintText");
 const shopGrid = document.getElementById("shopGrid");
 const exitGameButton = document.getElementById("exitGameButton");
 const boostButton = document.getElementById("boostButton");
@@ -304,29 +307,43 @@ async function logoutAccount() {
 }
 
 async function searchUsers() {
-  const input = document.getElementById("friendSearchInput");
+  const input = document.getElementById("friendSearchInput") || friendName;
   const results = document.getElementById("friendSearchResults");
   if (!input || !results || !authToken) return;
   const q = cleanName(input.value, "");
-  if (!q) { results.innerHTML = ""; return; }
+  if (q.length < 2) {
+    results.innerHTML = `<article class="friend-row muted"><div><b>Arama hazır</b><small>En az 2 karakter yaz</small></div></article>`;
+    return;
+  }
+  results.innerHTML = `<article class="friend-row muted"><div><b>Aranıyor</b><small>${q}</small></div></article>`;
   try {
     const data = await api(`/api/users/search?token=${encodeURIComponent(authToken)}&q=${encodeURIComponent(q)}`);
     results.innerHTML = data.users.length
-      ? data.users.map((user) => `<article class="friend-row"><div><b>${user.name}</b><small>${user.online ? "Çevrim içi" : "Çevrim dışı"}</small></div><button data-friend-request="${user.name}">İstek gönder</button></article>`).join("")
-      : `<article class="friend-row"><div><b>Sonuç yok</b><small>Başka ad dene</small></div></article>`;
+      ? data.users.map((user) => {
+        const relation = user.relation || (isFriendName(user.name) ? "friend" : "none");
+        const status = user.online ? "Çevrim içi" : "Çevrim dışı";
+        let action = `<button data-friend-request="${user.name}">İstek gönder</button>`;
+        if (relation === "friend") action = `<button disabled>Arkadaş</button>`;
+        if (relation === "outgoing") action = `<button disabled>Beklemede</button>`;
+        if (relation === "incoming") action = `<button data-accept-friend="${user.name}">Kabul et</button>`;
+        return `<article class="friend-row"><div><b>${user.name}</b><small>${status}</small></div>${action}</article>`;
+      }).join("")
+      : `<article class="friend-row muted"><div><b>Sonuç yok</b><small>Başka ad dene</small></div></article>`;
     results.querySelectorAll("[data-friend-request]").forEach((button) => button.addEventListener("click", () => sendFriendRequest(button.dataset.friendRequest)));
+    results.querySelectorAll("[data-accept-friend]").forEach((button) => button.addEventListener("click", () => respondFriendRequest(button.dataset.acceptFriend, true)));
   } catch {
     results.innerHTML = `<article class="friend-row"><div><b>Arama başarısız</b><small>Sunucuya ulaşılamadı</small></div></article>`;
   }
 }
-
 async function sendFriendRequest(friend) {
   if (!authToken) { setAuthStatus("Arkadaş eklemek için giriş yap"); return; }
   try {
     const result = await api("/api/friends/request", { method: "POST", body: JSON.stringify({ token: authToken, friend }) });
     profile = normalizeProfile(result.profile);
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    setAuthStatus(result.accepted ? `${friend} artık arkadaşın` : `${friend} için istek gönderildi`);
     renderProfile();
+    searchUsers();
   } catch {
     setAuthStatus("Arkadaş isteği gönderilemedi");
   }
@@ -338,12 +355,26 @@ async function respondFriendRequest(from, accept) {
     const result = await api("/api/friends/respond", { method: "POST", body: JSON.stringify({ token: authToken, from, accept }) });
     profile = normalizeProfile(result.profile);
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    setAuthStatus(accept ? `${from} arkadaş listene eklendi` : `${from} isteği reddedildi`);
     renderProfile();
+    searchUsers();
   } catch {
     setAuthStatus("Arkadaş isteği güncellenemedi");
   }
 }
 
+async function removeFriend(friend) {
+  if (!authToken || !friend) return;
+  try {
+    const result = await api("/api/friends/remove", { method: "POST", body: JSON.stringify({ token: authToken, friend }) });
+    profile = normalizeProfile(result.profile);
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    setAuthStatus(`${friend} arkadaşlıktan çıkarıldı`);
+    renderProfile();
+  } catch {
+    setAuthStatus("Arkadaş kaldırılamadı");
+  }
+}
 async function inviteFriend(friend) {
   if (!authToken) return;
   if (!currentRoom) {
@@ -409,7 +440,11 @@ function renderProfile() {
   document.body.classList.add(`palette-${profile.theme}`);
   if (languageCode) languageCode.textContent = profile.language === "tr" ? "TR" : "EN";
   if (accountName && !accountName.value) accountName.value = shownName;
-  setAuthStatus(guestMode.checked ? "Misafir modundasın" : authToken ? `Oturum açık: ${shownName}` : "Oturum açmadan da oynayabilirsin");
+  const friendTotal = (profile.friends || []).length;
+  const onlineTotal = (profile.friends || []).filter((friend) => onlineNames.includes(typeof friend === "string" ? friend : friend.name) || Boolean(friend.online)).length;
+  if (authFriendCount) authFriendCount.textContent = `${friendTotal} arkadaş`;
+  if (authOnlineCount) authOnlineCount.textContent = `${onlineTotal} çevrim içi`;
+  setAuthStatus(guestMode.checked ? "Misafir modu" : authToken ? `${shownName} olarak giriş yapıldı` : "Giriş yap veya hesap oluştur");
 
   const avatarOptions = AVATARS.map((item) => `<button class="choice-card ${profile.avatar === item.id ? "is-selected" : ""}" data-profile-avatar="${item.id}"><b>${item.mark}</b><span>${item.name}</span></button>`).join("");
   const titleOptions = (profile.unlockedTitles || ["rookie"]).map((title) => `<button class="choice-card ${profile.title === title ? "is-selected" : ""}" data-profile-title="${title}"><b>${TITLE_CATALOG[title] || title}</b><span>Ünvan</span></button>`).join("");
@@ -417,7 +452,6 @@ function renderProfile() {
     <section class="profile-hero"><div class="profile-avatar-large">${guestMode.checked ? shownName.charAt(0).toUpperCase() : avatar.mark}</div><div><span>Oyuncu profili</span><strong>@${shownName}</strong><small>${titleText}</small></div></section>
     <div><span>Coin</span><strong>${guestMode.checked ? "-" : Math.floor(profile.coins).toLocaleString("tr-TR")}</strong></div>
     <div><span>En iyi</span><strong>${Math.floor(profile.bestScore).toLocaleString("tr-TR")}</strong></div>
-    <div><span>Aktif oda</span><strong>${currentRoom || "-"}</strong></div>
     <section class="profile-choice"><h3>Profil resmini seç</h3><div class="choice-grid">${avatarOptions}</div></section>
     <section class="profile-choice"><h3>Ünvanını seç</h3><div class="choice-grid">${titleOptions}</div></section>`;
   document.querySelectorAll("[data-profile-avatar]").forEach((button) => button.addEventListener("click", () => setProfileAvatar(button.dataset.profileAvatar)));
@@ -429,56 +463,85 @@ function renderProfile() {
   renderPalette();
 }
 
+function friendNameOf(friend) {
+  return typeof friend === "string" ? friend : friend.name;
+}
+
+function isFriendName(name) {
+  return (profile.friends || []).some((friend) => friendNameOf(friend) === name);
+}
+
+function friendOnline(friend) {
+  const name = friendNameOf(friend);
+  return onlineNames.includes(name) || Boolean(friend && friend.online);
+}
 function renderFriends() {
   const friends = profile.friends || [];
   const requests = profile.friendRequests || [];
   const outgoing = profile.outgoingRequests || [];
   const invites = profile.roomInvites || [];
+  const onlineCount = friends.filter(friendOnline).length;
   if (friendList) {
     friendList.innerHTML = friends.length
       ? friends.map((friend) => {
-        const name = typeof friend === "string" ? friend : friend.name;
-        const online = onlineNames.includes(name) || Boolean(friend.online);
-        return `<li><span>${name}</span><small>${online ? "Online" : "Offline"}</small></li>`;
+        const name = friendNameOf(friend);
+        return `<li><span>${name}</span><small>${friendOnline(friend) ? "Online" : "Offline"}</small></li>`;
       }).join("")
       : `<li><span>Arkadaş yok</span><small>Ekle</small></li>`;
   }
   if (!quickFriends) return;
   if (guestMode.checked || !authToken) {
-    quickFriends.innerHTML = `<section class="friend-card"><h3>Arkadaş servisi</h3><p>Arkadaş aramak, istek göndermek ve oda daveti almak için hesapla giriş yap.</p></section>`;
+    quickFriends.innerHTML = `
+      <section class="friend-card auth-required-card">
+        <h3>Arkadaş servisi</h3>
+        <p>Arkadaş aramak ve davet almak için profilinle giriş yap.</p>
+        <button class="inline-action" data-open-profile-login="1">Girişe git</button>
+      </section>`;
+    quickFriends.querySelector("[data-open-profile-login]")?.addEventListener("click", () => showQuickPanel("profile"));
     return;
   }
   const requestHtml = requests.length
-    ? requests.map((name) => `<article class="friend-row"><div><b>${name}</b><small>Arkadaşlık isteği gönderdi</small></div><button data-accept-friend="${name}">Kabul</button><button data-reject-friend="${name}">Reddet</button></article>`).join("")
+    ? requests.map((name) => `<article class="friend-row"><div><b>${name}</b><small>Arkadaşlık isteği gönderdi</small></div><div class="friend-actions"><button data-accept-friend="${name}">Kabul</button><button class="is-muted" data-reject-friend="${name}">Reddet</button></div></article>`).join("")
     : `<article class="friend-row muted"><div><b>Gelen istek yok</b><small>Yeni istekler burada görünür</small></div></article>`;
   const outgoingHtml = outgoing.length
-    ? outgoing.map((name) => `<span class="request-chip">${name}</span>`).join("")
-    : `<span class="request-chip">Bekleyen yok</span>`;
+    ? outgoing.map((name) => `<article class="friend-row muted"><div><b>${name}</b><small>Yanıt bekleniyor</small></div><span class="request-chip">Beklemede</span></article>`).join("")
+    : `<article class="friend-row muted"><div><b>Giden istek yok</b><small>Aramadan yeni istek gönderebilirsin</small></div></article>`;
   const inviteHtml = invites.length
-    ? invites.map((invite) => `<article class="friend-row"><div><b>${invite.from}</b><small>${invite.room} odasına davet etti</small></div><button data-use-invite="${invite.room}">Kodu al</button></article>`).join("")
-    : `<article class="friend-row muted"><div><b>Oda daveti yok</b><small>Arkadaşların davet gönderince burada çıkar</small></div></article>`;
+    ? invites.map((invite) => `<article class="friend-row"><div><b>${invite.from}</b><small>${invite.room} odasına davet etti</small></div><button data-use-invite="${invite.room}">Lobiye gir</button></article>`).join("")
+    : `<article class="friend-row muted"><div><b>Oda daveti yok</b><small>Davetler burada görünür</small></div></article>`;
   const friendsHtml = friends.length
     ? friends.map((friend) => {
-      const name = typeof friend === "string" ? friend : friend.name;
-      const online = onlineNames.includes(name) || Boolean(friend.online);
-      return `<article class="friend-row"><div><b>${name}</b><small>${online ? "Çevrim içi" : "Çevrim dışı"}</small></div><button data-invite-friend="${name}" ${currentRoom ? "" : ""}>Odaya davet</button></article>`;
+      const name = friendNameOf(friend);
+      const online = friendOnline(friend);
+      return `<article class="friend-row"><div><b>${name}</b><small>${online ? "Çevrim içi" : "Çevrim dışı"}</small></div><div class="friend-actions"><button data-invite-friend="${name}">Davet</button><button class="is-muted" data-remove-friend="${name}">Çıkar</button></div></article>`;
     }).join("")
     : `<article class="friend-row muted"><div><b>Henüz arkadaş yok</b><small>Kullanıcı ara ve istek gönder</small></div></article>`;
   quickFriends.innerHTML = `
+    <section class="friend-overview">
+      <article><b>${friends.length}</b><span>Arkadaş</span></article>
+      <article><b>${onlineCount}</b><span>Çevrim içi</span></article>
+      <article><b>${requests.length}</b><span>İstek</span></article>
+    </section>
     <section class="friend-card search-card">
       <h3>Kullanıcı ara</h3>
-      <div class="friend-search"><input id="friendSearchInput" maxlength="14" placeholder="Kullanıcı adı" /><button id="friendSearchButton">Ara</button></div>
-      <div id="friendSearchResults" class="friend-results"></div>
+      <div class="friend-search"><input id="friendSearchInput" maxlength="14" placeholder="Kullanıcı adı" autocomplete="off" /><button id="friendSearchButton">Ara</button></div>
+      <div id="friendSearchResults" class="friend-results"><article class="friend-row muted"><div><b>Arama hazır</b><small>En az 2 karakter yaz</small></div></article></div>
     </section>
+    <section class="friend-card"><h3>Arkadaşların</h3>${friendsHtml}</section>
     <section class="friend-card"><h3>Gelen istekler</h3>${requestHtml}</section>
-    <section class="friend-card"><h3>Giden istekler</h3><div class="request-list">${outgoingHtml}</div></section>
-    <section class="friend-card"><h3>Oda davetleri</h3>${inviteHtml}</section>
-    <section class="friend-card"><h3>Arkadaşların</h3>${friendsHtml}</section>`;
+    <section class="friend-card"><h3>Giden istekler</h3>${outgoingHtml}</section>
+    <section class="friend-card"><h3>Oda davetleri</h3>${inviteHtml}</section>`;
+  const searchInput = document.getElementById("friendSearchInput");
   document.getElementById("friendSearchButton")?.addEventListener("click", searchUsers);
-  document.getElementById("friendSearchInput")?.addEventListener("keydown", (event) => { if (event.key === "Enter") searchUsers(); });
+  searchInput?.addEventListener("input", () => {
+    clearTimeout(searchInput.searchTimer);
+    searchInput.searchTimer = setTimeout(searchUsers, 220);
+  });
+  searchInput?.addEventListener("keydown", (event) => { if (event.key === "Enter") searchUsers(); });
   quickFriends.querySelectorAll("[data-accept-friend]").forEach((button) => button.addEventListener("click", () => respondFriendRequest(button.dataset.acceptFriend, true)));
   quickFriends.querySelectorAll("[data-reject-friend]").forEach((button) => button.addEventListener("click", () => respondFriendRequest(button.dataset.rejectFriend, false)));
   quickFriends.querySelectorAll("[data-invite-friend]").forEach((button) => button.addEventListener("click", () => inviteFriend(button.dataset.inviteFriend)));
+  quickFriends.querySelectorAll("[data-remove-friend]").forEach((button) => button.addEventListener("click", () => removeFriend(button.dataset.removeFriend)));
   quickFriends.querySelectorAll("[data-use-invite]").forEach((button) => button.addEventListener("click", () => useRoomInvite(button.dataset.useInvite)));
 }
 function renderShop() {
@@ -591,20 +654,25 @@ function updateModeButtons() {
   if (gameMode === "room-create") {
     if (!currentRoom) currentRoom = generateRoomCode();
     roomCodeInput.value = currentRoom;
+    roomCodeInput.placeholder = "Otomatik oda kodu";
     roomCodeInput.readOnly = true;
     roomCodeInput.classList.add("system-code");
+    if (roomCodeHintText) roomCodeHintText.textContent = "Oda kodun:";
   } else if (gameMode === "room-join") {
     roomCodeInput.readOnly = false;
+    roomCodeInput.placeholder = "Oda kodunu gir";
     roomCodeInput.classList.remove("system-code");
     if (currentRoom && roomCodeInput.value === currentRoom) roomCodeInput.value = "";
+    if (roomCodeHintText) roomCodeHintText.textContent = "Katılacağın oda:";
   } else {
     roomCodeInput.readOnly = false;
+    roomCodeInput.placeholder = "Oda kodu";
     roomCodeInput.classList.remove("system-code");
+    if (roomCodeHintText) roomCodeHintText.textContent = "Oda kodu:";
   }
   roomCodeLabel.textContent = gameMode.startsWith("room") ? (roomCodeInput.value || currentRoom || "-") : "-";
   if (playButtonText) playButtonText.textContent = gameMode.startsWith("room") ? "LOBİYE GİR" : "OYUNA GİR";
 }
-
 function resize() {
   width = window.innerWidth;
   height = window.innerHeight;
@@ -1351,6 +1419,7 @@ function bindControls() {
   translateButton.addEventListener("click", toggleLanguage);
   closeQuickPanel.addEventListener("click", hideQuickPanel);
   document.querySelectorAll(".mode-button").forEach((button) => button.addEventListener("click", () => { gameMode = button.dataset.mode; updateModeButtons(); }));
+  if (roomCodeInput) roomCodeInput.addEventListener("input", () => { if (gameMode === "room-join") roomCodeLabel.textContent = cleanName(roomCodeInput.value, "").toUpperCase() || "-"; });
   botCountInput.addEventListener("input", () => { botCountSetting = Number(botCountInput.value); botCountValue.textContent = botCountSetting.toString(); });
   if (profileName) profileName.addEventListener("change", () => renderProfile());
   if (guestMode) guestMode.addEventListener("change", () => { renderProfile(); });

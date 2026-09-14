@@ -1,57 +1,43 @@
-﻿{
-    "profiles":  {
-                     "NearBacon":  {
-                                       "name":  "NearBacon",
-                                       "coins":  5000,
-                                       "bestScore":  0,
-                                       "matches":  0,
-                                       "role":  "admin",
-                                       "isAdmin":  true,
-                                       "title":  "admin",
-                                       "unlockedTitles":  [
-                                                              "admin",
-                                                              "rookie",
-                                                              "hunter",
-                                                              "collector",
-                                                              "champion",
-                                                              "speedster",
-                                                              "survivor"
-                                                          ],
-                                       "achievements":  [
-
-                                                        ],
-                                       "claimedQuests":  [
-
-                                                         ],
-                                       "ownedSkins":  [
-                                                          "cyan",
-                                                          "lime",
-                                                          "pink",
-                                                          "amber",
-                                                          "violet",
-                                                          "ruby",
-                                                          "ice",
-                                                          "royal"
-                                                      ],
-                                       "activeSkin":  "cyan",
-                                       "theme":  "aurora",
-                                       "language":  "tr",
-                                       "friends":  [
-
-                                                   ],
-                                       "friendRequests":  [
-
-                                                          ],
-                                       "outgoingRequests":  [
-
-                                                            ],
-                                       "roomInvites":  [
-
-                                                       ],
-                                       "avatar":  "near"
-                                   }
-                 },
-    "sessions":  {
-
-                 }
+{
+  "profiles": {
+    "NearBacon": {
+      "name": "NearBacon",
+      "coins": 5000,
+      "bestScore": 0,
+      "matches": 0,
+      "role": "admin",
+      "isAdmin": true,
+      "title": "admin",
+      "unlockedTitles": [
+        "admin",
+        "rookie",
+        "hunter",
+        "collector",
+        "champion",
+        "speedster",
+        "survivor"
+      ],
+      "achievements": [],
+      "claimedQuests": [],
+      "ownedSkins": [
+        "cyan",
+        "lime",
+        "pink",
+        "amber",
+        "violet",
+        "ruby",
+        "ice",
+        "royal"
+      ],
+      "activeSkin": "cyan",
+      "theme": "aurora",
+      "language": "tr",
+      "friends": [],
+      "friendRequests": [],
+      "outgoingRequests": [],
+      "roomInvites": [],
+      "avatar": "near"
+    }
+  },
+  "sessions": {}
 }

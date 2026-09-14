@@ -47,6 +47,7 @@
             <label class="guest-toggle"><input id="guestMode" type="checkbox" /><span>Misafir</span></label>
           </div>
           <div class="profile-status-line" id="authStatus">Bu cihazda hatırlanır</div>
+          <div class="auth-mini-stats"><span id="authFriendCount">0 arkadaş</span><span id="authOnlineCount">0 çevrim içi</span></div>
           <div class="auth-panel" aria-label="Hesap girişi">
             <label class="name-field compact">
               <span>Kullanıcı adı</span>
@@ -97,9 +98,9 @@
             <div class="room-panel is-hidden" id="roomPanel">
               <label class="name-field">
                 <span>ODA KODU</span>
-                <input id="roomCodeInput" maxlength="8" placeholder="Sistem verir" autocomplete="off" />
+                <input id="roomCodeInput" maxlength="8" placeholder="Oda kodunu gir" autocomplete="off" />
               </label>
-              <div class="room-code">Aktif oda: <strong id="roomCodeLabel">-</strong></div>
+              <div class="room-code"><span id="roomCodeHintText">Oda kodu</span> <strong id="roomCodeLabel">-</strong></div>
             </div>
             <label class="range-field">
               <span>Bot sayısı</span>
