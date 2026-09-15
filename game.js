@@ -25,6 +25,7 @@ const questsButton = document.getElementById("questsButton");
 const translateButton = document.getElementById("translateButton");
 const languageCode = document.getElementById("languageCode");
 const paletteButton = document.getElementById("paletteButton");
+const settingsButton = document.getElementById("settingsButton");
 const quickPanel = document.getElementById("quickPanel");
 const quickTitle = document.getElementById("quickTitle");
 const quickAuth = document.getElementById("quickAuth");
@@ -34,6 +35,7 @@ const quickShop = document.getElementById("quickShop");
 const quickAchievements = document.getElementById("quickAchievements");
 const quickQuests = document.getElementById("quickQuests");
 const quickPalette = document.getElementById("quickPalette");
+const quickSettings = document.getElementById("quickSettings");
 const closeQuickPanel = document.getElementById("closeQuickPanel");
 const leadersEl = document.getElementById("leaders");
 const startPanel = document.getElementById("startPanel");
@@ -86,6 +88,15 @@ const dashButton = document.getElementById("dashButton");
 const twinButton = document.getElementById("twinButton");
 const goldButton = document.getElementById("goldButton");
 const trapButton = document.getElementById("trapButton");
+const POWER_BINDING_DEFS = [
+  { kind: "area", label: "Alan gücü", desc: "Yakındaki yemleri toplar", defaultCode: "KeyE" },
+  { kind: "dash", label: "Atılım", desc: "Kısa mesafe ileri atılır", defaultCode: "KeyQ" },
+  { kind: "twin", label: "Hologram", desc: "İkili takım ve yer değiştirme", defaultCode: "KeyR" },
+  { kind: "gold", label: "Altın hızlanış", desc: "Kısa süre çok hızlı gider", defaultCode: "KeyT" },
+  { kind: "trap", label: "Tuzak", desc: "Kuyruğa güç kilidi bırakır", defaultCode: "KeyF" },
+];
+const POWER_BUTTONS = { area: powerButton, dash: dashButton, twin: twinButton, gold: goldButton, trap: trapButton };
+const RESERVED_POWER_KEY_CODES = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "ShiftLeft", "ShiftRight", "KeyI", "KeyJ", "KeyK", "KeyL", "KeyU", "Enter", "Escape", "Tab", "Backspace"]);
 
 const WORLD = 4300;
 const FOOD_COUNT = 540;
@@ -132,6 +143,7 @@ const LEGACY_PROFILE_KEY = "snakeAeaProfile";
 const LEGACY_SESSION_KEY = "snakeAeaSession";
 const PROFILE_KEY = "snakeAreaProfile";
 const SESSION_KEY = "snakeAreaSession";
+const KEYBINDS_KEY = "snakeAreaKeybinds";
 
 const SKINS = [
   { id: "cyan", name: "Area Basic", price: 0, colors: ["#4ff3ff", "#b8ff5d"] },
@@ -235,6 +247,9 @@ let ws = null;
 let wsId = null;
 let lastNetworkSend = 0;
 let serverAvailable = false;
+let listeningKeybind = "";
+let settingsMessage = "";
+let powerKeybinds = loadPowerKeybinds();
 
 function random(min, max) { return Math.random() * (max - min) + min; }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -258,6 +273,111 @@ function syncEpicSkinUnlock() {
 }
 function titleText(id) { return TITLE_CATALOG[id] || id || ""; }
 function currentProfileTitle() { return authToken && !(guestMode && guestMode.checked) ? titleText(profile.title) : ""; }
+function defaultPowerKeybinds() {
+  const defaults = {};
+  for (const item of POWER_BINDING_DEFS) defaults[item.kind] = item.defaultCode;
+  return defaults;
+}
+
+function isAllowedPowerKeyCode(code) {
+  if (!code || RESERVED_POWER_KEY_CODES.has(code)) return false;
+  return /^Key[A-Z]$/.test(code) || /^Digit[0-9]$/.test(code) || /^Numpad[0-9]$/.test(code);
+}
+
+function normalizePowerKeybinds(raw = {}) {
+  const defaults = defaultPowerKeybinds();
+  const used = new Set();
+  const clean = {};
+  for (const item of POWER_BINDING_DEFS) {
+    let code = typeof raw[item.kind] === "string" ? raw[item.kind] : defaults[item.kind];
+    if (!isAllowedPowerKeyCode(code) || used.has(code)) code = defaults[item.kind];
+    clean[item.kind] = code;
+    used.add(code);
+  }
+  return clean;
+}
+
+function loadPowerKeybinds() {
+  try {
+    return normalizePowerKeybinds(JSON.parse(localStorage.getItem(KEYBINDS_KEY) || "{}"));
+  } catch {
+    return defaultPowerKeybinds();
+  }
+}
+
+function savePowerKeybinds() {
+  localStorage.setItem(KEYBINDS_KEY, JSON.stringify(powerKeybinds));
+  updatePowerKeyLabels();
+  renderSettings();
+}
+
+function displayKeyCode(code) {
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit[0-9]$/.test(code)) return code.slice(5);
+  if (/^Numpad[0-9]$/.test(code)) return `Num ${code.slice(6)}`;
+  return code || "-";
+}
+
+function powerKindForEvent(event) {
+  return POWER_BINDING_DEFS.find((item) => powerKeybinds[item.kind] === event.code)?.kind || "";
+}
+
+function setPowerKeybind(kind, code) {
+  const item = POWER_BINDING_DEFS.find((entry) => entry.kind === kind);
+  if (!item) return false;
+  if (!isAllowedPowerKeyCode(code)) {
+    settingsMessage = "Hareket, boost ve sistem tuşları güç tuşu olamaz.";
+    renderSettings();
+    return false;
+  }
+  const previous = powerKeybinds[kind] || item.defaultCode;
+  const duplicate = POWER_BINDING_DEFS.find((entry) => entry.kind !== kind && powerKeybinds[entry.kind] === code);
+  if (duplicate) powerKeybinds[duplicate.kind] = previous;
+  powerKeybinds[kind] = code;
+  listeningKeybind = "";
+  settingsMessage = `${item.label} tuşu ${displayKeyCode(code)} oldu.`;
+  savePowerKeybinds();
+  return true;
+}
+
+function resetPowerKeybinds() {
+  powerKeybinds = defaultPowerKeybinds();
+  listeningKeybind = "";
+  settingsMessage = "Tuşlar varsayılana döndü.";
+  localStorage.setItem(KEYBINDS_KEY, JSON.stringify(powerKeybinds));
+  updatePowerKeyLabels();
+  renderSettings();
+}
+
+function updatePowerKeyLabels() {
+  for (const item of POWER_BINDING_DEFS) {
+    const button = POWER_BUTTONS[item.kind];
+    if (!button) continue;
+    const label = displayKeyCode(powerKeybinds[item.kind]);
+    const text = button.querySelector("span");
+    if (text) text.textContent = label;
+    button.title = `${item.label} (${label})`;
+  }
+}
+
+function startKeybindCapture(kind) {
+  listeningKeybind = kind;
+  const item = POWER_BINDING_DEFS.find((entry) => entry.kind === kind);
+  settingsMessage = item ? `${item.label} için yeni tuşa bas.` : "Yeni tuşa bas.";
+  renderSettings();
+}
+
+function capturePowerKey(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  if (event.code === "Escape") {
+    listeningKeybind = "";
+    settingsMessage = "Tuş değiştirme iptal edildi.";
+    renderSettings();
+    return;
+  }
+  setPowerKeybind(listeningKeybind, event.code);
+}
 function isPowerActive(snake, now = performance.now()) { return Boolean(snake && (snake.powerActiveUntil || 0) > now); }
 function isDashActive(snake, now = performance.now()) { return Boolean(snake && (snake.dashFlashUntil || 0) > now); }
 function isTwinActive(snake, now = performance.now()) { return Boolean(snake && (snake.twinActiveUntil || 0) > now); }
@@ -730,7 +850,7 @@ function generateRoomCode() {
 
 function showQuickPanel(kind) {
   quickPanel.classList.remove("is-hidden");
-  const titleMap = { profile: "Profil", friends: "Arkadaşlar", shop: "Dükkan", achievements: "Başarımlar", quests: "Görevler", palette: "Renk Kataloğu" };
+  const titleMap = { profile: "Profil", friends: "Arkadaşlar", shop: "Dükkan", achievements: "Başarımlar", quests: "Görevler", palette: "Renk Kataloğu", settings: "Ayarlar" };
   quickTitle.textContent = titleMap[kind] || "Panel";
   if (quickAuth) quickAuth.classList.toggle("is-hidden", kind !== "profile");
   quickProfile.classList.toggle("is-hidden", kind !== "profile");
@@ -739,9 +859,9 @@ function showQuickPanel(kind) {
   quickAchievements.classList.toggle("is-hidden", kind !== "achievements");
   quickQuests.classList.toggle("is-hidden", kind !== "quests");
   quickPalette.classList.toggle("is-hidden", kind !== "palette");
+  if (quickSettings) quickSettings.classList.toggle("is-hidden", kind !== "settings");
   renderProfile();
 }
-
 function hideQuickPanel() {
   quickPanel.classList.add("is-hidden");
 }
@@ -898,6 +1018,22 @@ function renderShop() {
   document.querySelectorAll("[data-shop-skin]").forEach((button) => button.addEventListener("click", () => handleShopClick(button.dataset.shopSkin)));
 }
 
+function renderSettings() {
+  if (!quickSettings) return;
+  const rows = POWER_BINDING_DEFS.map((item) => {
+    const listening = listeningKeybind === item.kind;
+    const key = displayKeyCode(powerKeybinds[item.kind]);
+    return `<article class="keybind-row"><div><b>${item.label}</b><small>${item.desc}</small></div><button class="key-capture ${listening ? "is-listening" : ""}" data-keybind-kind="${item.kind}">${listening ? "Tuşa bas" : key}</button></article>`;
+  }).join("");
+  quickSettings.innerHTML = `
+    <section class="settings-card">
+      <header><h3>Özel güç tuşları</h3><button class="inline-action is-muted" data-reset-keybinds="1">Sıfırla</button></header>
+      <div class="keybind-list">${rows}</div>
+      <p class="settings-message">${settingsMessage || "Bir güç satırındaki tuşa basıp yeni tuşu seç."}</p>
+    </section>`;
+  quickSettings.querySelectorAll("[data-keybind-kind]").forEach((button) => button.addEventListener("click", () => startKeybindCapture(button.dataset.keybindKind)));
+  quickSettings.querySelector("[data-reset-keybinds]")?.addEventListener("click", resetPowerKeybinds);
+}
 function renderAchievements() {
   quickAchievements.innerHTML = ACHIEVEMENTS.map((achievement) => {
     const done = achievement.check();
@@ -2114,15 +2250,15 @@ function startLoop() {
 function bindControls() {
   window.addEventListener("resize", resize);
   window.addEventListener("keydown", (event) => {
+    if (listeningKeybind) { capturePowerKey(event); return; }
     const typing = !running && event.target && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName);
-    keys.add(event.key.length === 1 ? event.key.toLowerCase() : event.key);
-    keys.add(event.code);
+    if (!typing) {
+      keys.add(event.key.length === 1 ? event.key.toLowerCase() : event.key);
+      keys.add(event.code);
+    }
     if (event.code === "Space" && !typing) { event.preventDefault(); if (player) player.boostHeld = true; }
-    if (event.code === "KeyE" && running) { event.preventDefault(); triggerSpecialPower("area"); }
-    if (event.code === "KeyQ" && running) { event.preventDefault(); triggerSpecialPower("dash"); }
-    if (event.code === "KeyR" && running) { event.preventDefault(); triggerSpecialPower("twin"); }
-    if (event.code === "KeyT" && running) { event.preventDefault(); triggerSpecialPower("gold"); }
-    if (event.code === "KeyF" && running) { event.preventDefault(); triggerSpecialPower("trap"); }
+    const powerKind = powerKindForEvent(event);
+    if (powerKind && running && !typing) { event.preventDefault(); triggerSpecialPower(powerKind); }
     if (event.key === "Enter" && !running && !typing) handlePlayButton();
   });
   window.addEventListener("keyup", (event) => { keys.delete(event.key.length === 1 ? event.key.toLowerCase() : event.key); keys.delete(event.code); if (event.code === "Space" && player) player.boostHeld = false; });
@@ -2168,6 +2304,7 @@ function bindControls() {
   if (achievementsButton) achievementsButton.addEventListener("click", () => showQuickPanel("achievements"));
   questsButton.addEventListener("click", () => showQuickPanel("quests"));
   paletteButton.addEventListener("click", () => showQuickPanel("palette"));
+  if (settingsButton) settingsButton.addEventListener("click", () => showQuickPanel("settings"));
   translateButton.addEventListener("click", toggleLanguage);
   closeQuickPanel.addEventListener("click", hideQuickPanel);
   document.querySelectorAll(".mode-button").forEach((button) => button.addEventListener("click", () => { gameMode = button.dataset.mode; updateModeButtons(); }));
@@ -2192,6 +2329,7 @@ function bindControls() {
 resize();
 bindControls();
 renderProfile();
+updatePowerKeyLabels();
 updateModeButtons();
 botCountValue.textContent = botCountSetting.toString();
 loadServerProfile();
