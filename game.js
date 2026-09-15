@@ -38,6 +38,7 @@ const closeQuickPanel = document.getElementById("closeQuickPanel");
 const leadersEl = document.getElementById("leaders");
 const startPanel = document.getElementById("startPanel");
 const deathPanel = document.getElementById("deathPanel");
+const deathTitle = deathPanel ? deathPanel.querySelector("h2") : null;
 const deathText = document.getElementById("deathText");
 const playButton = document.getElementById("playButton");
 const playButtonText = document.getElementById("playButtonText");
@@ -114,6 +115,9 @@ const TWIN_RECHARGE_RATE = 0.018;
 const TWIN_PICKUP_BONUS = 1.6;
 const TWIN_SEGMENT_LIMIT = 110;
 const TWIN_SWAP_DELAY_MS = 3000;
+const TWIN_FALLBACK_OFFSET = 320;
+const TWIN_MIRROR_TARGET_RANGE = 980;
+const VICTORY_COIN_REWARD = 400;
 const GOLD_DURATION_MS = 2600;
 const GOLD_SPEED_MULTIPLIER = 1.72;
 const GOLD_RECHARGE_RATE = 0.042;
@@ -204,6 +208,7 @@ let gameMode = "solo";
 let currentRoom = "";
 let botCountSetting = 9;
 let matchFinalized = false;
+let matchHadOpponents = false;
 let lastTime = performance.now();
 let animationStarted = false;
 let pointer = { x: 0, y: 0, active: false };
@@ -298,9 +303,11 @@ function activateTwin(snake, now = performance.now()) {
   snake.twinSwapAt = 0;
   snake.twinSwapStartedAt = 0;
   snake.twinSwapUsed = false;
-  syncTwinHologram(snake, now);
+  snake.twinMirrorTargetId = "";
+  snake.twinMirrorSide = snake.twinMirrorSide || (Math.random() < 0.5 ? -1 : 1);
+  const twin = syncTwinHologram(snake, now);
   spawnEffectBurst(snake.x, snake.y, "#8feeff", 12);
-  spawnEffectBurst(WORLD - snake.x, WORLD - snake.y, "#4ff3ff", 12);
+  if (twin) spawnEffectBurst(twin.x, twin.y, "#4ff3ff", 12);
   return true;
 }
 function beginTwinSwap(snake, now = performance.now()) {
@@ -364,12 +371,55 @@ function activateTrap(snake, now = performance.now()) {
   spawnEffectBurst(tail.x, tail.y, "#ff3d6e", 10);
   return true;
 }
+function nearestTwinTarget(source) {
+  const maxDist = TWIN_MIRROR_TARGET_RANGE * TWIN_MIRROR_TARGET_RANGE;
+  if (source.twinMirrorTargetId) {
+    const locked = snakes.find((item) => item.id === source.twinMirrorTargetId && item.alive && item.type !== "hologram" && item.id !== source.id);
+    if (locked) {
+      const dx = locked.x - source.x;
+      const dy = locked.y - source.y;
+      if (dx * dx + dy * dy <= maxDist) return locked;
+    }
+  }
+  let best = null;
+  let bestDist = Infinity;
+  for (const candidate of snakes) {
+    if (!candidate.alive || candidate.type === "hologram" || candidate.id === source.id) continue;
+    const dx = candidate.x - source.x;
+    const dy = candidate.y - source.y;
+    const dist = dx * dx + dy * dy;
+    if (dist < bestDist) { bestDist = dist; best = candidate; }
+  }
+  return bestDist <= maxDist ? best : null;
+}
+function twinMirrorAnchor(source) {
+  const target = nearestTwinTarget(source);
+  if (target) {
+    source.twinMirrorTargetId = target.id;
+    return { x: target.x, y: target.y, targetId: target.id };
+  }
+  source.twinMirrorTargetId = "";
+  source.twinMirrorSide = source.twinMirrorSide || (Math.random() < 0.5 ? -1 : 1);
+  const sideAngle = source.angle + Math.PI / 2;
+  const desiredX = clamp(source.x + Math.cos(sideAngle) * TWIN_FALLBACK_OFFSET * source.twinMirrorSide, 36, WORLD - 36);
+  const desiredY = clamp(source.y + Math.sin(sideAngle) * TWIN_FALLBACK_OFFSET * source.twinMirrorSide, 36, WORLD - 36);
+  return { x: (source.x + desiredX) / 2, y: (source.y + desiredY) / 2, targetId: "" };
+}
+
+function mirrorTwinPoint(point, anchor) {
+  return {
+    x: clamp(anchor.x * 2 - point.x, 36, WORLD - 36),
+    y: clamp(anchor.y * 2 - point.y, 36, WORLD - 36),
+  };
+}
 function syncTwinHologram(source, now = performance.now()) {
   if (!source || !source.alive || source.type === "hologram" || !isTwinActive(source, now)) return null;
+  const anchor = twinMirrorAnchor(source);
+  const mirroredHead = mirrorTwinPoint(source, anchor);
   const twinId = `holo-${source.id}`;
   let twin = snakes.find((item) => item.id === twinId);
   if (!twin) {
-    twin = makeSnake("Hologram", source.skin, { type: "hologram", id: twinId, title: "İkili Takım", x: WORLD - source.x, y: WORLD - source.y, length: Math.min(TWIN_SEGMENT_LIMIT, source.segments.length || 18), ownerId: source.id });
+    twin = makeSnake("Hologram", source.skin, { type: "hologram", id: twinId, title: "İkili Takım", x: mirroredHead.x, y: mirroredHead.y, length: Math.min(TWIN_SEGMENT_LIMIT, source.segments.length || 18), ownerId: source.id });
     snakes.push(twin);
   }
   twin.ownerId = source.id;
@@ -378,8 +428,8 @@ function syncTwinHologram(source, now = performance.now()) {
   twin.title = "İkili Takım";
   twin.skin = source.skin;
   twin.colors = source.colors;
-  twin.x = WORLD - source.x;
-  twin.y = WORLD - source.y;
+  twin.x = mirroredHead.x;
+  twin.y = mirroredHead.y;
   twin.angle = (source.angle + Math.PI) % (Math.PI * 2);
   twin.targetLength = source.targetLength;
   twin.score = source.score;
@@ -395,9 +445,10 @@ function syncTwinHologram(source, now = performance.now()) {
   twin.segments.length = limit;
   for (let i = 0; i < limit; i++) {
     const sourceSegment = source.segments[i] || source;
+    const mirrored = mirrorTwinPoint(sourceSegment, anchor);
     const segment = twin.segments[i] || { x: 0, y: 0 };
-    segment.x = WORLD - sourceSegment.x;
-    segment.y = WORLD - sourceSegment.y;
+    segment.x = mirrored.x;
+    segment.y = mirrored.y;
     twin.segments[i] = segment;
   }
   refreshSnakeBounds(twin);
@@ -920,7 +971,7 @@ function toggleLanguage() {
 }
 
 function setGameHudVisible(visible) {
-  document.querySelectorAll(".game-stat").forEach((item) => item.classList.toggle("is-hidden", !visible));
+  document.querySelectorAll(".game-stat").forEach((item) => item.classList.toggle("is-hidden", !visible || item.classList.contains("charge-stat")));
   document.body.classList.toggle("is-playing", visible);
   if (radarWrap) radarWrap.classList.toggle("is-hidden", !visible);
   if (!visible) {
@@ -1119,7 +1170,7 @@ function makeSnake(name, skinId, options = {}) {
   const segments = [];
   for (let i = 0; i < length; i++) segments.push({ x: x - Math.cos(angle) * i * SEGMENT_GAP, y: y - Math.sin(angle) * i * SEGMENT_GAP });
   const skin = getSkin(skinId);
-  const snake = { id: options.id || `${Date.now()}-${Math.random()}`, name, title: options.title || "", skin: skin.id, colors: skin.colors, type, control: options.control || "bot", isPlayer: isHuman, alive: true, x, y, angle, turn: 0.09, segments, targetLength: length, score: Math.max(0, (length - 12) * 14), boost: 100, boostHeld: false, boostRechargeLocked: false, power: options.power ?? 100, powerActiveUntil: 0, dashPower: options.dashPower ?? 100, dashFlashUntil: 0, dashCooldownUntil: 0, twinPower: options.twinPower ?? 100, twinActiveUntil: 0, twinSwapAt: 0, twinSwapStartedAt: 0, twinSwapUsed: false, goldPower: options.goldPower ?? 100, goldActiveUntil: 0, trapPower: options.trapPower ?? 100, powerLockUntil: 0, ownerId: options.ownerId || null, thinkAt: 0, aiAngle: angle, baseRadius: isHuman ? 12.5 : 11.5, radius: snakeRadiusForLength(length, isHuman), bounds: null, boundsRefreshAt: 0 };
+  const snake = { id: options.id || `${Date.now()}-${Math.random()}`, name, title: options.title || "", skin: skin.id, colors: skin.colors, type, control: options.control || "bot", isPlayer: isHuman, alive: true, x, y, angle, turn: 0.09, segments, targetLength: length, score: Math.max(0, (length - 12) * 14), boost: 100, boostHeld: false, boostRechargeLocked: false, power: options.power ?? 100, powerActiveUntil: 0, dashPower: options.dashPower ?? 100, dashFlashUntil: 0, dashCooldownUntil: 0, twinPower: options.twinPower ?? 100, twinActiveUntil: 0, twinSwapAt: 0, twinSwapStartedAt: 0, twinSwapUsed: false, twinMirrorTargetId: options.twinMirrorTargetId || "", twinMirrorSide: options.twinMirrorSide || 0, goldPower: options.goldPower ?? 100, goldActiveUntil: 0, trapPower: options.trapPower ?? 100, powerLockUntil: 0, ownerId: options.ownerId || null, thinkAt: 0, aiAngle: angle, baseRadius: isHuman ? 12.5 : 11.5, radius: snakeRadiusForLength(length, isHuman), bounds: null, boundsRefreshAt: 0 };
   refreshSnakeBounds(snake);
   return snake;
 }
@@ -1259,6 +1310,7 @@ function resetGame() {
   snakes = [];
   localPlayers = [];
   matchFinalized = false;
+  matchHadOpponents = false;
   collectCursor = 0;
   const p1Name = getCurrentPlayerName();
   selectedSkin = getPlayableSkinId(selectedSkin);
@@ -1270,6 +1322,7 @@ function resetGame() {
   snakes.push(player);
   localPlayers.push(player);
   const botsToSpawn = botCountSetting;
+  matchHadOpponents = botsToSpawn > 0;
   for (let i = 0; i < botsToSpawn; i++) {
     const skin = SKINS[Math.floor(random(0, SKINS.length))];
     snakes.push(makeSnake(BOT_NAMES[i % BOT_NAMES.length], skin.id, { type: "bot" }));
@@ -1355,6 +1408,7 @@ function upsertRemoteSnake(remote) {
   let snake = snakes.find((item) => item.id === remote.id);
   if (!snake) {
     snake = makeSnake(remote.name || "Online", skin.id, { type: "remote", id: remote.id, title: remote.title || "" });
+    matchHadOpponents = true;
     snakes.push(snake);
   }
   snake.name = remote.name || snake.name;
@@ -1599,13 +1653,24 @@ function killSnake(snake, killer) {
   }
 }
 
-function finishMatch() {
+function maybeFinishVictory() {
+  if (!running || matchFinalized || !matchHadOpponents) return;
+  const aliveHumans = localPlayers.filter((item) => item.alive);
+  if (!aliveHumans.length) return;
+  const aliveOpponents = snakes.some((item) => item.alive && item.type !== "hologram" && !aliveHumans.includes(item));
+  if (aliveOpponents) return;
+  focusPlayer = aliveHumans[0];
+  finishMatch({ victory: true });
+}
+
+function finishMatch(options = {}) {
   if (matchFinalized) return;
+  const victory = Boolean(options.victory);
   matchFinalized = true;
   running = false;
   const bestHuman = localPlayers.reduce((best, item) => (item.score + item.targetLength * 8 > best.score + best.targetLength * 8 ? item : best), localPlayers[0]);
   const finalScore = Math.round(bestHuman.score + bestHuman.targetLength * 8);
-  const earnedCoins = Math.max(10, Math.floor(finalScore / 55));
+  const earnedCoins = victory ? VICTORY_COIN_REWARD : Math.max(10, Math.floor(finalScore / 55));
   const canSaveMatch = authToken && !guestMode.checked;
   if (canSaveMatch) {
     profile.coins += earnedCoins;
@@ -1614,7 +1679,12 @@ function finishMatch() {
     syncEpicSkinUnlock();
     saveProfile();
   }
-  deathText.textContent = canSaveMatch ? `${bestHuman.name} skoru ${finalScore}. +${earnedCoins} coin kazandın.` : `${bestHuman.name} skoru ${finalScore}. Misafir modunda profil kaydedilmedi.`;
+  if (deathTitle) deathTitle.textContent = victory ? "1. oldunuz!" : "Yılan dağıldı";
+  if (victory) {
+    deathText.textContent = canSaveMatch ? `${bestHuman.name} arenada son kaldı. +${earnedCoins} coin kazandın.` : `${bestHuman.name} arenada son kaldı. Misafir modunda 400 coin kaydedilmedi.`;
+  } else {
+    deathText.textContent = canSaveMatch ? `${bestHuman.name} skoru ${finalScore}. +${earnedCoins} coin kazandın.` : `${bestHuman.name} skoru ${finalScore}. Misafir modunda profil kaydedilmedi.`;
+  }
   setGameHudVisible(false);
   deathPanel.classList.remove("is-hidden");
   renderProfile();
@@ -1717,6 +1787,7 @@ function update(dt, now) {
     for (const snake of snakes) { if (!snake.alive) continue; moveSnake(snake, dt, now); collectFood(snake, now); }
     syncTwinHolograms(now);
     resolveCollisions();
+    maybeFinishVictory();
     sendOnlineState(now);
   }
   updateEffects(dt);
