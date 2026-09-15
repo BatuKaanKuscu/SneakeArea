@@ -83,17 +83,18 @@ const shopGrid = document.getElementById("shopGrid");
 const exitGameButton = document.getElementById("exitGameButton");
 const boostButton = document.getElementById("boostButton");
 const touchStick = document.getElementById("touchStick");
+const powerButtons = document.getElementById("powerButtons");
 const powerButton = document.getElementById("powerButton");
 const dashButton = document.getElementById("dashButton");
 const twinButton = document.getElementById("twinButton");
 const goldButton = document.getElementById("goldButton");
 const trapButton = document.getElementById("trapButton");
 const POWER_BINDING_DEFS = [
-  { kind: "area", label: "Alan gücü", desc: "Yakındaki yemleri toplar", defaultCode: "KeyE" },
-  { kind: "dash", label: "Atılım", desc: "Kısa mesafe ileri atılır", defaultCode: "KeyQ" },
-  { kind: "twin", label: "Hologram", desc: "İkili takım ve yer değiştirme", defaultCode: "KeyR" },
-  { kind: "gold", label: "Altın hızlanış", desc: "Kısa süre çok hızlı gider", defaultCode: "KeyT" },
-  { kind: "trap", label: "Tuzak", desc: "Kuyruğa güç kilidi bırakır", defaultCode: "KeyF" },
+  { kind: "area", label: "Alan g\u00fcc\u00fc", desc: "Yak\u0131ndaki yemleri toplar", defaultCode: "KeyE" },
+  { kind: "dash", label: "At\u0131l\u0131m", desc: "K\u0131sa mesafe ileri at\u0131l\u0131r", defaultCode: "KeyQ" },
+  { kind: "twin", label: "Hologram", desc: "\u0130kili tak\u0131m ve yer de\u011fi\u015ftirme", defaultCode: "KeyR" },
+  { kind: "gold", label: "Alt\u0131n h\u0131zlan\u0131\u015f", desc: "K\u0131sa s\u00fcre \u00e7ok h\u0131zl\u0131 gider", defaultCode: "KeyT" },
+  { kind: "trap", label: "Tuzak", desc: "Kuyru\u011fa g\u00fc\u00e7 kilidi b\u0131rak\u0131r", defaultCode: "KeyF" },
 ];
 const POWER_BUTTONS = { area: powerButton, dash: dashButton, twin: twinButton, gold: goldButton, trap: trapButton };
 const RESERVED_POWER_KEY_CODES = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "ShiftLeft", "ShiftRight", "KeyI", "KeyJ", "KeyK", "KeyL", "KeyU", "Enter", "Escape", "Tab", "Backspace"]);
@@ -144,6 +145,23 @@ const LEGACY_SESSION_KEY = "snakeAeaSession";
 const PROFILE_KEY = "snakeAreaProfile";
 const SESSION_KEY = "snakeAreaSession";
 const KEYBINDS_KEY = "snakeAreaKeybinds";
+const TOUCH_CONTROLS_KEY = "snakeAreaTouchControls";
+const TOUCH_CONTROL_DEFAULTS = { stickX: 22, stickY: 76, stickSize: 152, powerX: 86, powerY: 72, powerSize: 58 };
+const TOUCH_CONTROL_DEFS = [
+  { key: "stickX", label: "Joystick yatay", desc: "Sol/sa\u011f konum", min: 12, max: 46, unit: "%" },
+  { key: "stickY", label: "Joystick dikey", desc: "Alt/\u00fcst konum", min: 52, max: 88, unit: "%" },
+  { key: "stickSize", label: "Joystick boyutu", desc: "Halka ve merkez", min: 126, max: 198, unit: "px" },
+  { key: "powerX", label: "G\u00fc\u00e7 paneli yatay", desc: "Buton grubu", min: 58, max: 92, unit: "%" },
+  { key: "powerY", label: "G\u00fc\u00e7 paneli dikey", desc: "Buton grubu", min: 42, max: 84, unit: "%" },
+  { key: "powerSize", label: "G\u00fc\u00e7 butonu boyutu", desc: "Yuvarlak tu\u015flar", min: 46, max: 74, unit: "px" },
+];
+const POWER_BUTTON_VISUALS = {
+  area: { short: "A", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.6"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>' },
+  dash: { short: "D", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 10-13h-7l1-7Z"/></svg>' },
+  twin: { short: "H", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7c4-3 9-2 10 2 1 3-1 6-5 6H6"/><path d="M17 17c-4 3-9 2-10-2-1-3 1-6 5-6h6"/><circle cx="8" cy="15" r="1"/><circle cx="16" cy="9" r="1"/></svg>' },
+  gold: { short: "G", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6-4.4-4.2 6-.8L12 3Z"/></svg>' },
+  trap: { short: "T", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><path d="m7 7 10 10M17 7 7 17"/><circle cx="12" cy="12" r="3"/></svg>' },
+};
 
 const SKINS = [
   { id: "cyan", name: "Area Basic", price: 0, colors: ["#4ff3ff", "#b8ff5d"] },
@@ -250,6 +268,7 @@ let serverAvailable = false;
 let listeningKeybind = "";
 let settingsMessage = "";
 let powerKeybinds = loadPowerKeybinds();
+let touchControls = loadTouchControls();
 
 function random(min, max) { return Math.random() * (max - min) + min; }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -318,6 +337,83 @@ function displayKeyCode(code) {
   return code || "-";
 }
 
+function normalizeTouchControls(raw = {}) {
+  const clean = { ...TOUCH_CONTROL_DEFAULTS };
+  for (const item of TOUCH_CONTROL_DEFS) {
+    const value = Number(raw[item.key]);
+    clean[item.key] = Number.isFinite(value) ? Math.round(clamp(value, item.min, item.max)) : TOUCH_CONTROL_DEFAULTS[item.key];
+  }
+  return clean;
+}
+
+function loadTouchControls() {
+  try {
+    return normalizeTouchControls(JSON.parse(localStorage.getItem(TOUCH_CONTROLS_KEY) || "{}"));
+  } catch {
+    return { ...TOUCH_CONTROL_DEFAULTS };
+  }
+}
+
+function saveTouchControls() {
+  localStorage.setItem(TOUCH_CONTROLS_KEY, JSON.stringify(touchControls));
+}
+
+function touchControlLabel(key) {
+  const item = TOUCH_CONTROL_DEFS.find((entry) => entry.key === key);
+  const value = Math.round(touchControls[key] ?? TOUCH_CONTROL_DEFAULTS[key]);
+  return item ? `${value}${item.unit}` : `${value}`;
+}
+
+function viewportControlPoint(xPercent, yPercent, size) {
+  const margin = Math.max(10, size / 2 + 8);
+  return {
+    x: clamp(window.innerWidth * xPercent / 100, margin, window.innerWidth - margin),
+    y: clamp(window.innerHeight * yPercent / 100, margin, window.innerHeight - margin),
+  };
+}
+
+function positionPowerButtons() {
+  if (!powerButtons) return;
+  const clusterSize = touchControls.powerSize * 2 + 30;
+  const point = viewportControlPoint(touchControls.powerX, touchControls.powerY, clusterSize);
+  powerButtons.style.left = `${point.x}px`;
+  powerButtons.style.top = `${point.y}px`;
+}
+
+function positionIdleJoystick() {
+  if (!touchStick || joystick.active) return;
+  const point = viewportControlPoint(touchControls.stickX, touchControls.stickY, touchControls.stickSize);
+  joystick.x = point.x;
+  joystick.y = point.y;
+  syncJoystickVisual();
+}
+
+function applyTouchControls() {
+  document.documentElement.style.setProperty("--touch-stick-size", `${touchControls.stickSize}px`);
+  document.documentElement.style.setProperty("--touch-thumb-size", `${Math.round(touchControls.stickSize * 0.32)}px`);
+  document.documentElement.style.setProperty("--power-button-size", `${touchControls.powerSize}px`);
+  document.documentElement.style.setProperty("--power-button-icon-size", `${Math.round(touchControls.powerSize * 0.46)}px`);
+  positionPowerButtons();
+  positionIdleJoystick();
+}
+
+function setTouchControlValue(key, rawValue) {
+  const item = TOUCH_CONTROL_DEFS.find((entry) => entry.key === key);
+  if (!item) return;
+  const value = Number(rawValue);
+  touchControls[key] = Math.round(clamp(Number.isFinite(value) ? value : TOUCH_CONTROL_DEFAULTS[key], item.min, item.max));
+  saveTouchControls();
+  applyTouchControls();
+}
+
+function resetTouchControls() {
+  touchControls = { ...TOUCH_CONTROL_DEFAULTS };
+  saveTouchControls();
+  applyTouchControls();
+  settingsMessage = "Mobil kontrol d\u00fczeni varsay\u0131lana d\u00f6nd\u00fc.";
+  renderSettings();
+}
+
 function powerKindForEvent(event) {
   return POWER_BINDING_DEFS.find((item) => powerKeybinds[item.kind] === event.code)?.kind || "";
 }
@@ -326,7 +422,7 @@ function setPowerKeybind(kind, code) {
   const item = POWER_BINDING_DEFS.find((entry) => entry.kind === kind);
   if (!item) return false;
   if (!isAllowedPowerKeyCode(code)) {
-    settingsMessage = "Hareket, boost ve sistem tuşları güç tuşu olamaz.";
+    settingsMessage = "Hareket, boost ve sistem tu\u015flar\u0131 g\u00fc\u00e7 tu\u015fu olamaz.";
     renderSettings();
     return false;
   }
@@ -335,7 +431,7 @@ function setPowerKeybind(kind, code) {
   if (duplicate) powerKeybinds[duplicate.kind] = previous;
   powerKeybinds[kind] = code;
   listeningKeybind = "";
-  settingsMessage = `${item.label} tuşu ${displayKeyCode(code)} oldu.`;
+  settingsMessage = `${item.label} tu\u015fu ${displayKeyCode(code)} oldu.`;
   savePowerKeybinds();
   return true;
 }
@@ -343,27 +439,48 @@ function setPowerKeybind(kind, code) {
 function resetPowerKeybinds() {
   powerKeybinds = defaultPowerKeybinds();
   listeningKeybind = "";
-  settingsMessage = "Tuşlar varsayılana döndü.";
+  settingsMessage = "Tu\u015flar varsay\u0131lana d\u00f6nd\u00fc.";
   localStorage.setItem(KEYBINDS_KEY, JSON.stringify(powerKeybinds));
   updatePowerKeyLabels();
   renderSettings();
 }
 
+function selectedSkinControlColors() {
+  const skin = getSkin(getPlayableSkinId(selectedSkin));
+  return skin.colors || SKINS[0].colors;
+}
+
 function updatePowerKeyLabels() {
+  const colors = selectedSkinControlColors();
   for (const item of POWER_BINDING_DEFS) {
     const button = POWER_BUTTONS[item.kind];
     if (!button) continue;
     const label = displayKeyCode(powerKeybinds[item.kind]);
-    const text = button.querySelector("span");
-    if (text) text.textContent = label;
+    const visual = POWER_BUTTON_VISUALS[item.kind] || { short: label, icon: "" };
+    button.dataset.powerKind = item.kind;
+    button.style.setProperty("--skin-a", colors[0]);
+    button.style.setProperty("--skin-b", colors[1]);
+    button.style.setProperty("--charge", button.style.getPropertyValue("--charge") || "100%");
+    button.innerHTML = `<i class="skin-chip" aria-hidden="true"></i><b class="power-glyph">${visual.icon || visual.short}</b><span class="power-key">${label}</span><small class="power-state"></small>`;
     button.title = `${item.label} (${label})`;
+    button.setAttribute("aria-label", `${item.label} ${label}`);
   }
+}
+
+function setPowerButtonState(button, ready, percent, stateText = "", locked = false) {
+  if (!button) return;
+  const amount = clamp(Number(percent) || 0, 0, 100);
+  button.classList.toggle("is-ready", Boolean(ready));
+  button.classList.toggle("is-locked", Boolean(locked));
+  button.style.setProperty("--charge", `${Math.round(amount)}%`);
+  const state = button.querySelector(".power-state");
+  if (state) state.textContent = stateText;
 }
 
 function startKeybindCapture(kind) {
   listeningKeybind = kind;
   const item = POWER_BINDING_DEFS.find((entry) => entry.kind === kind);
-  settingsMessage = item ? `${item.label} için yeni tuşa bas.` : "Yeni tuşa bas.";
+  settingsMessage = item ? `${item.label} i\u00e7in yeni tu\u015fa bas.` : "Yeni tu\u015fa bas.";
   renderSettings();
 }
 
@@ -885,6 +1002,7 @@ function renderProfile() {
   if (matchCount) matchCount.textContent = isSignedIn ? Math.floor(profile.matches).toLocaleString("tr-TR") : "-";
   if (profileRole) profileRole.textContent = titleText;
   selectedSkin = getPlayableSkinId(profile.activeSkin);
+  updatePowerKeyLabels();
   document.body.classList.remove(...PALETTES.map((palette) => `palette-${palette.id}`));
   document.body.classList.add(`palette-${profile.theme}`);
   if (languageCode) languageCode.textContent = profile.language === "tr" ? "TR" : "EN";
@@ -1020,22 +1138,44 @@ function renderShop() {
 
 function renderSettings() {
   if (!quickSettings) return;
-  const rows = POWER_BINDING_DEFS.map((item, index) => {
+  const keyRows = POWER_BINDING_DEFS.map((item, index) => {
     const listening = listeningKeybind === item.kind;
     const key = displayKeyCode(powerKeybinds[item.kind]);
     return `<article class="keybind-row keybind-${item.kind}">
       <div class="keybind-meta"><span class="keybind-badge">${index + 1}</span><div><b>${item.label}</b><small>${item.desc}</small></div></div>
-      <button class="key-capture ${listening ? "is-listening" : ""}" data-keybind-kind="${item.kind}" aria-label="${item.label} tuşunu değiştir"><kbd>${listening ? "..." : key}</kbd><span>${listening ? "Tuşa bas" : "Değiştir"}</span></button>
+      <button class="key-capture ${listening ? "is-listening" : ""}" data-keybind-kind="${item.kind}" aria-label="${item.label} tu\u015funu de\u011fi\u015ftir"><kbd>${listening ? "..." : key}</kbd><span>${listening ? "Tu\u015fa bas" : "De\u011fi\u015ftir"}</span></button>
     </article>`;
   }).join("");
+  const touchRows = TOUCH_CONTROL_DEFS.map((item) => `<label class="touch-control-row">
+    <span><b>${item.label}</b><small>${item.desc}</small></span>
+    <input type="range" min="${item.min}" max="${item.max}" value="${touchControls[item.key]}" data-touch-control="${item.key}" />
+    <output data-touch-output="${item.key}">${touchControlLabel(item.key)}</output>
+  </label>`).join("");
   quickSettings.innerHTML = `
     <section class="settings-card">
-      <header class="settings-head"><div><span>KONTROLLER</span><h3>Özel güç tuşları</h3></div><button class="inline-action is-muted" data-reset-keybinds="1">Sıfırla</button></header>
-      <div class="keybind-list">${rows}</div>
-      <p class="settings-message ${settingsMessage ? "is-active" : ""}">${settingsMessage || "Tuş düzeni bu cihazda saklanır."}</p>
+      <header class="settings-head"><div><span>KONTROLLER</span><h3>\u00d6zel g\u00fc\u00e7 tu\u015flar\u0131</h3></div><button class="inline-action is-muted" data-reset-keybinds="1">S\u0131f\u0131rla</button></header>
+      <div class="keybind-list">${keyRows}</div>
+      <p class="settings-message ${settingsMessage ? "is-active" : ""}">${settingsMessage || "Tu\u015f ve mobil kontrol d\u00fczeni bu cihazda saklan\u0131r."}</p>
+    </section>
+    <section class="settings-card mobile-control-card">
+      <header class="settings-head control-head"><div><span>MOB\u0130L D\u00dcZEN</span><h3>Joystick ve butonlar</h3></div><button class="inline-action is-muted" data-reset-touch="1">S\u0131f\u0131rla</button></header>
+      <div class="control-preview" aria-hidden="true"><span class="preview-stick"></span><span class="preview-buttons"><i></i><i></i><i></i><i></i></span></div>
+      <div class="touch-control-list">${touchRows}</div>
     </section>`;
   quickSettings.querySelectorAll("[data-keybind-kind]").forEach((button) => button.addEventListener("click", () => startKeybindCapture(button.dataset.keybindKind)));
   quickSettings.querySelector("[data-reset-keybinds]")?.addEventListener("click", resetPowerKeybinds);
+  quickSettings.querySelector("[data-reset-touch]")?.addEventListener("click", resetTouchControls);
+  quickSettings.querySelectorAll("[data-touch-control]").forEach((input) => {
+    input.addEventListener("input", () => {
+      setTouchControlValue(input.dataset.touchControl, input.value);
+      const output = quickSettings.querySelector(`[data-touch-output="${input.dataset.touchControl}"]`);
+      if (output) output.textContent = touchControlLabel(input.dataset.touchControl);
+    });
+    input.addEventListener("change", () => {
+      settingsMessage = "Mobil kontrol d\u00fczeni kaydedildi.";
+      renderSettings();
+    });
+  });
 }
 function renderAchievements() {
   quickAchievements.innerHTML = ACHIEVEMENTS.map((achievement) => {
@@ -1112,6 +1252,7 @@ function toggleLanguage() {
 function setGameHudVisible(visible) {
   document.querySelectorAll(".game-stat").forEach((item) => item.classList.toggle("is-hidden", !visible || item.classList.contains("charge-stat")));
   document.body.classList.toggle("is-playing", visible);
+  if (visible) applyTouchControls();
   if (radarWrap) radarWrap.classList.toggle("is-hidden", !visible);
   if (!visible) {
     resetJoystick();
@@ -1172,6 +1313,7 @@ function resize() {
   ctx.imageSmoothingEnabled = false;
   scale = width < 720 ? 0.82 : 1;
   vignetteGradient = null;
+  applyTouchControls();
 }
 
 function targetFoodCount() {
@@ -1580,12 +1722,13 @@ function sendOnlineState(now) {
 function screenToWorld(x, y) { return { x: camera.x + (x - width / 2) / scale, y: camera.y + (y - height / 2) / scale }; }
 function syncJoystickVisual() {
   if (!touchStick) return;
-  const travel = 42;
+  const travel = Math.max(34, touchControls.stickSize * 0.28);
   touchStick.style.left = `${joystick.x}px`;
   touchStick.style.top = `${joystick.y}px`;
   touchStick.style.setProperty("--stick-x", `${joystick.dx * travel}px`);
   touchStick.style.setProperty("--stick-y", `${joystick.dy * travel}px`);
   touchStick.classList.toggle("is-active", joystick.active && joystick.strength > 0.12);
+  touchStick.classList.toggle("is-idle", !joystick.active);
   touchStick.classList.toggle("is-boost-zone", joystick.active && joystick.strength >= BOOST_OUTER_THRESHOLD && !joystick.boostLocked);
 }
 
@@ -1596,7 +1739,7 @@ function resetJoystick() {
   joystick.dy = 0;
   joystick.strength = 0;
   joystick.boostLocked = false;
-  syncJoystickVisual();
+  positionIdleJoystick();
 }
 
 function updateJoystick(event) {
@@ -1945,11 +2088,11 @@ function update(dt, now) {
       if (twinPowerEl) twinPowerEl.textContent = locked ? lockLabel : focusPlayer.twinSwapAt && focusPlayer.twinSwapAt > now ? `GEÇ ${Math.ceil((focusPlayer.twinSwapAt - now) / 1000)}` : isTwinActive(focusPlayer, now) ? "2. BAS" : `${Math.round(focusPlayer.twinPower ?? 100)}%`;
       if (goldPowerEl) goldPowerEl.textContent = locked ? lockLabel : isGoldActive(focusPlayer, now) ? "ALTIN" : `${Math.round(focusPlayer.goldPower ?? 100)}%`;
       if (trapPowerEl) trapPowerEl.textContent = locked ? lockLabel : `${Math.round(focusPlayer.trapPower ?? 100)}%`;
-      if (powerButton) powerButton.classList.toggle("is-ready", !locked && (focusPlayer.power || 0) >= 100 && !isPowerActive(focusPlayer, now));
-      if (dashButton) dashButton.classList.toggle("is-ready", !locked && (focusPlayer.dashPower ?? 100) >= 100 && !isDashActive(focusPlayer, now));
-      if (twinButton) twinButton.classList.toggle("is-ready", !locked && (((focusPlayer.twinPower ?? 100) >= 100 && !isTwinActive(focusPlayer, now)) || (isTwinActive(focusPlayer, now) && !focusPlayer.twinSwapAt && !focusPlayer.twinSwapUsed)));
-      if (goldButton) goldButton.classList.toggle("is-ready", !locked && (focusPlayer.goldPower ?? 100) >= 100 && !isGoldActive(focusPlayer, now));
-      if (trapButton) trapButton.classList.toggle("is-ready", !locked && (focusPlayer.trapPower ?? 100) >= 100);
+      setPowerButtonState(powerButton, !locked && (focusPlayer.power || 0) >= 100 && !isPowerActive(focusPlayer, now), locked ? 0 : (focusPlayer.power || 0), locked ? `${powerLockSeconds(focusPlayer, now)}sn` : isPowerActive(focusPlayer, now) ? "ON" : "", locked);
+      setPowerButtonState(dashButton, !locked && (focusPlayer.dashPower ?? 100) >= 100 && !isDashActive(focusPlayer, now), locked ? 0 : (focusPlayer.dashPower ?? 100), locked ? `${powerLockSeconds(focusPlayer, now)}sn` : isDashActive(focusPlayer, now) ? "GO" : "", locked);
+      setPowerButtonState(twinButton, !locked && (((focusPlayer.twinPower ?? 100) >= 100 && !isTwinActive(focusPlayer, now)) || (isTwinActive(focusPlayer, now) && !focusPlayer.twinSwapAt && !focusPlayer.twinSwapUsed)), locked ? 0 : (focusPlayer.twinPower ?? 100), locked ? `${powerLockSeconds(focusPlayer, now)}sn` : focusPlayer.twinSwapAt && focusPlayer.twinSwapAt > now ? `${Math.ceil((focusPlayer.twinSwapAt - now) / 1000)}sn` : isTwinActive(focusPlayer, now) ? "SW" : "", locked);
+      setPowerButtonState(goldButton, !locked && (focusPlayer.goldPower ?? 100) >= 100 && !isGoldActive(focusPlayer, now), locked ? 0 : (focusPlayer.goldPower ?? 100), locked ? `${powerLockSeconds(focusPlayer, now)}sn` : isGoldActive(focusPlayer, now) ? "MAX" : "", locked);
+      setPowerButtonState(trapButton, !locked && (focusPlayer.trapPower ?? 100) >= 100, locked ? 0 : (focusPlayer.trapPower ?? 100), locked ? `${powerLockSeconds(focusPlayer, now)}sn` : "", locked);
       lastHudUpdate = now;
     }
   }
@@ -2333,6 +2476,7 @@ resize();
 bindControls();
 renderProfile();
 updatePowerKeyLabels();
+applyTouchControls();
 updateModeButtons();
 botCountValue.textContent = botCountSetting.toString();
 loadServerProfile();
