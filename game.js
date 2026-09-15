@@ -1020,16 +1020,19 @@ function renderShop() {
 
 function renderSettings() {
   if (!quickSettings) return;
-  const rows = POWER_BINDING_DEFS.map((item) => {
+  const rows = POWER_BINDING_DEFS.map((item, index) => {
     const listening = listeningKeybind === item.kind;
     const key = displayKeyCode(powerKeybinds[item.kind]);
-    return `<article class="keybind-row"><div><b>${item.label}</b><small>${item.desc}</small></div><button class="key-capture ${listening ? "is-listening" : ""}" data-keybind-kind="${item.kind}">${listening ? "Tuşa bas" : key}</button></article>`;
+    return `<article class="keybind-row keybind-${item.kind}">
+      <div class="keybind-meta"><span class="keybind-badge">${index + 1}</span><div><b>${item.label}</b><small>${item.desc}</small></div></div>
+      <button class="key-capture ${listening ? "is-listening" : ""}" data-keybind-kind="${item.kind}" aria-label="${item.label} tuşunu değiştir"><kbd>${listening ? "..." : key}</kbd><span>${listening ? "Tuşa bas" : "Değiştir"}</span></button>
+    </article>`;
   }).join("");
   quickSettings.innerHTML = `
     <section class="settings-card">
-      <header><h3>Özel güç tuşları</h3><button class="inline-action is-muted" data-reset-keybinds="1">Sıfırla</button></header>
+      <header class="settings-head"><div><span>KONTROLLER</span><h3>Özel güç tuşları</h3></div><button class="inline-action is-muted" data-reset-keybinds="1">Sıfırla</button></header>
       <div class="keybind-list">${rows}</div>
-      <p class="settings-message">${settingsMessage || "Bir güç satırındaki tuşa basıp yeni tuşu seç."}</p>
+      <p class="settings-message ${settingsMessage ? "is-active" : ""}">${settingsMessage || "Tuş düzeni bu cihazda saklanır."}</p>
     </section>`;
   quickSettings.querySelectorAll("[data-keybind-kind]").forEach((button) => button.addEventListener("click", () => startKeybindCapture(button.dataset.keybindKind)));
   quickSettings.querySelector("[data-reset-keybinds]")?.addEventListener("click", resetPowerKeybinds);
