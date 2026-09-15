@@ -7,6 +7,11 @@ const radarWrap = document.querySelector(".radar-wrap");
 const scoreEl = document.getElementById("score");
 const lengthEl = document.getElementById("length");
 const boostEl = document.getElementById("boost");
+const powerEl = document.getElementById("power");
+const dashPowerEl = document.getElementById("dashPower");
+const twinPowerEl = document.getElementById("twinPower");
+const goldPowerEl = document.getElementById("goldPower");
+const trapPowerEl = document.getElementById("trapPower");
 const modeLabel = document.getElementById("modeLabel");
 const topUserName = document.getElementById("topUserName");
 const topUserTitle = document.getElementById("topUserTitle");
@@ -75,18 +80,50 @@ const shopGrid = document.getElementById("shopGrid");
 const exitGameButton = document.getElementById("exitGameButton");
 const boostButton = document.getElementById("boostButton");
 const touchStick = document.getElementById("touchStick");
+const powerButton = document.getElementById("powerButton");
+const dashButton = document.getElementById("dashButton");
+const twinButton = document.getElementById("twinButton");
+const goldButton = document.getElementById("goldButton");
+const trapButton = document.getElementById("trapButton");
 
 const WORLD = 4300;
-const FOOD_COUNT = 620;
+const FOOD_COUNT = 540;
 const FOOD_CELL = 220;
 const FOOD_EXTRA_LIMIT = 180;
-const MAX_EFFECTS = 150;
+const MAX_EFFECTS = 54;
 const HUD_INTERVAL = 90;
 const LEADERBOARD_INTERVAL = 260;
 const RADAR_INTERVAL = 140;
 const SEGMENT_GAP = 10;
 const BASE_SPEED = 2.45;
 const BOOST_SPEED = 4.35;
+const EPIC_SKIN_ID = "cowboy";
+const EPIC_SKIN_IDS = ["cowboy", "storm", "nebula", "phantom", "solar"];
+const EPIC_UNLOCK_MATCHES = 5;
+const POWER_DURATION = 4200;
+const POWER_PICKUP_BONUS = 62;
+const POWER_RECHARGE_RATE = 0.033;
+const DASH_COST = 100;
+const DASH_DISTANCE = 245;
+const DASH_FLASH_MS = 320;
+const DASH_COOLDOWN_MS = 720;
+const DASH_RECHARGE_RATE = 0.065;
+const DASH_PICKUP_BONUS = 2.8;
+const TWIN_DURATION_MS = 9000;
+const TWIN_RECHARGE_RATE = 0.018;
+const TWIN_PICKUP_BONUS = 1.6;
+const TWIN_SEGMENT_LIMIT = 110;
+const TWIN_SWAP_DELAY_MS = 3000;
+const GOLD_DURATION_MS = 2600;
+const GOLD_SPEED_MULTIPLIER = 1.72;
+const GOLD_RECHARGE_RATE = 0.042;
+const GOLD_PICKUP_BONUS = 2.2;
+const TRAP_RECHARGE_RATE = 0.074;
+const TRAP_PICKUP_BONUS = 2.4;
+const TRAP_DURATION_MS = 16000;
+const TRAP_LOCK_MS = 15000;
+const BOOST_RECHARGE_INNER = 0.38;
+const BOOST_OUTER_THRESHOLD = 0.86;
 const LEGACY_PROFILE_KEY = "snakeAeaProfile";
 const LEGACY_SESSION_KEY = "snakeAeaSession";
 const PROFILE_KEY = "snakeAreaProfile";
@@ -101,6 +138,11 @@ const SKINS = [
   { id: "ruby", name: "Ruby Fang", price: 420, colors: ["#ff3d6e", "#ffd166"] },
   { id: "ice", name: "Ice Wave", price: 520, colors: ["#d8f3ff", "#5ee7ff"] },
   { id: "royal", name: "Royal Split", price: 700, colors: ["#8fd14f", "#f7f06d"] },
+  { id: EPIC_SKIN_ID, name: "Epic Cowboy", price: 0, rarity: "epic", unlockMatches: 5, note: "Şapka + sakal", colors: ["#7c4a26", "#f4c86b"], hat: true, hand: true, beard: true },
+  { id: "storm", name: "Epic Storm", price: 0, rarity: "epic", unlockMatches: 7, note: "Elektrik izli", colors: ["#e0f2fe", "#38bdf8"], aura: "storm" },
+  { id: "nebula", name: "Epic Nebula", price: 0, rarity: "epic", unlockMatches: 10, note: "Galaksi parıltısı", colors: ["#c084fc", "#22d3ee"], aura: "nebula" },
+  { id: "phantom", name: "Epic Phantom", price: 0, rarity: "epic", unlockMatches: 14, note: "Koyu enerji", colors: ["#111827", "#2dd4bf"], aura: "phantom" },
+  { id: "solar", name: "Epic Solar", price: 0, rarity: "epic", unlockMatches: 18, note: "Güneş parıltısı", colors: ["#fff06a", "#ff7a1a"], aura: "solar" },
 ];
 const BOT_NAMES = ["Byte", "Nova", "Orbit", "Kobra", "Pulse", "Vega", "Pixel", "Rift", "Glitch", "Turbo", "Echo", "Mango", "Quartz", "Laser", "Drift", "Iris", "Flux", "Comet"];
 
@@ -151,6 +193,7 @@ let scale = 1;
 let foods = [];
 let foodBuckets = new Map();
 let effects = [];
+let traps = [];
 let snakes = [];
 let player = null;
 let localPlayers = [];
@@ -164,6 +207,7 @@ let matchFinalized = false;
 let lastTime = performance.now();
 let animationStarted = false;
 let pointer = { x: 0, y: 0, active: false };
+let joystick = { active: false, pointerId: null, dx: 0, dy: 0, strength: 0, x: 0, y: 0, boostLocked: false };
 let keys = new Set();
 let camera = { x: WORLD / 2, y: WORLD / 2 };
 let viewBounds = { left: 0, right: 0, top: 0, bottom: 0 };
@@ -176,6 +220,11 @@ let lastRadarDraw = 0;
 let lastIdleRender = 0;
 let profile = loadLocalProfile();
 let authToken = localStorage.getItem(SESSION_KEY) || localStorage.getItem(LEGACY_SESSION_KEY) || "";
+if (!authToken) {
+  profile = playerProfile();
+  localStorage.removeItem(PROFILE_KEY);
+  localStorage.removeItem(LEGACY_PROFILE_KEY);
+}
 let onlineNames = [];
 let ws = null;
 let wsId = null;
@@ -186,45 +235,256 @@ function random(min, max) { return Math.random() * (max - min) + min; }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function getSkin(id) { return SKINS.find((skin) => skin.id === id) || SKINS[0]; }
 function getAvatar(id) { return AVATARS.find((avatar) => avatar.id === id) || AVATARS[0]; }
+function isAdminUser() { return Boolean(authToken) && !(guestMode && guestMode.checked) && profile.isAdmin; }
+function isEpicSkin(skin) { return skin.rarity === "epic"; }
+function epicUnlockMatches(skin) { return Number(skin.unlockMatches || EPIC_UNLOCK_MATCHES); }
+function isEpicSkinUnlocked(skin) { return !isEpicSkin(skin) || isAdminUser() || profile.matches >= epicUnlockMatches(skin) || (profile.ownedSkins || []).includes(skin.id); }
+function canUseSkin(skin) { return skin.adminOnly ? isAdminUser() : !isEpicSkin(skin) || isEpicSkinUnlocked(skin); }
+function getPlayableSkinId(skinId) {
+  const skin = getSkin(skinId);
+  return profile.ownedSkins.includes(skin.id) && canUseSkin(skin) ? skin.id : "cyan";
+}
+function syncEpicSkinUnlock() {
+  if (profile.isAdmin) return;
+  for (const skin of SKINS.filter(isEpicSkin)) {
+    if (profile.matches >= epicUnlockMatches(skin) && !profile.ownedSkins.includes(skin.id)) profile.ownedSkins.push(skin.id);
+    if (profile.matches < epicUnlockMatches(skin)) profile.ownedSkins = profile.ownedSkins.filter((id) => id !== skin.id);
+  }
+}
+function titleText(id) { return TITLE_CATALOG[id] || id || ""; }
+function currentProfileTitle() { return authToken && !(guestMode && guestMode.checked) ? titleText(profile.title) : ""; }
+function isPowerActive(snake, now = performance.now()) { return Boolean(snake && (snake.powerActiveUntil || 0) > now); }
+function isDashActive(snake, now = performance.now()) { return Boolean(snake && (snake.dashFlashUntil || 0) > now); }
+function isTwinActive(snake, now = performance.now()) { return Boolean(snake && (snake.twinActiveUntil || 0) > now); }
+function isGoldActive(snake, now = performance.now()) { return Boolean(snake && (snake.goldActiveUntil || 0) > now); }
+function arePowersLocked(snake, now = performance.now()) { return Boolean(snake && (snake.powerLockUntil || 0) > now); }
+function powerLockSeconds(snake, now = performance.now()) { return Math.max(0, Math.ceil(((snake?.powerLockUntil || 0) - now) / 1000)); }
+function canTriggerPower(snake, now = performance.now()) {
+  return Boolean(snake && snake.alive && snake.type !== "remote" && snake.type !== "hologram" && !arePowersLocked(snake, now));
+}
+function activatePower(snake, now = performance.now()) {
+  if (!canTriggerPower(snake, now) || snake.power < 100 || isPowerActive(snake, now)) return false;
+  snake.power = 0;
+  snake.powerActiveUntil = now + POWER_DURATION;
+  spawnEffectBurst(snake.x, snake.y, snake.colors?.[1] || "#b8ff5d", 14);
+  return true;
+}
+function activateDash(snake, now = performance.now()) {
+  if (!canTriggerPower(snake, now) || snake.dashPower < DASH_COST || now < (snake.dashCooldownUntil || 0)) return false;
+  const fromX = snake.x;
+  const fromY = snake.y;
+  const distance = DASH_DISTANCE + Math.min(70, Math.max(0, snake.radius - 12) * 2.2);
+  snake.dashPower = 0;
+  snake.dashCooldownUntil = now + DASH_COOLDOWN_MS;
+  snake.dashFlashUntil = now + DASH_FLASH_MS;
+  snake.x = clamp(snake.x + Math.cos(snake.angle) * distance, 32, WORLD - 32);
+  snake.y = clamp(snake.y + Math.sin(snake.angle) * distance, 32, WORLD - 32);
+  const maxSegments = Math.max(8, Math.floor(snake.targetLength));
+  snake.segments.unshift({ x: snake.x, y: snake.y });
+  while (snake.segments.length > maxSegments) snake.segments.pop();
+  refreshSnakeBounds(snake);
+  snake.boundsRefreshAt = now + 120;
+  spawnEffectBurst(fromX, fromY, "#4ff3ff", 8);
+  spawnEffectBurst(snake.x, snake.y, snake.colors?.[1] || "#b8ff5d", 10);
+  return true;
+}
+function activateTwin(snake, now = performance.now()) {
+  if (!snake || !snake.alive || snake.type === "remote" || snake.type === "hologram") return false;
+  if (arePowersLocked(snake, now)) return false;
+  if (isTwinActive(snake, now)) return beginTwinSwap(snake, now);
+  if (snake.twinPower < 100) return false;
+  snake.twinPower = 0;
+  snake.twinActiveUntil = now + TWIN_DURATION_MS;
+  snake.twinSwapAt = 0;
+  snake.twinSwapStartedAt = 0;
+  snake.twinSwapUsed = false;
+  syncTwinHologram(snake, now);
+  spawnEffectBurst(snake.x, snake.y, "#8feeff", 12);
+  spawnEffectBurst(WORLD - snake.x, WORLD - snake.y, "#4ff3ff", 12);
+  return true;
+}
+function beginTwinSwap(snake, now = performance.now()) {
+  if (!snake || !isTwinActive(snake, now) || snake.twinSwapAt || snake.twinSwapUsed) return false;
+  const twin = syncTwinHologram(snake, now);
+  if (!twin) return false;
+  snake.twinSwapAt = now + TWIN_SWAP_DELAY_MS;
+  snake.twinSwapStartedAt = now;
+  snake.twinSwapUsed = true;
+  twin.twinSwapAt = snake.twinSwapAt;
+  twin.twinSwapStartedAt = snake.twinSwapStartedAt;
+  spawnEffectBurst(twin.x, twin.y, "#8feeff", 14);
+  return true;
+}
+function finishTwinSwap(snake, now = performance.now()) {
+  if (!snake || !snake.twinSwapAt || snake.twinSwapAt > now) return false;
+  const twin = snakes.find((item) => item.id === `holo-${snake.id}` && item.alive);
+  if (twin) {
+    const fromX = snake.x;
+    const fromY = snake.y;
+    const maxSegments = Math.max(8, Math.floor(snake.targetLength));
+    const clone = twin.segments.slice(0, maxSegments).map((segment) => ({ x: segment.x, y: segment.y }));
+    const last = clone[clone.length - 1] || { x: twin.x, y: twin.y };
+    while (clone.length < maxSegments) clone.push({ x: last.x, y: last.y });
+    snake.x = twin.x;
+    snake.y = twin.y;
+    snake.angle = twin.angle;
+    snake.segments = clone;
+    refreshSnakeBounds(snake);
+    snake.boundsRefreshAt = now + 120;
+    spawnEffectBurst(fromX, fromY, "#8feeff", 10);
+    spawnEffectBurst(snake.x, snake.y, "#4ff3ff", 16);
+  }
+  snake.twinActiveUntil = now;
+  snake.twinSwapAt = 0;
+  snake.twinSwapStartedAt = 0;
+  return Boolean(twin);
+}
+function activateGold(snake, now = performance.now()) {
+  if (!canTriggerPower(snake, now) || (snake.goldPower ?? 100) < 100 || isGoldActive(snake, now)) return false;
+  snake.goldPower = 0;
+  snake.goldActiveUntil = now + GOLD_DURATION_MS;
+  spawnEffectBurst(snake.x + Math.cos(snake.angle) * snake.radius * 2, snake.y + Math.sin(snake.angle) * snake.radius * 2, "#ffd166", 18);
+  return true;
+}
+function activateTrap(snake, now = performance.now()) {
+  if (!canTriggerPower(snake, now) || (snake.trapPower ?? 100) < 100) return false;
+  const tail = snake.segments[snake.segments.length - 1] || snake;
+  snake.trapPower = 0;
+  traps.push({
+    id: `${snake.id}-${Math.round(now)}`,
+    ownerId: snake.id,
+    x: tail.x,
+    y: tail.y,
+    r: Math.max(18, snake.radius + 7),
+    createdAt: now,
+    expiresAt: now + TRAP_DURATION_MS,
+    color: snake.colors?.[1] || "#ff3d6e",
+  });
+  if (traps.length > 36) traps.splice(0, traps.length - 36);
+  spawnEffectBurst(tail.x, tail.y, "#ff3d6e", 10);
+  return true;
+}
+function syncTwinHologram(source, now = performance.now()) {
+  if (!source || !source.alive || source.type === "hologram" || !isTwinActive(source, now)) return null;
+  const twinId = `holo-${source.id}`;
+  let twin = snakes.find((item) => item.id === twinId);
+  if (!twin) {
+    twin = makeSnake("Hologram", source.skin, { type: "hologram", id: twinId, title: "İkili Takım", x: WORLD - source.x, y: WORLD - source.y, length: Math.min(TWIN_SEGMENT_LIMIT, source.segments.length || 18), ownerId: source.id });
+    snakes.push(twin);
+  }
+  twin.ownerId = source.id;
+  twin.alive = true;
+  twin.name = "Hologram";
+  twin.title = "İkili Takım";
+  twin.skin = source.skin;
+  twin.colors = source.colors;
+  twin.x = WORLD - source.x;
+  twin.y = WORLD - source.y;
+  twin.angle = (source.angle + Math.PI) % (Math.PI * 2);
+  twin.targetLength = source.targetLength;
+  twin.score = source.score;
+  twin.radius = source.radius;
+  twin.powerActiveUntil = source.powerActiveUntil;
+  twin.dashFlashUntil = source.dashFlashUntil;
+  twin.twinActiveUntil = source.twinActiveUntil;
+  twin.twinSwapAt = source.twinSwapAt || 0;
+  twin.twinSwapStartedAt = source.twinSwapStartedAt || 0;
+  twin.goldActiveUntil = source.goldActiveUntil || 0;
+  twin.powerLockUntil = source.powerLockUntil || 0;
+  const limit = Math.min(TWIN_SEGMENT_LIMIT, source.segments.length);
+  twin.segments.length = limit;
+  for (let i = 0; i < limit; i++) {
+    const sourceSegment = source.segments[i] || source;
+    const segment = twin.segments[i] || { x: 0, y: 0 };
+    segment.x = WORLD - sourceSegment.x;
+    segment.y = WORLD - sourceSegment.y;
+    twin.segments[i] = segment;
+  }
+  refreshSnakeBounds(twin);
+  twin.boundsRefreshAt = now + 180;
+  return twin;
+}
+function syncTwinHolograms(now = performance.now()) {
+  for (const source of snakes) {
+    if (source.type !== "hologram" && source.twinSwapAt && source.twinSwapAt <= now) finishTwinSwap(source, now);
+  }
+  const activeOwners = new Set();
+  let hasHologram = false;
+  for (let i = 0; i < snakes.length; i++) {
+    const source = snakes[i];
+    if (source.type === "hologram") { hasHologram = true; continue; }
+    if (!source.alive || !isTwinActive(source, now)) continue;
+    activeOwners.add(source.id);
+    syncTwinHologram(source, now);
+  }
+  if (hasHologram) snakes = snakes.filter((item) => item.type !== "hologram" || activeOwners.has(item.ownerId));
+}
+function currentPowerTarget() {
+  const target = focusPlayer && focusPlayer.alive && focusPlayer.type !== "hologram" ? focusPlayer : player;
+  return target && target.alive && target.type !== "remote" && target.type !== "hologram" ? target : null;
+}
+function triggerSpecialPower(kind) {
+  if (!running) return false;
+  const target = currentPowerTarget();
+  if (!target || arePowersLocked(target)) return false;
+  if (kind === "area") return activatePower(target);
+  if (kind === "dash") return activateDash(target);
+  if (kind === "twin") return activateTwin(target);
+  if (kind === "gold") return activateGold(target);
+  if (kind === "trap") return activateTrap(target);
+  return false;
+}function snakeRadiusForLength(length, isHuman = true) { return (isHuman ? 12.5 : 11.5) + Math.min(13, Math.max(0, length - 18) * 0.055); }
 function cleanName(value, fallback) { return (value || "").trim().replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 14) || fallback; }
-function getCurrentPlayerName() { return guestMode && guestMode.checked ? cleanName(profileName ? profileName.value : "", "Guest") : profile.name; }
+function getCurrentPlayerName() { return authToken && !(guestMode && guestMode.checked) ? profile.name : cleanName(profileName ? profileName.value : "", "Guest"); }
 function angleLerp(current, target, amount) {
   const diff = ((target - current + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
   return current + diff * amount;
 }
 
-function adminProfile() {
-  return { name: "NearBacon", coins: 5000, bestScore: 0, matches: 0, role: "admin", isAdmin: true, title: "admin", unlockedTitles: ["admin", "rookie", "hunter", "collector", "champion", "speedster", "survivor"], achievements: [], claimedQuests: [], avatar: "near", ownedSkins: SKINS.map((skin) => skin.id), activeSkin: "cyan", theme: "aurora", language: "tr", friends: [] };
+function adminProfile(name = "Admin") {
+  return { name: cleanName(name, "Admin"), coins: 5000, bestScore: 0, matches: 0, role: "admin", isAdmin: true, title: "admin", unlockedTitles: ["admin", "rookie", "hunter", "collector", "champion", "speedster", "survivor"], achievements: [], claimedQuests: [], avatar: "near", ownedSkins: SKINS.map((skin) => skin.id), activeSkin: "cyan", theme: "aurora", language: "tr", friends: [] };
+}
+
+function playerProfile(name = "Guest") {
+  return { name: cleanName(name, "Guest"), coins: 120, bestScore: 0, matches: 0, role: "player", isAdmin: false, title: "rookie", unlockedTitles: ["rookie"], achievements: [], claimedQuests: [], avatar: "near", ownedSkins: ["cyan"], activeSkin: "cyan", theme: "aurora", language: "tr", friends: [], friendRequests: [], outgoingRequests: [], roomInvites: [] };
 }
 
 function loadLocalProfile() {
   try {
     const saved = JSON.parse(localStorage.getItem(PROFILE_KEY) || localStorage.getItem(LEGACY_PROFILE_KEY));
-    if (!saved || typeof saved !== "object") return adminProfile();
+    if (!saved || typeof saved !== "object") return playerProfile();
     return normalizeProfile(saved);
   } catch {
-    return adminProfile();
+    return playerProfile();
   }
 }
 
 function normalizeProfile(raw) {
-  const base = raw.name === "NearBacon" || raw.isAdmin ? adminProfile() : { name: "Player", coins: 120, bestScore: 0, matches: 0, role: "player", isAdmin: false, title: "rookie", unlockedTitles: ["rookie"], achievements: [], claimedQuests: [], ownedSkins: ["cyan"], activeSkin: "cyan", theme: "aurora", language: "tr", friends: [] };
-  const merged = { ...base, ...raw };
+  const seed = raw;
+  const base = seed.isAdmin ? adminProfile(seed.name || "Admin") : playerProfile(seed.name || "Guest");
+  const merged = { ...base, ...seed };
   merged.name = cleanName(merged.name, base.name);
   merged.friends = Array.isArray(merged.friends) ? merged.friends.map((item) => typeof item === "string" ? { name: item, online: false } : item) : [];
   merged.friendRequests = Array.isArray(merged.friendRequests) ? merged.friendRequests : [];
   merged.outgoingRequests = Array.isArray(merged.outgoingRequests) ? merged.outgoingRequests : [];
   merged.roomInvites = Array.isArray(merged.roomInvites) ? merged.roomInvites : [];
   merged.avatar = AVATARS.some((avatar) => avatar.id === merged.avatar) ? merged.avatar : "near";
+  merged.isAdmin = Boolean(merged.isAdmin && merged.role === "admin");
+  merged.role = merged.isAdmin ? "admin" : "player";
   merged.unlockedTitles = Array.isArray(merged.unlockedTitles) && merged.unlockedTitles.length ? Array.from(new Set(merged.unlockedTitles)) : ["rookie"];
-  if (merged.isAdmin || merged.name === "NearBacon") merged.unlockedTitles = adminProfile().unlockedTitles;
-  merged.title = merged.isAdmin || merged.name === "NearBacon" ? "admin" : (merged.unlockedTitles.includes(merged.title) ? merged.title : merged.unlockedTitles[0]);
-  merged.ownedSkins = merged.isAdmin || merged.name === "NearBacon" ? SKINS.map((skin) => skin.id) : Array.from(new Set(["cyan", ...(merged.ownedSkins || [])]));
-  merged.role = merged.isAdmin || merged.name === "NearBacon" ? "admin" : "player";
-  merged.isAdmin = merged.role === "admin";
+  if (merged.isAdmin) merged.unlockedTitles = adminProfile(merged.name).unlockedTitles;
+  merged.title = merged.isAdmin ? "admin" : (merged.unlockedTitles.includes(merged.title) ? merged.title : merged.unlockedTitles[0]);
+  const validSkinIds = new Set(SKINS.map((skin) => skin.id));
+  merged.ownedSkins = merged.isAdmin ? SKINS.map((skin) => skin.id) : Array.from(new Set(["cyan", ...(merged.ownedSkins || [])])).filter((id) => validSkinIds.has(id));
+  if (!merged.isAdmin) {
+    for (const skin of SKINS.filter(isEpicSkin)) {
+      if ((Number(merged.matches) || 0) >= epicUnlockMatches(skin) && !merged.ownedSkins.includes(skin.id)) merged.ownedSkins.push(skin.id);
+      if ((Number(merged.matches) || 0) < epicUnlockMatches(skin)) merged.ownedSkins = merged.ownedSkins.filter((id) => id !== skin.id);
+    }
+  }
+  if (!merged.ownedSkins.includes(merged.activeSkin)) merged.activeSkin = "cyan";
   return merged;
 }
-
 async function api(path, options = {}) {
   const response = await fetch(path, { headers: { "content-type": "application/json" }, cache: "no-store", ...options });
   if (!response.ok) throw new Error("server_error");
@@ -232,18 +492,25 @@ async function api(path, options = {}) {
 }
 
 async function loadServerProfile() {
-  if (guestMode.checked) return;
+  if (guestMode.checked || !authToken) {
+    serverAvailable = false;
+    if (serverStatus) serverStatus.textContent = "Yerel";
+    renderProfile();
+    return;
+  }
   try {
-    const result = authToken
-      ? await api(`/api/session?token=${encodeURIComponent(authToken)}`)
-      : await api(`/api/profile?name=${encodeURIComponent(cleanName(profileName.value || profile.name, "NearBacon"))}`);
+    const result = await api(`/api/session?token=${encodeURIComponent(authToken)}`);
     profile = normalizeProfile(result.profile);
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
     serverAvailable = true;
     if (serverStatus) serverStatus.textContent = "Online";
   } catch {
     authToken = "";
+    profile = playerProfile();
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(LEGACY_SESSION_KEY);
+    localStorage.removeItem(PROFILE_KEY);
+    localStorage.removeItem(LEGACY_PROFILE_KEY);
     serverAvailable = false;
     if (serverStatus) serverStatus.textContent = "Yerel";
   }
@@ -251,7 +518,11 @@ async function loadServerProfile() {
 }
 
 async function saveProfile() {
-  if (guestMode.checked) return;
+  if (guestMode.checked || !authToken) {
+    serverAvailable = false;
+    if (serverStatus) serverStatus.textContent = "Yerel";
+    return;
+  }
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
   try {
     const result = await api("/api/profile", { method: "POST", body: JSON.stringify({ ...profile, token: authToken }) });
@@ -262,7 +533,7 @@ async function saveProfile() {
     renderProfile();
   } catch {
     serverAvailable = false;
-    if (serverStatus) serverStatus.textContent = authToken ? "Oturum gerekli" : "Yerel";
+    if (serverStatus) serverStatus.textContent = "Oturum gerekli";
   }
 }
 
@@ -280,7 +551,7 @@ function setAuthStatus(text) {
 }
 
 async function loginAccount(create = false) {
-  const name = cleanName(accountName.value || profile.name, "");
+  const name = cleanName(accountName.value, "");
   const password = accountPassword.value || "";
   if (!name || password.length < 3) { setAuthStatus("Kullanıcı adı ve 3+ karakter şifre gerekli"); return; }
   try {
@@ -301,7 +572,12 @@ async function loginAccount(create = false) {
 async function logoutAccount() {
   try { if (authToken) await api("/api/auth/logout", { method: "POST", body: JSON.stringify({ token: authToken }) }); } catch {}
   authToken = "";
+  profile = playerProfile();
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(LEGACY_SESSION_KEY);
+  localStorage.removeItem(PROFILE_KEY);
+  localStorage.removeItem(LEGACY_PROFILE_KEY);
+  if (accountName) accountName.value = "";
   setAuthStatus("Oturum kapatıldı");
   renderProfile();
 }
@@ -420,38 +696,40 @@ function hideQuickPanel() {
 }
 
 function renderProfile() {
-  const shownName = guestMode.checked ? cleanName(profileName.value, "Guest") : profile.name;
+  const isGuest = guestMode.checked;
+  const isSignedIn = Boolean(authToken) && !isGuest;
+  const shownName = isGuest ? cleanName(profileName.value, "Guest") : isSignedIn ? profile.name : "Misafir";
   const avatar = getAvatar(profile.avatar);
-  const titleText = guestMode.checked ? "Misafir" : TITLE_CATALOG[profile.title] || "Çaylak";
-  if (profileName) profileName.value = shownName;
-  if (profileAvatar) profileAvatar.textContent = guestMode.checked ? shownName.charAt(0).toUpperCase() : avatar.mark;
+  const titleText = isGuest || !isSignedIn ? "Misafir" : TITLE_CATALOG[profile.title] || "Çaylak";
+  if (profileName) profileName.value = isSignedIn ? profile.name : "Guest";
+  if (profileAvatar) profileAvatar.textContent = isSignedIn ? avatar.mark : shownName.charAt(0).toUpperCase();
   if (topUserName) topUserName.textContent = shownName;
   if (topUserTitle) topUserTitle.textContent = titleText;
   const profileMark = document.querySelector(".profile-mark");
-  if (profileMark) profileMark.textContent = guestMode.checked ? "P" : avatar.mark;
+  if (profileMark) profileMark.textContent = isSignedIn ? avatar.mark : shownName.charAt(0).toUpperCase();
   if (menuProfileName) menuProfileName.textContent = shownName;
   if (menuProfileTitle) menuProfileTitle.textContent = titleText;
-  if (coinCount) coinCount.textContent = guestMode.checked ? "-" : Math.floor(profile.coins).toLocaleString("tr-TR");
-  if (bestScore) bestScore.textContent = Math.floor(profile.bestScore).toLocaleString("tr-TR");
-  if (matchCount) matchCount.textContent = Math.floor(profile.matches).toLocaleString("tr-TR");
+  if (coinCount) coinCount.textContent = isSignedIn ? Math.floor(profile.coins).toLocaleString("tr-TR") : "-";
+  if (bestScore) bestScore.textContent = isSignedIn ? Math.floor(profile.bestScore).toLocaleString("tr-TR") : "-";
+  if (matchCount) matchCount.textContent = isSignedIn ? Math.floor(profile.matches).toLocaleString("tr-TR") : "-";
   if (profileRole) profileRole.textContent = titleText;
-  selectedSkin = profile.ownedSkins.includes(profile.activeSkin) ? profile.activeSkin : "cyan";
+  selectedSkin = getPlayableSkinId(profile.activeSkin);
   document.body.classList.remove(...PALETTES.map((palette) => `palette-${palette.id}`));
   document.body.classList.add(`palette-${profile.theme}`);
   if (languageCode) languageCode.textContent = profile.language === "tr" ? "TR" : "EN";
-  if (accountName && !accountName.value) accountName.value = shownName;
+  if (accountName && authToken && !accountName.value) accountName.value = profile.name;
   const friendTotal = (profile.friends || []).length;
   const onlineTotal = (profile.friends || []).filter((friend) => onlineNames.includes(typeof friend === "string" ? friend : friend.name) || Boolean(friend.online)).length;
   if (authFriendCount) authFriendCount.textContent = `${friendTotal} arkadaş`;
   if (authOnlineCount) authOnlineCount.textContent = `${onlineTotal} çevrim içi`;
-  setAuthStatus(guestMode.checked ? "Misafir modu" : authToken ? `${shownName} olarak giriş yapıldı` : "Giriş yap veya hesap oluştur");
+  setAuthStatus(isGuest ? "Misafir modu" : authToken ? `${profile.name} olarak giriş yapıldı` : "Giriş yap veya hesap oluştur");
 
   const avatarOptions = AVATARS.map((item) => `<button class="choice-card ${profile.avatar === item.id ? "is-selected" : ""}" data-profile-avatar="${item.id}"><b>${item.mark}</b><span>${item.name}</span></button>`).join("");
   const titleOptions = (profile.unlockedTitles || ["rookie"]).map((title) => `<button class="choice-card ${profile.title === title ? "is-selected" : ""}" data-profile-title="${title}"><b>${TITLE_CATALOG[title] || title}</b><span>Ünvan</span></button>`).join("");
   quickProfile.innerHTML = `
-    <section class="profile-hero"><div class="profile-avatar-large">${guestMode.checked ? shownName.charAt(0).toUpperCase() : avatar.mark}</div><div><span>Oyuncu profili</span><strong>@${shownName}</strong><small>${titleText}</small></div></section>
-    <div><span>Coin</span><strong>${guestMode.checked ? "-" : Math.floor(profile.coins).toLocaleString("tr-TR")}</strong></div>
-    <div><span>En iyi</span><strong>${Math.floor(profile.bestScore).toLocaleString("tr-TR")}</strong></div>
+    <section class="profile-hero"><div class="profile-avatar-large">${isSignedIn ? avatar.mark : shownName.charAt(0).toUpperCase()}</div><div><span>Oyuncu profili</span><strong>@${shownName}</strong><small>${titleText}</small></div></section>
+    <div><span>Coin</span><strong>${isSignedIn ? Math.floor(profile.coins).toLocaleString("tr-TR") : "-"}</strong></div>
+    <div><span>En iyi</span><strong>${isSignedIn ? Math.floor(profile.bestScore).toLocaleString("tr-TR") : "-"}</strong></div>
     <section class="profile-choice"><h3>Profil resmini seç</h3><div class="choice-grid">${avatarOptions}</div></section>
     <section class="profile-choice"><h3>Ünvanını seç</h3><div class="choice-grid">${titleOptions}</div></section>`;
   document.querySelectorAll("[data-profile-avatar]").forEach((button) => button.addEventListener("click", () => setProfileAvatar(button.dataset.profileAvatar)));
@@ -546,12 +824,23 @@ function renderFriends() {
 }
 function renderShop() {
   const html = SKINS.map((skin) => {
-    const owned = profile.ownedSkins.includes(skin.id);
+    const adminLocked = skin.adminOnly && !canUseSkin(skin);
+    const epicLocked = isEpicSkin(skin) && !canUseSkin(skin);
+    const owned = profile.ownedSkins.includes(skin.id) || ((isEpicSkin(skin) || skin.adminOnly) && canUseSkin(skin));
+    const unlockAt = epicUnlockMatches(skin);
     const selected = selectedSkin === skin.id;
-    const lockedByGuest = guestMode.checked && !owned;
+    const lockedByGuest = (!authToken || guestMode.checked) && !owned;
     let label = selected ? "Seçili" : owned ? "Seç" : `${skin.price} coin`;
+    if (adminLocked) label = "Admin özel";
+    if (epicLocked) label = `${unlockAt} maç tamamla`;
     if (lockedByGuest) label = "Profil gerekli";
-    return `<article class="shop-card"><div class="skin-preview" style="--skin-a:${skin.colors[0]};--skin-b:${skin.colors[1]}"></div><b>${skin.name}</b><small>${owned ? "Açık" : `${skin.price} coin`}</small><button class="${selected ? "is-selected" : ""}" data-shop-skin="${skin.id}" ${lockedByGuest ? "disabled" : ""}>${label}</button></article>`;
+    const skinNote = skin.note || "";
+    const detail = skinNote ? (epicLocked ? `${Math.max(0, unlockAt - (profile.matches || 0))} maç kaldı - ${skinNote}` : adminLocked ? `Sadece admin - ${skinNote}` : skinNote) : adminLocked ? "Sadece admin" : epicLocked ? `${Math.max(0, unlockAt - (profile.matches || 0))} maç kaldı` : owned ? (skin.rarity === "admin" ? "Admin özel" : skin.rarity === "epic" ? "Epic ödül" : "Açık") : `${skin.price} coin`;
+    const previewClass = skin.hat ? ` skin-preview-cowboy${skin.beard ? " skin-preview-beard" : ""}` : "";
+    const beardPreview = skin.beard ? "<strong></strong>" : "";
+    const handPreview = skin.hand ? "<em></em>" : "";
+    const starPreview = skin.stars ? "<u></u><u></u>" : "";
+    return `<article class="shop-card ${skin.rarity === "epic" ? "is-epic" : ""} ${skin.rarity === "admin" ? "is-admin-skin" : ""}"><div class="skin-preview${previewClass}" style="--skin-a:${skin.colors[0]};--skin-b:${skin.colors[1]}"><span></span><span></span><span></span><i></i>${handPreview}${beardPreview}${starPreview}</div><b>${skin.name}</b><small>${detail}</small><button class="${selected ? "is-selected" : ""}" data-shop-skin="${skin.id}" ${lockedByGuest || epicLocked || adminLocked ? "disabled" : ""}>${label}</button></article>`;
   }).join("");
   if (shopGrid) shopGrid.innerHTML = html;
   quickShop.innerHTML = html;
@@ -571,7 +860,7 @@ function renderQuests() {
     const ready = quest.check();
     const claimed = profile.claimedQuests.includes(quest.id);
     const rewardTitle = TITLE_CATALOG[quest.title] || "Ünvan";
-    return `<article class="reward-card"><header><b>${quest.name}</b><small>+${quest.coin} coin / ${rewardTitle}</small></header><p>${quest.desc}</p><button data-quest="${quest.id}" ${!ready || claimed || guestMode.checked ? "disabled" : ""}>${claimed ? "Alındı" : ready ? "Ödülü Al" : "Kilitli"}</button></article>`;
+    return `<article class="reward-card"><header><b>${quest.name}</b><small>+${quest.coin} coin / ${rewardTitle}</small></header><p>${quest.desc}</p><button data-quest="${quest.id}" ${!ready || claimed || guestMode.checked || !authToken ? "disabled" : ""}>${claimed ? "Alındı" : ready ? "Ödülü Al" : "Kilitli"}</button></article>`;
   }).join("");
   document.querySelectorAll("[data-quest]").forEach((button) => button.addEventListener("click", () => claimQuest(button.dataset.quest)));
 }
@@ -588,14 +877,14 @@ function refreshAchievements() {
 }
 
 function setProfileAvatar(id) {
-  if (guestMode.checked || !AVATARS.some((avatar) => avatar.id === id)) return;
+  if (guestMode.checked || !authToken || !AVATARS.some((avatar) => avatar.id === id)) return;
   profile.avatar = id;
   saveProfile();
   renderProfile();
 }
 
 function setProfileTitle(id) {
-  if (guestMode.checked || !profile.unlockedTitles.includes(id)) return;
+  if (guestMode.checked || !authToken || !profile.unlockedTitles.includes(id)) return;
   profile.title = id;
   saveProfile();
   renderProfile();
@@ -603,7 +892,7 @@ function setProfileTitle(id) {
 
 function claimQuest(id) {
   const quest = QUESTS.find((item) => item.id === id);
-  if (!quest || guestMode.checked || profile.claimedQuests.includes(id) || !quest.check()) return;
+  if (!quest || guestMode.checked || !authToken || profile.claimedQuests.includes(id) || !quest.check()) return;
   profile.claimedQuests.push(id);
   profile.coins += quest.coin;
   if (!profile.unlockedTitles.includes(quest.title)) profile.unlockedTitles.push(quest.title);
@@ -632,15 +921,23 @@ function toggleLanguage() {
 
 function setGameHudVisible(visible) {
   document.querySelectorAll(".game-stat").forEach((item) => item.classList.toggle("is-hidden", !visible));
+  document.body.classList.toggle("is-playing", visible);
+  if (radarWrap) radarWrap.classList.toggle("is-hidden", !visible);
+  if (!visible) {
+    resetJoystick();
+    if (player) player.boostHeld = false;
+  }
 }
 function handleShopClick(skinId) {
   const skin = getSkin(skinId);
-  const owned = profile.ownedSkins.includes(skin.id);
+  const owned = profile.ownedSkins.includes(skin.id) || ((isEpicSkin(skin) || skin.adminOnly) && canUseSkin(skin));
   if (!owned) {
-    if (guestMode.checked || profile.coins < skin.price) return;
+    if (guestMode.checked || !authToken || isEpicSkin(skin) || skin.adminOnly || profile.coins < skin.price) return;
     profile.coins -= skin.price;
     profile.ownedSkins.push(skin.id);
   }
+  if (skin.adminOnly && !canUseSkin(skin)) return;
+  if ((isEpicSkin(skin) || skin.adminOnly) && !profile.ownedSkins.includes(skin.id)) profile.ownedSkins.push(skin.id);
   selectedSkin = skin.id;
   profile.activeSkin = skin.id;
   saveProfile();
@@ -676,7 +973,7 @@ function updateModeButtons() {
 function resize() {
   width = window.innerWidth;
   height = window.innerHeight;
-  const dpr = Math.min(window.devicePixelRatio || 1, width < 780 ? 1 : 1.1);
+  const dpr = 1;
   canvas.width = Math.floor(width * dpr);
   canvas.height = Math.floor(height * dpr);
   canvas.style.width = `${width}px`;
@@ -688,8 +985,8 @@ function resize() {
 }
 
 function targetFoodCount() {
-  if (width < 720) return 420;
-  if (width < 1100) return 520;
+  if (width < 720) return 340;
+  if (width < 1100) return 450;
   return FOOD_COUNT;
 }
 
@@ -702,7 +999,7 @@ function foodCell(value) {
 }
 
 function foodBucketKey(cx, cy) {
-  return `${cx}:${cy}`;
+  return (cx + 64) * 128 + (cy + 64);
 }
 
 function addFoodToBucket(food) {
@@ -766,42 +1063,45 @@ function spawnFood(count, burstX, burstY, value = 1) {
 
 
 function spawnEffectBurst(x, y, color = "#b8ff5d", count = 9) {
-  for (let i = 0; i < count; i++) {
+  const allowed = Math.max(0, Math.min(count, MAX_EFFECTS - effects.length));
+  for (let i = 0; i < allowed; i++) {
     effects.push({
       x,
       y,
       vx: random(-2.1, 2.1),
       vy: random(-2.1, 2.1),
-      life: random(22, 42),
-      maxLife: 42,
-      size: random(2.2, 6.4),
+      life: random(18, 32),
+      maxLife: 32,
+      size: random(2.2, 5.6),
       color,
     });
   }
-  if (effects.length > MAX_EFFECTS) effects.splice(0, effects.length - MAX_EFFECTS);
 }
 
 function updateEffects(dt) {
-  for (let i = effects.length - 1; i >= 0; i--) {
+  let write = 0;
+  for (let i = 0; i < effects.length; i++) {
     const effect = effects[i];
     effect.life -= dt;
+    if (effect.life <= 0) continue;
     effect.x += effect.vx * dt;
     effect.y += effect.vy * dt;
     effect.vx *= 0.985;
     effect.vy *= 0.985;
-    if (effect.life <= 0) effects.splice(i, 1);
+    effects[write++] = effect;
   }
+  effects.length = write;
 }
 
 function drawEffects() {
+  if (!effects.length) return;
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
-  for (const effect of effects) {
+  for (let i = 0; i < effects.length; i++) {
+    const effect = effects[i];
     const alpha = clamp(effect.life / effect.maxLife, 0, 1);
     ctx.globalAlpha = alpha;
     ctx.fillStyle = effect.color;
-    ctx.shadowBlur = 16 * alpha;
-    ctx.shadowColor = effect.color;
     ctx.beginPath();
     ctx.arc(effect.x, effect.y, effect.size * (1.2 - alpha * 0.2), 0, Math.PI * 2);
     ctx.fill();
@@ -814,12 +1114,12 @@ function makeSnake(name, skinId, options = {}) {
   const isHuman = type === "human";
   const x = Number.isFinite(options.x) ? options.x : random(420, WORLD - 420);
   const y = Number.isFinite(options.y) ? options.y : random(420, WORLD - 420);
-  const length = isHuman ? 18 : Math.floor(random(15, 34));
+  const length = Number.isFinite(options.length) ? Math.max(8, Math.floor(options.length)) : isHuman ? 18 : Math.floor(random(15, 34));
   const angle = random(0, Math.PI * 2);
   const segments = [];
   for (let i = 0; i < length; i++) segments.push({ x: x - Math.cos(angle) * i * SEGMENT_GAP, y: y - Math.sin(angle) * i * SEGMENT_GAP });
   const skin = getSkin(skinId);
-  const snake = { id: options.id || `${Date.now()}-${Math.random()}`, name, skin: skin.id, colors: skin.colors, type, control: options.control || "bot", isPlayer: isHuman, alive: true, x, y, angle, turn: 0.09, segments, targetLength: length, score: Math.max(0, (length - 12) * 14), boost: 100, boostHeld: false, thinkAt: 0, aiAngle: angle, radius: isHuman ? 13 : 12, bounds: null, boundsRefreshAt: 0 };
+  const snake = { id: options.id || `${Date.now()}-${Math.random()}`, name, title: options.title || "", skin: skin.id, colors: skin.colors, type, control: options.control || "bot", isPlayer: isHuman, alive: true, x, y, angle, turn: 0.09, segments, targetLength: length, score: Math.max(0, (length - 12) * 14), boost: 100, boostHeld: false, boostRechargeLocked: false, power: options.power ?? 100, powerActiveUntil: 0, dashPower: options.dashPower ?? 100, dashFlashUntil: 0, dashCooldownUntil: 0, twinPower: options.twinPower ?? 100, twinActiveUntil: 0, twinSwapAt: 0, twinSwapStartedAt: 0, twinSwapUsed: false, goldPower: options.goldPower ?? 100, goldActiveUntil: 0, trapPower: options.trapPower ?? 100, powerLockUntil: 0, ownerId: options.ownerId || null, thinkAt: 0, aiAngle: angle, baseRadius: isHuman ? 12.5 : 11.5, radius: snakeRadiusForLength(length, isHuman), bounds: null, boundsRefreshAt: 0 };
   refreshSnakeBounds(snake);
   return snake;
 }
@@ -903,7 +1203,7 @@ function beginRoomGame() {
 function startRoomFromLobby() {
   if (!isRoomHost) return;
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "start" }));
+    ws.send(JSON.stringify({ type: "start", botCount: botCountSetting }));
   } else {
     beginRoomGame();
   }
@@ -936,6 +1236,7 @@ function exitToMenu() {
   player = null;
   focusPlayer = null;
   effects = [];
+  traps = [];
   clearFoods();
   closeOnline();
   setGameHudVisible(false);
@@ -952,6 +1253,7 @@ function handlePlayButton() {
   else resetGame();
 }
 function resetGame() {
+  if (document.activeElement && typeof document.activeElement.blur === "function") document.activeElement.blur();
   clearFoods();
   effects = [];
   snakes = [];
@@ -959,14 +1261,15 @@ function resetGame() {
   matchFinalized = false;
   collectCursor = 0;
   const p1Name = getCurrentPlayerName();
-  if (!guestMode.checked) {
+  selectedSkin = getPlayableSkinId(selectedSkin);
+  if (authToken && !guestMode.checked) {
     profile.activeSkin = selectedSkin;
     saveProfile();
   }
-  player = makeSnake(p1Name, selectedSkin, { type: "human", control: "p1", x: WORLD / 2 - 70, y: WORLD / 2 });
+  player = makeSnake(p1Name, selectedSkin, { type: "human", control: "p1", title: currentProfileTitle(), x: WORLD / 2 - 70, y: WORLD / 2 });
   snakes.push(player);
   localPlayers.push(player);
-  const botsToSpawn = gameMode.startsWith("room") ? 0 : botCountSetting;
+  const botsToSpawn = botCountSetting;
   for (let i = 0; i < botsToSpawn; i++) {
     const skin = SKINS[Math.floor(random(0, SKINS.length))];
     snakes.push(makeSnake(BOT_NAMES[i % BOT_NAMES.length], skin.id, { type: "bot" }));
@@ -1000,7 +1303,7 @@ function resetGame() {
 function connectOnline(fromLobby = false) {
   if (!currentRoom) currentRoom = "LOBBY";
   roomCodeLabel.textContent = currentRoom;
-  const joinMessage = () => JSON.stringify({ type: "join", name: getCurrentPlayerName(), skin: selectedSkin, room: currentRoom, host: isRoomHost });
+  const joinMessage = () => JSON.stringify({ type: "join", token: authToken || "", name: getCurrentPlayerName(), skin: getPlayableSkinId(selectedSkin), room: currentRoom, host: isRoomHost });
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(joinMessage());
     if (fromLobby) renderLobby();
@@ -1029,7 +1332,14 @@ function handleOnlineMessage(message) {
     isRoomHost = Boolean(wsId && lobbyHostId === wsId);
     renderLobby();
   }
-  if (message.type === "start") beginRoomGame();
+  if (message.type === "start") {
+    if (Number.isFinite(message.botCount)) {
+      botCountSetting = clamp(Math.round(message.botCount), 0, 18);
+      if (botCountInput) botCountInput.value = botCountSetting;
+      if (botCountValue) botCountValue.textContent = botCountSetting.toString();
+    }
+    beginRoomGame();
+  }
   if (message.type === "online") {
     onlineNames = message.names || [];
     renderFriends();
@@ -1044,10 +1354,11 @@ function upsertRemoteSnake(remote) {
   const skin = getSkin(remote.skin);
   let snake = snakes.find((item) => item.id === remote.id);
   if (!snake) {
-    snake = makeSnake(remote.name || "Online", skin.id, { type: "remote", id: remote.id });
+    snake = makeSnake(remote.name || "Online", skin.id, { type: "remote", id: remote.id, title: remote.title || "" });
     snakes.push(snake);
   }
   snake.name = remote.name || snake.name;
+  snake.title = remote.title || snake.title || "";
   snake.skin = skin.id;
   snake.colors = skin.colors;
   snake.type = "remote";
@@ -1057,20 +1368,90 @@ function upsertRemoteSnake(remote) {
   snake.angle = remote.angle;
   snake.score = remote.score || 0;
   snake.targetLength = remote.targetLength || 18;
+  snake.radius = snakeRadiusForLength(snake.targetLength, snake.isPlayer || snake.type === "human");
   snake.segments = Array.isArray(remote.segments) && remote.segments.length ? remote.segments : snake.segments;
+  snake.powerActiveUntil = remote.powerActive ? performance.now() + 180 : 0;
+  snake.dashFlashUntil = remote.dashActive ? performance.now() + 180 : snake.dashFlashUntil || 0;
+  snake.twinActiveUntil = remote.twinActive ? performance.now() + 220 : snake.twinActiveUntil || 0;
+  snake.goldActiveUntil = remote.goldActive ? performance.now() + 220 : 0;
+  snake.powerLockUntil = remote.powerLocked ? performance.now() + 220 : 0;
 }
 
 function sendOnlineState(now) {
   if (!gameMode.startsWith("room") || !ws || ws.readyState !== WebSocket.OPEN || !player || !player.alive) return;
   if (now - lastNetworkSend < 70) return;
   lastNetworkSend = now;
-  ws.send(JSON.stringify({ type: "state", skin: selectedSkin, x: player.x, y: player.y, angle: player.angle, score: player.score, targetLength: player.targetLength, segments: player.segments.slice(0, 70) }));
+  ws.send(JSON.stringify({ type: "state", skin: selectedSkin, title: player.title || currentProfileTitle(), powerActive: isPowerActive(player, now), dashActive: isDashActive(player, now), twinActive: isTwinActive(player, now), goldActive: isGoldActive(player, now), powerLocked: arePowersLocked(player, now), x: player.x, y: player.y, angle: player.angle, score: player.score, targetLength: player.targetLength, segments: player.segments.slice(0, 70) }));
 }
 
 function screenToWorld(x, y) { return { x: camera.x + (x - width / 2) / scale, y: camera.y + (y - height / 2) / scale }; }
+function syncJoystickVisual() {
+  if (!touchStick) return;
+  const travel = 42;
+  touchStick.style.left = `${joystick.x}px`;
+  touchStick.style.top = `${joystick.y}px`;
+  touchStick.style.setProperty("--stick-x", `${joystick.dx * travel}px`);
+  touchStick.style.setProperty("--stick-y", `${joystick.dy * travel}px`);
+  touchStick.classList.toggle("is-active", joystick.active && joystick.strength > 0.12);
+  touchStick.classList.toggle("is-boost-zone", joystick.active && joystick.strength >= BOOST_OUTER_THRESHOLD && !joystick.boostLocked);
+}
+
+function resetJoystick() {
+  joystick.active = false;
+  joystick.pointerId = null;
+  joystick.dx = 0;
+  joystick.dy = 0;
+  joystick.strength = 0;
+  joystick.boostLocked = false;
+  syncJoystickVisual();
+}
+
+function updateJoystick(event) {
+  if (!touchStick) return;
+  const rect = touchStick.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const max = rect.width * 0.42;
+  const rawX = event.clientX - centerX;
+  const rawY = event.clientY - centerY;
+  const distance = Math.hypot(rawX, rawY);
+  const limited = Math.min(distance, max);
+  const angle = distance ? Math.atan2(rawY, rawX) : 0;
+  joystick.dx = Math.cos(angle) * (limited / max);
+  joystick.dy = Math.sin(angle) * (limited / max);
+  joystick.strength = Math.min(1, distance / max);
+  if (joystick.strength <= BOOST_RECHARGE_INNER) joystick.boostLocked = false;
+  syncJoystickVisual();
+}
+
+function startJoystick(event, captureTarget = touchStick) {
+  if (event.pointerType !== "touch") return false;
+  event.preventDefault();
+  event.stopPropagation();
+  joystick.active = true;
+  joystick.pointerId = event.pointerId;
+  joystick.x = event.clientX;
+  joystick.y = event.clientY;
+  captureTarget?.setPointerCapture?.(event.pointerId);
+  updateJoystick(event);
+  return true;
+}
+
+function endJoystick(event) {
+  if (joystick.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  resetJoystick();
+}
+
+function updatePointerAim(event) {
+  if (event.pointerType === "touch") return;
+  pointer.x = event.clientX;
+  pointer.y = event.clientY;
+  pointer.active = true;
+}
 
 function updateHumanIntent(snake) {
-  if (!snake.alive) return;
+  if (!snake.alive || snake.type === "hologram") return;
   let dx = 0;
   let dy = 0;
   if (snake.control === "p2") {
@@ -1089,6 +1470,12 @@ function updateHumanIntent(snake) {
     snake.angle = angleLerp(snake.angle, Math.atan2(dy, dx), 0.14);
     return;
   }
+  if (snake.control === "p1" && joystick.active && joystick.strength > 0.12) {
+    snake.angle = angleLerp(snake.angle, Math.atan2(joystick.dy, joystick.dx), 0.22);
+    snake.boostHeld = joystick.strength >= BOOST_OUTER_THRESHOLD && !joystick.boostLocked;
+    return;
+  }
+  if (snake.control === "p1") snake.boostHeld = keys.has(" ") || keys.has("Space");
   if (snake.control === "p1" && pointer.active) {
     const target = screenToWorld(pointer.x, pointer.y);
     snake.angle = angleLerp(snake.angle, Math.atan2(target.y - snake.y, target.x - snake.x), 0.16);
@@ -1117,16 +1504,34 @@ function thinkForBot(snake, now) {
 }
 
 function moveSnake(snake, dt, now) {
-  if (!snake.alive || snake.type === "remote") return;
+  if (!snake.alive || snake.type === "remote" || snake.type === "hologram") return;
   if (snake.type === "bot") { thinkForBot(snake, now); snake.angle = angleLerp(snake.angle, snake.aiAngle, snake.turn); }
   else updateHumanIntent(snake);
-  const canBoost = snake.boostHeld && snake.boost > 4 && snake.targetLength > 12;
-  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * dt;
+  const canBoost = snake.boostHeld && !snake.boostRechargeLocked && snake.boost > 4 && snake.targetLength > 12;
+  const powered = isPowerActive(snake, now);
+  const golden = isGoldActive(snake, now);
+  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.12 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * dt;
   if (canBoost) {
     snake.boost = Math.max(0, snake.boost - 0.42 * dt);
     snake.targetLength = Math.max(12, snake.targetLength - 0.018 * dt);
-    if (Math.random() < 0.12) spawnFood(1, snake.x - Math.cos(snake.angle) * 18, snake.y - Math.sin(snake.angle) * 18, 0.45);
-  } else snake.boost = Math.min(100, snake.boost + 0.09 * dt);
+    if (snake.boost <= 4) {
+      snake.boostRechargeLocked = true;
+      if (snake.control === "p1") joystick.boostLocked = true;
+    }
+    if (Math.random() < 0.045) spawnFood(1, snake.x - Math.cos(snake.angle) * 18, snake.y - Math.sin(snake.angle) * 18, 0.45);
+  } else if (!snake.boostRechargeLocked) snake.boost = Math.min(100, snake.boost + 0.09 * dt);
+  if (!powered) snake.power = Math.min(100, snake.power + POWER_RECHARGE_RATE * dt);
+  if (!isDashActive(snake, now)) snake.dashPower = Math.min(100, (snake.dashPower ?? 100) + DASH_RECHARGE_RATE * dt);
+  if (!isTwinActive(snake, now)) snake.twinPower = Math.min(100, (snake.twinPower ?? 100) + TWIN_RECHARGE_RATE * dt);
+  if (!golden) snake.goldPower = Math.min(100, (snake.goldPower ?? 100) + GOLD_RECHARGE_RATE * dt);
+  snake.trapPower = Math.min(100, (snake.trapPower ?? 100) + TRAP_RECHARGE_RATE * dt);
+  if (golden && effects.length < MAX_EFFECTS && Math.random() < (snake.isPlayer ? 0.34 : 0.16)) {
+    const fx = snake.x + Math.cos(snake.angle) * snake.radius * 2.2 + random(-5, 5);
+    const fy = snake.y + Math.sin(snake.angle) * snake.radius * 2.2 + random(-5, 5);
+    spawnEffectBurst(fx, fy, Math.random() < 0.5 ? "#ffd166" : "#fff06a", 1);
+  }
+  if (snake.control !== "p1" || !joystick.active || joystick.strength <= BOOST_RECHARGE_INNER) snake.boostRechargeLocked = false;
+  snake.radius = snakeRadiusForLength(snake.targetLength, snake.isPlayer || snake.type === "human");
   snake.x += Math.cos(snake.angle) * speed;
   snake.y += Math.sin(snake.angle) * speed;
   const maxSegments = Math.max(8, Math.floor(snake.targetLength));
@@ -1141,48 +1546,52 @@ function moveSnake(snake, dt, now) {
     snake.boundsRefreshAt = now + 280;
   }
 }
-
-function collectFood(snake) {
-  if (snake.type === "remote" || !foods.length) return;
+function collectFood(snake, now = performance.now()) {
+  if (snake.type === "remote" || snake.type === "hologram" || !foods.length) return;
   let collected = 0;
   const cx = foodCell(snake.x);
   const cy = foodCell(snake.y);
+  const powered = isPowerActive(snake, now);
+  const foodRange = powered ? 2 : 1;
   collectLoop:
-  for (let gx = cx - 1; gx <= cx + 1; gx++) {
-    for (let gy = cy - 1; gy <= cy + 1; gy++) {
+  for (let gx = cx - foodRange; gx <= cx + foodRange; gx++) {
+    for (let gy = cy - foodRange; gy <= cy + foodRange; gy++) {
       const bucket = foodBuckets.get(foodBucketKey(gx, gy));
       if (!bucket) continue;
       for (let i = bucket.length - 1; i >= 0; i--) {
         const food = bucket[i];
-        const pickup = snake.radius + food.r + 3;
+        const pickup = snake.radius + food.r + (powered ? POWER_PICKUP_BONUS : 3);
         const dx = food.x - snake.x;
         const dy = food.y - snake.y;
         if (dx * dx + dy * dy < pickup * pickup) {
           removeFood(food);
           snake.targetLength += 0.85 + food.value * 0.55;
           snake.score += Math.round(10 + food.value * 10);
-          snake.boost = Math.min(100, snake.boost + 2.2);
-          spawnEffectBurst(food.x, food.y, food.color, snake.isPlayer ? 7 : 2);
+          if (!snake.boostRechargeLocked) snake.boost = Math.min(100, snake.boost + 2.2);
+          if (!powered) snake.power = Math.min(100, snake.power + 3.5);
+          snake.dashPower = Math.min(100, (snake.dashPower ?? 100) + DASH_PICKUP_BONUS);
+          snake.twinPower = Math.min(100, (snake.twinPower ?? 100) + TWIN_PICKUP_BONUS);
+          snake.goldPower = Math.min(100, (snake.goldPower ?? 100) + GOLD_PICKUP_BONUS);
+          snake.trapPower = Math.min(100, (snake.trapPower ?? 100) + TRAP_PICKUP_BONUS);
+          if (snake.isPlayer && collected <= 2) spawnEffectBurst(food.x, food.y, food.color, 1);
           collected++;
-          if (!snake.isPlayer) break collectLoop;
+          if (!snake.isPlayer || collected >= (powered ? 10 : 5)) break collectLoop;
         }
       }
     }
   }
   collectCursor = (collectCursor + 17) % Math.max(1, foods.length);
   const target = targetFoodCount();
-  if (foods.length < target) spawnFood(Math.min(10, target - foods.length));
+  if (foods.length < target) spawnFood(Math.min(5, target - foods.length));
 }
 
 function killSnake(snake, killer) {
-  if (!snake.alive) return;
+  if (!snake.alive || snake.type === "hologram") return;
   snake.alive = false;
-  for (let i = 0; i < snake.segments.length; i += 2) spawnFood(1, snake.segments[i].x, snake.segments[i].y, 1.5);
+  const corpseStep = Math.max(2, Math.ceil(snake.segments.length / 80));
+  for (let i = 0; i < snake.segments.length; i += corpseStep) spawnFood(1, snake.segments[i].x, snake.segments[i].y, 1.5);
   if (killer && killer !== snake) killer.score += snake.isPlayer ? 0 : Math.round(snake.score * 0.16 + 60);
-  if (snake.type === "bot") {
-    setTimeout(() => { if (!running) return; const skin = SKINS[Math.floor(random(0, SKINS.length))]; const fresh = makeSnake(BOT_NAMES[Math.floor(random(0, BOT_NAMES.length))], skin.id, { type: "bot" }); const index = snakes.findIndex((item) => item.id === snake.id); if (index >= 0) snakes[index] = fresh; }, 900);
-    return;
-  }
+  if (snake.type === "bot") return;
   if (snake.type === "human") {
     const aliveHuman = localPlayers.find((item) => item.alive);
     if (aliveHuman) { focusPlayer = aliveHuman; return; }
@@ -1197,29 +1606,34 @@ function finishMatch() {
   const bestHuman = localPlayers.reduce((best, item) => (item.score + item.targetLength * 8 > best.score + best.targetLength * 8 ? item : best), localPlayers[0]);
   const finalScore = Math.round(bestHuman.score + bestHuman.targetLength * 8);
   const earnedCoins = Math.max(10, Math.floor(finalScore / 55));
-  if (!guestMode.checked) {
+  const canSaveMatch = authToken && !guestMode.checked;
+  if (canSaveMatch) {
     profile.coins += earnedCoins;
     profile.bestScore = Math.max(profile.bestScore, finalScore);
     profile.matches += 1;
+    syncEpicSkinUnlock();
     saveProfile();
   }
-  deathText.textContent = guestMode.checked ? `${bestHuman.name} skoru ${finalScore}. Misafir modunda profil kaydedilmedi.` : `${bestHuman.name} skoru ${finalScore}. +${earnedCoins} coin kazandın.`;
+  deathText.textContent = canSaveMatch ? `${bestHuman.name} skoru ${finalScore}. +${earnedCoins} coin kazandın.` : `${bestHuman.name} skoru ${finalScore}. Misafir modunda profil kaydedilmedi.`;
+  setGameHudVisible(false);
   deathPanel.classList.remove("is-hidden");
   renderProfile();
 }
 
 function resolveCollisions() {
   for (const snake of snakes) {
-    if (!snake.alive || snake.type === "remote") continue;
+    if (!snake.alive || snake.type === "remote" || snake.type === "hologram") continue;
     if (snake.x < 18 || snake.x > WORLD - 18 || snake.y < 18 || snake.y > WORLD - 18) { killSnake(snake); continue; }
     for (const other of snakes) {
       if (!snake.alive) break;
-      if (!other.alive || other.type === "remote" || snake.id === other.id) continue;
+      if (!other.alive || other.type === "remote" || other.type === "hologram" || snake.id === other.id) continue;
+      const snakePowered = isPowerActive(snake);
+      const otherPowered = isPowerActive(other);
       const headLimit = snake.radius + other.radius - 5;
       const headDx = snake.x - other.x;
       const headDy = snake.y - other.y;
       if (headDx * headDx + headDy * headDy < headLimit * headLimit) {
-        if (snake.targetLength >= other.targetLength) killSnake(other, snake); else killSnake(snake, other);
+        if (snake.targetLength * (snakePowered ? 1.18 : 1) >= other.targetLength * (otherPowered ? 1.18 : 1)) killSnake(other, snake); else killSnake(snake, other);
         continue;
       }
       const detailed = snake.isPlayer || other.isPlayer || snake.type === "human" || other.type === "human";
@@ -1234,15 +1648,74 @@ function resolveCollisions() {
         if (dx > hitLimit || dx < -hitLimit) continue;
         const dy = snake.y - seg.y;
         if (dy > hitLimit || dy < -hitLimit) continue;
-        if (dx * dx + dy * dy < hitLimitSq) { killSnake(snake, other); break; }
+        if (dx * dx + dy * dy < hitLimitSq) { if (!snakePowered) killSnake(snake, other); break; }
       }
     }
   }
 }
 
+function updateTraps(now) {
+  if (!traps.length) return;
+  let write = 0;
+  for (let i = 0; i < traps.length; i++) {
+    const trap = traps[i];
+    if (trap.expiresAt <= now) continue;
+    traps[write++] = trap;
+  }
+  traps.length = write;
+}
+
+function resolveTrapHits(now) {
+  if (!traps.length) return;
+  for (const snake of snakes) {
+    if (!snake.alive || snake.type === "remote" || snake.type === "hologram") continue;
+    for (let i = traps.length - 1; i >= 0; i--) {
+      const trap = traps[i];
+      if (trap.ownerId === snake.id) continue;
+      const dx = snake.x - trap.x;
+      const dy = snake.y - trap.y;
+      const limit = snake.radius + trap.r;
+      if (dx * dx + dy * dy >= limit * limit) continue;
+      snake.powerLockUntil = Math.max(snake.powerLockUntil || 0, now + TRAP_LOCK_MS);
+      snake.powerActiveUntil = Math.min(snake.powerActiveUntil || 0, now);
+      snake.goldActiveUntil = Math.min(snake.goldActiveUntil || 0, now);
+      snake.twinActiveUntil = Math.min(snake.twinActiveUntil || 0, now);
+      snake.twinSwapAt = 0;
+      snake.twinSwapStartedAt = 0;
+      traps.splice(i, 1);
+      spawnEffectBurst(snake.x, snake.y, "#ff3d6e", 14);
+      break;
+    }
+  }
+}
+
+function drawTraps(now) {
+  if (!traps.length) return;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (const trap of traps) {
+    if (trap.x < viewBounds.left - 90 || trap.x > viewBounds.right + 90 || trap.y < viewBounds.top - 90 || trap.y > viewBounds.bottom + 90) continue;
+    const life = clamp((trap.expiresAt - now) / TRAP_DURATION_MS, 0, 1);
+    const pulse = 1 + Math.sin((now - trap.createdAt) * 0.012) * 0.09;
+    ctx.globalAlpha = 0.3 + life * 0.45;
+    ctx.strokeStyle = "#ff3d6e";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(trap.x, trap.y, trap.r * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.78;
+    ctx.fillStyle = trap.color || "#ff3d6e";
+    ctx.beginPath();
+    ctx.arc(trap.x, trap.y, 5 + 3 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
 function update(dt, now) {
   if (running) {
-    for (const snake of snakes) { if (!snake.alive) continue; moveSnake(snake, dt, now); collectFood(snake); }
+    for (const snake of snakes) { if (!snake.alive) continue; moveSnake(snake, dt, now); collectFood(snake, now); }
+    syncTwinHolograms(now);
     resolveCollisions();
     sendOnlineState(now);
   }
@@ -1255,6 +1728,18 @@ function update(dt, now) {
       scoreEl.textContent = Math.round(focusPlayer.score).toLocaleString("tr-TR");
       lengthEl.textContent = Math.floor(focusPlayer.targetLength).toString();
       boostEl.textContent = `${Math.round(focusPlayer.boost)}%`;
+      const locked = arePowersLocked(focusPlayer, now);
+      const lockLabel = locked ? `KİLİT ${powerLockSeconds(focusPlayer, now)}` : "";
+      if (powerEl) powerEl.textContent = locked ? lockLabel : isPowerActive(focusPlayer, now) ? "AKTİF" : `${Math.round(focusPlayer.power || 0)}%`;
+      if (dashPowerEl) dashPowerEl.textContent = locked ? lockLabel : isDashActive(focusPlayer, now) ? "ATILDI" : `${Math.round(focusPlayer.dashPower ?? 100)}%`;
+      if (twinPowerEl) twinPowerEl.textContent = locked ? lockLabel : focusPlayer.twinSwapAt && focusPlayer.twinSwapAt > now ? `GEÇ ${Math.ceil((focusPlayer.twinSwapAt - now) / 1000)}` : isTwinActive(focusPlayer, now) ? "2. BAS" : `${Math.round(focusPlayer.twinPower ?? 100)}%`;
+      if (goldPowerEl) goldPowerEl.textContent = locked ? lockLabel : isGoldActive(focusPlayer, now) ? "ALTIN" : `${Math.round(focusPlayer.goldPower ?? 100)}%`;
+      if (trapPowerEl) trapPowerEl.textContent = locked ? lockLabel : `${Math.round(focusPlayer.trapPower ?? 100)}%`;
+      if (powerButton) powerButton.classList.toggle("is-ready", !locked && (focusPlayer.power || 0) >= 100 && !isPowerActive(focusPlayer, now));
+      if (dashButton) dashButton.classList.toggle("is-ready", !locked && (focusPlayer.dashPower ?? 100) >= 100 && !isDashActive(focusPlayer, now));
+      if (twinButton) twinButton.classList.toggle("is-ready", !locked && (((focusPlayer.twinPower ?? 100) >= 100 && !isTwinActive(focusPlayer, now)) || (isTwinActive(focusPlayer, now) && !focusPlayer.twinSwapAt && !focusPlayer.twinSwapUsed)));
+      if (goldButton) goldButton.classList.toggle("is-ready", !locked && (focusPlayer.goldPower ?? 100) >= 100 && !isGoldActive(focusPlayer, now));
+      if (trapButton) trapButton.classList.toggle("is-ready", !locked && (focusPlayer.trapPower ?? 100) >= 100);
       lastHudUpdate = now;
     }
   }
@@ -1286,16 +1771,20 @@ function drawFood(now) {
   const minY = foodCell(viewBounds.top - padding);
   const maxY = foodCell(viewBounds.bottom + padding);
   ctx.save();
-  ctx.globalAlpha = 0.96;
+  ctx.globalAlpha = 0.94;
+  let lastColor = "";
   for (let gx = minX; gx <= maxX; gx++) {
     for (let gy = minY; gy <= maxY; gy++) {
       const bucket = foodBuckets.get(foodBucketKey(gx, gy));
       if (!bucket) continue;
-      for (const food of bucket) {
-        const pulse = Math.sin(now * 0.005 + food.pulse) * 0.16 + 1;
+      for (let i = 0; i < bucket.length; i++) {
+        const food = bucket[i];
+        if (food.color !== lastColor) {
+          ctx.fillStyle = food.color;
+          lastColor = food.color;
+        }
         ctx.beginPath();
-        ctx.fillStyle = food.color;
-        ctx.arc(food.x, food.y, food.r * pulse, 0, Math.PI * 2);
+        ctx.arc(food.x, food.y, food.r, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -1303,15 +1792,136 @@ function drawFood(now) {
   ctx.restore();
 }
 
-function drawSnake(snake) {
+function drawStar(cx, cy, outer, color) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const radius = i % 2 ? outer * 0.42 : outer;
+    const angle = -Math.PI / 2 + i * Math.PI / 5;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawCowboyGear(snake, now = performance.now()) {
+  const skin = getSkin(snake.skin);
+  if (!skin.hat) return;
+  const size = snake.radius;
+  const forwardX = Math.cos(snake.angle);
+  const forwardY = Math.sin(snake.angle);
+  const sideX = Math.cos(snake.angle + Math.PI / 2);
+  const sideY = Math.sin(snake.angle + Math.PI / 2);
+  const hatSign = skin.invertedHat ? 1 : -1;
+  const hatX = snake.x + forwardX * size * 0.38;
+  const hatY = snake.y + forwardY * size * 0.38;
+
+  if (skin.stars) {
+    ctx.save();
+    ctx.globalAlpha = 0.86;
+    const pulse = Math.sin(now * 0.007) * size * 0.12;
+    for (const side of [-1, 1]) {
+      const starX = snake.x + sideX * side * (size * 1.75 + pulse) - forwardX * size * 0.1;
+      const starY = snake.y + sideY * side * (size * 1.75 + pulse) - forwardY * size * 0.1;
+      drawStar(starX, starY, Math.max(4, size * 0.32), side < 0 ? "#f4c86b" : "#fff06a");
+    }
+    ctx.restore();
+  }
+
+
+
+  ctx.save();
+  ctx.translate(hatX, hatY);
+  ctx.rotate(snake.angle);
+  ctx.strokeStyle = "#2b160d";
+  ctx.lineWidth = Math.max(1.2, size * 0.12);
+  ctx.fillStyle = skin.invertedHat ? "#2b160d" : "#5a351f";
+  ctx.beginPath();
+  ctx.ellipse(0, hatSign * size * 0.34, size * 1.02, size * 0.25, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = skin.invertedHat ? "#6d3f20" : "#8a552c";
+  const crownBase = hatSign * size * 0.43;
+  const crownTip = hatSign * size * 0.96;
+  ctx.beginPath();
+  ctx.moveTo(-size * 0.5, crownBase);
+  ctx.lineTo(size * 0.5, crownBase);
+  ctx.lineTo(size * 0.36, crownTip);
+  ctx.quadraticCurveTo(0, crownTip + hatSign * size * 0.08, -size * 0.36, crownTip);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#2b160d";
+  const bandStart = hatSign * size * 0.55;
+  const bandEnd = hatSign * size * 0.67;
+  ctx.fillRect(-size * 0.46, Math.min(bandStart, bandEnd), size * 0.92, Math.abs(bandEnd - bandStart));
+  if (skin.beard) {
+    const beardSign = skin.invertedHat ? hatSign : -hatSign;
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.54, beardSign * size * 0.48);
+    ctx.quadraticCurveTo(-size * 0.28, beardSign * size * 0.98, 0, beardSign * size * 1.1);
+    ctx.quadraticCurveTo(size * 0.28, beardSign * size * 0.98, size * 0.54, beardSign * size * 0.48);
+    ctx.quadraticCurveTo(0, beardSign * size * 0.72, -size * 0.54, beardSign * size * 0.48);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.24)";
+    for (const stripeX of [-0.16, 0.13]) {
+      const stripeStart = beardSign * size * 0.62;
+      const stripeEnd = beardSign * size * (stripeX < 0 ? 0.92 : 0.86);
+      ctx.fillRect(size * stripeX, Math.min(stripeStart, stripeEnd), size * 0.07, Math.abs(stripeEnd - stripeStart));
+    }
+  }
+  ctx.restore();
+
+  if (!skin.hand) return;
+  const armScale = Math.min(1.5, 0.85 + (snake.targetLength - 18) * 0.004);
+  const hands = skin.detachedHands ? [-1, 1] : [1];
+  for (const side of hands) {
+    const gap = skin.detachedHands ? size * 0.34 : 0;
+    const shoulderX = snake.x + sideX * side * (size * 1.02 + gap) - forwardX * size * 0.12;
+    const shoulderY = snake.y + sideY * side * (size * 1.02 + gap) - forwardY * size * 0.12;
+    const handX = shoulderX + sideX * side * size * 0.62 * armScale + forwardX * size * 0.22;
+    const handY = shoulderY + sideY * side * size * 0.62 * armScale + forwardY * size * 0.22;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = skin.beard ? "#d08b42" : "#f4c86b";
+    ctx.lineWidth = Math.max(3, size * 0.24);
+    ctx.beginPath();
+    ctx.moveTo(shoulderX, shoulderY);
+    ctx.lineTo(handX, handY);
+    ctx.stroke();
+    if (side > 0) {
+      ctx.strokeStyle = "#202321";
+      ctx.lineWidth = Math.max(2, size * 0.16);
+      ctx.beginPath();
+      ctx.moveTo(handX, handY);
+      ctx.lineTo(handX + forwardX * size * 0.78 * armScale, handY + forwardY * size * 0.78 * armScale);
+      ctx.stroke();
+    }
+    ctx.fillStyle = skin.beard ? "#d08b42" : "#f4c86b";
+    ctx.beginPath();
+    ctx.arc(handX, handY, Math.max(2.4, size * 0.19), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+function drawSnake(snake, now = performance.now()) {
   if (!snake.alive) return;
   const padding = 190;
   if (boundsOutsideView(snake.bounds, padding)) return;
   const [primary, secondary] = snake.colors;
+  const skin = getSkin(snake.skin);
+  const powered = isPowerActive(snake, now);
+  const dashing = isDashActive(snake, now);
+  const golden = isGoldActive(snake, now);
+  const locked = arePowersLocked(snake, now);
+  const hologram = snake.type === "hologram";
   const headVisible = snake.x > viewBounds.left - padding && snake.x < viewBounds.right + padding && snake.y > viewBounds.top - padding && snake.y < viewBounds.bottom + padding;
   let drewAny = false;
   const segmentCount = snake.segments.length;
-  const drawStep = !snake.isPlayer && segmentCount > 80 ? 2 : 1;
+  const drawStep = hologram ? (segmentCount > 80 ? 3 : 2) : !snake.isPlayer ? (segmentCount > 120 ? 4 : segmentCount > 70 ? 3 : segmentCount > 36 ? 2 : 1) : 1;
   for (let i = segmentCount - 1; i >= 0; i -= drawStep) {
     const seg = snake.segments[i];
     if (seg.x < viewBounds.left - padding || seg.x > viewBounds.right + padding || seg.y < viewBounds.top - padding || seg.y > viewBounds.bottom + padding) continue;
@@ -1319,18 +1929,48 @@ function drawSnake(snake) {
     const t = i / Math.max(1, segmentCount - 1);
     const radius = Math.max(5, snake.radius * (1 - t * 0.42));
     ctx.beginPath();
-    ctx.fillStyle = i % 2 ? secondary : primary;
-    ctx.globalAlpha = snake.type === "remote" ? 0.78 : 1 - t * 0.12;
+    ctx.fillStyle = hologram ? (i % 2 ? "rgba(79,243,255,0.34)" : "rgba(216,243,255,0.28)") : i % 2 ? secondary : primary;
+    ctx.globalAlpha = hologram ? 0.62 - t * 0.28 : snake.type === "remote" ? 0.78 : 1 - t * 0.12;
     ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
   if (!drewAny || !headVisible) { ctx.globalAlpha = 1; return; }
   ctx.globalAlpha = 1;
-  ctx.fillStyle = "#06110f";
+  if (hologram || powered || dashing || golden || locked || skin.aura) {
+    ctx.save();
+    ctx.globalAlpha = hologram ? 0.32 : golden ? 0.46 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.34 : 0.18;
+    ctx.strokeStyle = hologram ? "#8feeff" : golden ? "#ffd166" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
+    ctx.lineWidth = hologram ? 3 : golden ? 6 : dashing ? 5 : locked ? 4 : powered ? 4 : 2;
+    if (hologram) ctx.setLineDash([10, 9]);
+    ctx.beginPath();
+    ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : dashing ? 24 : locked ? 20 : powered ? 18 : 9), 0, Math.PI * 2);
+    ctx.stroke();
+    if (hologram) ctx.setLineDash([]);
+    ctx.restore();
+  }
+  ctx.fillStyle = hologram ? "rgba(216,243,255,0.9)" : "#06110f";
   const eyeA = snake.angle + 0.55; const eyeB = snake.angle - 0.55;
   ctx.beginPath(); ctx.arc(snake.x + Math.cos(eyeA) * 8, snake.y + Math.sin(eyeA) * 8, 2.6, 0, Math.PI * 2); ctx.arc(snake.x + Math.cos(eyeB) * 8, snake.y + Math.sin(eyeB) * 8, 2.6, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = snake.type === "remote" ? "#d8f3ff" : snake.control === "p2" ? "#fff06a" : "rgba(255,255,255,0.88)";
-  ctx.font = "700 13px Inter, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillText(snake.name, snake.x, snake.y - snake.radius - 16);
+  if (!hologram) drawCowboyGear(snake, now);
+  if (snake.twinSwapAt && snake.twinSwapAt > now) {
+    const remaining = snake.twinSwapAt - now;
+    const digit = Math.max(1, Math.ceil(remaining / 1000));
+    const phase = 1 - ((remaining % 1000) / 1000);
+    ctx.save();
+    ctx.globalAlpha = 0.9 - phase * 0.55;
+    ctx.fillStyle = hologram ? "#8feeff" : "#d8f3ff";
+    ctx.font = "900 34px Inter, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(digit.toString(), snake.x, snake.y - snake.radius - 44 - phase * 8);
+    ctx.restore();
+  }
+  ctx.fillStyle = hologram ? "rgba(143,238,255,0.74)" : snake.type === "remote" ? "#d8f3ff" : snake.control === "p2" ? "#fff06a" : "rgba(255,255,255,0.88)";
+  ctx.font = "700 13px Inter, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillText(snake.name, snake.x, snake.y - snake.radius - 24);
+  if (snake.title) {
+    ctx.font = "800 10px Inter, system-ui, sans-serif";
+    ctx.fillStyle = "rgba(184,255,93,0.92)";
+    ctx.fillText(snake.title, snake.x, snake.y - snake.radius - 11);
+  }
 }
 
 function render(now) {
@@ -1345,8 +1985,9 @@ function render(now) {
   ctx.translate(-camera.x, -camera.y);
   drawGrid();
   drawFood(now);
+  drawTraps(now);
   drawEffects();
-  for (const snake of snakes) drawSnake(snake);
+  for (const snake of snakes) drawSnake(snake, now);
   ctx.restore();
   drawVignette();
   drawRadar(now);
@@ -1369,12 +2010,12 @@ function drawRadar(now) {
   const rw = radar.width; const rh = radar.height;
   if (!player) { rctx.clearRect(0, 0, rw, rh); return; }
   rctx.clearRect(0, 0, rw, rh); rctx.fillStyle = "rgba(255,255,255,0.04)"; rctx.fillRect(0, 0, rw, rh); rctx.strokeStyle = "rgba(196,255,231,0.16)"; rctx.strokeRect(7, 7, rw - 14, rh - 14);
-  for (const snake of snakes) { if (!snake.alive) continue; const x = (snake.x / WORLD) * (rw - 16) + 8; const y = (snake.y / WORLD) * (rh - 16) + 8; rctx.fillStyle = snake.type === "remote" ? "#d8f3ff" : snake.isPlayer ? "#ffffff" : snake.colors[0]; rctx.beginPath(); rctx.arc(x, y, snake.isPlayer ? 4 : 2.6, 0, Math.PI * 2); rctx.fill(); }
+  for (const snake of snakes) { if (!snake.alive) continue; const x = (snake.x / WORLD) * (rw - 16) + 8; const y = (snake.y / WORLD) * (rh - 16) + 8; rctx.fillStyle = snake.type === "hologram" ? "#4ff3ff" : snake.type === "remote" ? "#d8f3ff" : snake.isPlayer ? "#ffffff" : snake.colors[0]; rctx.beginPath(); rctx.arc(x, y, snake.isPlayer ? 4 : 2.6, 0, Math.PI * 2); rctx.fill(); }
 }
 
 function updateLeaderboard() {
   if (!leadersEl) return;
-  const leaders = snakes.filter((snake) => snake.alive).sort((a, b) => b.score + b.targetLength * 8 - (a.score + a.targetLength * 8)).slice(0, 7);
+  const leaders = snakes.filter((snake) => snake.alive && snake.type !== "hologram").sort((a, b) => b.score + b.targetLength * 8 - (a.score + a.targetLength * 8)).slice(0, 7);
   const html = leaders.map((snake, index) => `<li><span>${index + 1}</span><b>${snake.name}</b><strong>${Math.round(snake.score + snake.targetLength * 8)}</strong></li>`).join("");
   if (html !== lastLeaderboardHtml) {
     leadersEl.innerHTML = html;
@@ -1401,15 +2042,55 @@ function startLoop() {
 
 function bindControls() {
   window.addEventListener("resize", resize);
-  window.addEventListener("keydown", (event) => { const typing = event.target && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName); keys.add(event.key.length === 1 ? event.key.toLowerCase() : event.key); keys.add(event.code); if (event.code === "Space" && !typing) { event.preventDefault(); if (player) player.boostHeld = true; } if (event.key === "Enter" && !running && !typing) handlePlayButton(); });
+  window.addEventListener("keydown", (event) => {
+    const typing = !running && event.target && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName);
+    keys.add(event.key.length === 1 ? event.key.toLowerCase() : event.key);
+    keys.add(event.code);
+    if (event.code === "Space" && !typing) { event.preventDefault(); if (player) player.boostHeld = true; }
+    if (event.code === "KeyE" && running) { event.preventDefault(); triggerSpecialPower("area"); }
+    if (event.code === "KeyQ" && running) { event.preventDefault(); triggerSpecialPower("dash"); }
+    if (event.code === "KeyR" && running) { event.preventDefault(); triggerSpecialPower("twin"); }
+    if (event.code === "KeyT" && running) { event.preventDefault(); triggerSpecialPower("gold"); }
+    if (event.code === "KeyF" && running) { event.preventDefault(); triggerSpecialPower("trap"); }
+    if (event.key === "Enter" && !running && !typing) handlePlayButton();
+  });
   window.addEventListener("keyup", (event) => { keys.delete(event.key.length === 1 ? event.key.toLowerCase() : event.key); keys.delete(event.code); if (event.code === "Space" && player) player.boostHeld = false; });
-  canvas.addEventListener("pointermove", (event) => { pointer.x = event.clientX; pointer.y = event.clientY; pointer.active = true; });
-  canvas.addEventListener("pointerdown", (event) => { pointer.x = event.clientX; pointer.y = event.clientY; pointer.active = true; if (player) player.boostHeld = true; });
-  window.addEventListener("pointerup", () => { if (player) player.boostHeld = false; });
-  boostButton.addEventListener("pointerdown", (event) => { event.preventDefault(); if (player) player.boostHeld = true; });
-  boostButton.addEventListener("pointerup", () => { if (player) player.boostHeld = false; });
-  boostButton.addEventListener("pointerleave", () => { if (player) player.boostHeld = false; });
-  touchStick.addEventListener("pointermove", (event) => { pointer.x = event.clientX; pointer.y = event.clientY; pointer.active = true; });
+  canvas.addEventListener("pointermove", updatePointerAim);
+  canvas.addEventListener("pointerdown", (event) => { if (!running || !startJoystick(event, canvas)) updatePointerAim(event); });
+  canvas.addEventListener("pointerleave", () => { pointer.active = false; });
+  window.addEventListener("pointermove", (event) => { if (joystick.active && joystick.pointerId === event.pointerId) { event.preventDefault(); updateJoystick(event); } });
+  window.addEventListener("pointerup", endJoystick);
+  window.addEventListener("pointercancel", endJoystick);
+  if (boostButton) {
+    const setBoost = (active) => { if (player) player.boostHeld = active; boostButton.classList.toggle("is-active", active); };
+    boostButton.addEventListener("pointerdown", (event) => { event.preventDefault(); event.stopPropagation(); setBoost(true); });
+    boostButton.addEventListener("pointerup", () => setBoost(false));
+    boostButton.addEventListener("pointercancel", () => setBoost(false));
+    boostButton.addEventListener("pointerleave", () => setBoost(false));
+  }
+  if (touchStick) {
+    touchStick.addEventListener("pointerdown", (event) => { startJoystick(event, touchStick); });
+    touchStick.addEventListener("pointermove", (event) => {
+      if (!joystick.active || joystick.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      updateJoystick(event);
+    });
+    touchStick.addEventListener("pointerup", endJoystick);
+    touchStick.addEventListener("pointercancel", endJoystick);
+  }
+  const bindPowerButton = (button, kind) => {
+    if (!button) return;
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      triggerSpecialPower(kind);
+    });
+  };
+  bindPowerButton(powerButton, "area");
+  bindPowerButton(dashButton, "dash");
+  bindPowerButton(twinButton, "twin");
+  bindPowerButton(goldButton, "gold");
+  bindPowerButton(trapButton, "trap");
   profileButton.addEventListener("click", () => showQuickPanel("profile"));
   if (friendsButton) friendsButton.addEventListener("click", () => showQuickPanel("friends"));
   shopButton.addEventListener("click", () => showQuickPanel("shop"));

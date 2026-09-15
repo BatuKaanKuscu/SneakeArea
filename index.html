@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Snake Area</title>
+    <meta name="theme-color" content="#07110f" />
+    <link rel="icon" href="/logo.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -16,6 +18,11 @@
           <div class="hud-stat game-stat is-hidden"><span data-i18n="score">Skor</span><strong id="score">0</strong></div>
           <div class="hud-stat game-stat is-hidden"><span data-i18n="length">Uzunluk</span><strong id="length">12</strong></div>
           <div class="hud-stat game-stat is-hidden"><span>Boost</span><strong id="boost">100%</strong></div>
+          <div class="hud-stat game-stat is-hidden"><span>Güç</span><strong id="power">100%</strong></div>
+          <div class="hud-stat game-stat is-hidden"><span>Atılım</span><strong id="dashPower">100%</strong></div>
+          <div class="hud-stat game-stat is-hidden"><span>İkili</span><strong id="twinPower">100%</strong></div>
+          <div class="hud-stat game-stat is-hidden"><span>Altın</span><strong id="goldPower">100%</strong></div>
+          <div class="hud-stat game-stat is-hidden"><span>Tuzak</span><strong id="trapPower">100%</strong></div>
           <div class="hud-stat game-stat mode-stat is-hidden"><span>Mod</span><strong id="modeLabel">Bot</strong></div>
           <button class="top-icon game-stat is-hidden" id="exitGameButton" aria-label="Oyundan çık" title="Oyundan çık"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 4v16h-7"/></svg></button>
           <ol id="leaders" class="leaderboard game-stat is-hidden" aria-label="Sıralama"></ol>
@@ -28,8 +35,8 @@
           <button class="top-icon" id="paletteButton" aria-label="Renk kataloğu" title="Renk kataloğu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18h1.5a2 2 0 0 0 1.1-3.7 1.5 1.5 0 0 1 .8-2.8H17a4 4 0 0 0 0-8.5A8.9 8.9 0 0 0 12 3Z"/><path d="M7.5 11h.1"/><path d="M9.5 7.5h.1"/><path d="M14 7.5h.1"/><path d="M6.5 15h.1"/></svg></button>
           <button class="profile-pill" id="profileButton" aria-label="Profil" title="Profil">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg><span class="profile-mark sr-only">P</span>
-            <strong id="topUserName" class="sr-only">NearBacon</strong>
-            <span id="topUserTitle" class="sr-only">Admin</span>
+            <strong id="topUserName" class="sr-only">Misafir</strong>
+            <span id="topUserTitle" class="sr-only">Misafir</span>
           </button>
         </div>
       </nav>
@@ -39,10 +46,10 @@
         <div class="quick-head"><h2 id="quickTitle">Profil</h2></div>
                 <div id="quickAuth" class="quick-auth is-hidden" aria-label="Profil girişi">
           <div class="login-row">
-            <div class="avatar" id="profileAvatar">N</div>
+            <div class="avatar" id="profileAvatar">M</div>
             <div>
-              <strong id="menuProfileName">NearBacon</strong>
-              <span id="menuProfileTitle">Admin</span>
+              <strong id="menuProfileName">Misafir</strong>
+              <span id="menuProfileTitle">Misafir</span>
             </div>
             <label class="guest-toggle"><input id="guestMode" type="checkbox" /><span>Misafir</span></label>
           </div>
@@ -51,7 +58,7 @@
           <div class="auth-panel" aria-label="Hesap girişi">
             <label class="name-field compact">
               <span>Kullanıcı adı</span>
-              <input id="accountName" maxlength="14" placeholder="NearBacon" autocomplete="username" />
+              <input id="accountName" maxlength="14" placeholder="Kullanıcı adı" autocomplete="username" />
             </label>
             <label class="name-field compact">
               <span>Şifre</span>
@@ -76,9 +83,9 @@
       </aside>
 
       <section class="start-panel" id="startPanel" aria-label="Oyuna başla">
-        <input id="profileName" type="hidden" value="NearBacon" />
+        <input id="profileName" type="hidden" value="Guest" />
         <div class="landing-copy">
-          <div class="logo-tile">S</div>
+          <div class="logo-tile"><img src="/logo.svg" alt="" aria-hidden="true" /></div>
           <h1>Snake Area</h1>
           <p id="startHint">Hesabını aç, arkadaşlarını çağır ve arenada en uzun yılan ol.</p>
         </div>
@@ -138,6 +145,13 @@
       </section>
 
       <div class="touch-stick" id="touchStick" aria-hidden="true"><span></span></div>
+      <div class="power-buttons" id="powerButtons" aria-label="Özel güçler">
+        <button id="powerButton" type="button" aria-label="Alan gücü"><span>E</span></button>
+        <button id="dashButton" type="button" aria-label="Atılım"><span>Q</span></button>
+        <button id="twinButton" type="button" aria-label="İkili Takım"><span>R</span></button>
+        <button id="goldButton" type="button" aria-label="Altın Hızlanış"><span>T</span></button>
+        <button id="trapButton" type="button" aria-label="Tuzak"><span>F</span></button>
+      </div>
       <button class="boost-button" id="boostButton" aria-label="Boost">BOOST</button>
     </main>
     <script src="game.js"></script>

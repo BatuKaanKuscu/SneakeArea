@@ -176,12 +176,16 @@ button { cursor: pointer; }
   height: 68px;
   margin-bottom: 22px;
   border-radius: 15px;
-  background: var(--yellow);
-  color: #19111f;
-  font-size: 2.3rem;
-  font-weight: 1000;
+  background: transparent;
   transform: rotate(-6deg);
   box-shadow: 0 8px 0 rgba(0,0,0,0.12);
+}
+
+.logo-tile img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 0 18px rgba(79, 243, 255, 0.22));
 }
 
 .landing-copy h1 {
@@ -514,18 +518,26 @@ button { cursor: pointer; }
 
 .radar-wrap {
   position: absolute;
-  z-index: 4;
-  right: 18px;
-  bottom: 18px;
+  z-index: 5;
+  right: clamp(10px, 2vw, 18px);
+  bottom: clamp(10px, 2vw, 18px);
+  display: none;
   width: 154px;
   height: 154px;
   padding: 7px;
+  border: 1px solid rgba(184, 255, 93, 0.22);
   border-radius: 11px;
-  background: rgba(255,255,255,0.88);
-  box-shadow: 0 8px 22px rgba(24, 7, 57, 0.16);
+  background: rgba(7, 17, 15, 0.76);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(216, 243, 255, 0.08);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
 }
 
-#radar { width: 140px; height: 140px; border-radius: 7px; background: #f5f0fb; }
+body.is-playing .radar-wrap:not(.is-hidden) {
+  display: block;
+}
+
+#radar { width: 100%; height: 100%; border-radius: 7px; background: rgba(12, 30, 26, 0.92); }
 
 .death-panel {
   position: absolute;
@@ -545,7 +557,8 @@ button { cursor: pointer; }
 
 .is-hidden { display: none !important; }
 .touch-stick,
-.boost-button { display: none; }
+.boost-button,
+.power-buttons { display: none; }
 
 body.palette-aurora .game-shell { background: radial-gradient(circle at 78% 12%, rgba(255,255,255,0.08), transparent 28%), linear-gradient(135deg, #4a148f 0%, #34106f 100%); }
 body.palette-ember .game-shell { background: radial-gradient(circle at 78% 12%, rgba(255,196,0,0.12), transparent 28%), linear-gradient(135deg, #6c1d54 0%, #351058 100%); }
@@ -576,7 +589,7 @@ body.palette-forest .game-shell { background: radial-gradient(circle at 78% 12%,
   .login-row .guest-toggle { grid-column: 1 / -1; justify-content: center; }
   .segmented.three { grid-template-columns: 1fr; }
   .quick-panel { top: 58px; width: calc(100vw - 20px); padding: 20px; }
-  .radar-wrap { display: none; }
+  .radar-wrap { width: 112px; height: 112px; padding: 5px; right: 10px; bottom: 10px; opacity: 0.94; }
 }
 /* Updated Snake Area shell */
 .game-shell {
@@ -876,7 +889,8 @@ body.palette-forest .game-shell {
 .radar-wrap,
 .death-panel,
 .touch-stick,
-.boost-button { z-index: 1; }
+.boost-button,
+.power-buttons { z-index: 1; }
 
 .top-hud,
 .start-card,
@@ -1092,9 +1106,10 @@ body.palette-forest .game-shell {
 .quick-panel { z-index: 9; }
 .start-panel { z-index: 4; }
 .death-panel { z-index: 7; }
-.radar-wrap { z-index: 4; }
+.radar-wrap { z-index: 5; }
 .boost-button,
-.touch-stick { z-index: 6; }
+.touch-stick,
+.power-buttons { z-index: 6; }
 
 
 /* Layout repair: keep the landing copy and start card in the grid */
@@ -1650,4 +1665,264 @@ body.palette-forest .game-shell {
   .friend-actions button {
     flex: 1;
   }
+}
+/* Skin previews */
+.skin-preview {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 28%, rgba(255,255,255,0.26), transparent 18%),
+    linear-gradient(135deg, rgba(7, 17, 15, 0.94), rgba(15, 118, 110, 0.28));
+}
+
+.skin-preview span {
+  position: absolute;
+  top: 50%;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--skin-a), var(--skin-b));
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.18), inset 0 0 0 2px rgba(255,255,255,0.18);
+  transform: translateY(-50%);
+}
+
+.skin-preview span:nth-child(1) { left: 18%; opacity: 0.66; transform: translateY(-50%) scale(0.72); }
+.skin-preview span:nth-child(2) { left: 36%; opacity: 0.84; transform: translateY(-50%) scale(0.88); }
+.skin-preview span:nth-child(3) { left: 56%; width: 40px; height: 24px; }
+
+.skin-preview i,
+.skin-preview em {
+  position: absolute;
+  display: none;
+  pointer-events: none;
+}
+
+.skin-preview-cowboy i {
+  display: block;
+  left: 67%;
+  top: 19%;
+  width: 30px;
+  height: 13px;
+  border-radius: 2px 2px 7px 7px;
+  background: linear-gradient(#8a552c, #4c2c17);
+  box-shadow: 0 8px 0 -5px #2b160d, 0 12px 0 -7px #5a351f;
+  transform: rotate(-7deg);
+}
+
+.skin-preview-cowboy em {
+  display: block;
+  left: 72%;
+  top: 51%;
+  width: 30px;
+  height: 4px;
+  border-radius: 999px;
+  background: #202321;
+  box-shadow: -11px 0 0 2px #f4c86b;
+  transform: rotate(18deg);
+}
+
+
+.skin-preview-beard strong {
+  position: absolute;
+  display: block;
+  left: 64%;
+  top: 61%;
+  width: 23px;
+  height: 16px;
+  border-radius: 0 0 999px 999px;
+  background: #3b2518;
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,0.18);
+  transform: rotate(-5deg);
+}
+
+.shop-card.is-admin-skin {
+  border-color: rgba(255, 240, 106, 0.72);
+  background: linear-gradient(180deg, #fffbea, #fbfdfc);
+}
+
+.shop-card.is-admin-skin b::after {
+  content: "ADMIN";
+  margin-left: 6px;
+  color: #5a351f;
+  font-size: 0.62rem;
+  font-weight: 1000;
+}
+
+.shop-card.is-epic {
+  border-color: rgba(244, 200, 107, 0.58);
+  background: linear-gradient(180deg, #fffaf0, #fbfdfc);
+}
+
+.shop-card.is-epic b::after {
+  content: "EPIC";
+  margin-left: 6px;
+  color: #8a552c;
+  font-size: 0.62rem;
+  font-weight: 1000;
+}
+
+/* Mobile analog joystick */
+.touch-stick {
+  --stick-x: 0px;
+  --stick-y: 0px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  bottom: auto;
+  width: 148px;
+  height: 148px;
+  border: 1px solid rgba(216, 243, 255, 0.2);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(184, 255, 93, 0.22) 0 19%, rgba(184, 255, 93, 0.08) 20%, transparent 22%),
+    radial-gradient(circle at 50% 50%, transparent 0 56%, rgba(79, 243, 255, 0.22) 57%, rgba(79, 243, 255, 0.08) 63%, transparent 64%),
+    radial-gradient(circle at 50% 50%, rgba(216, 243, 255, 0.11), rgba(7, 17, 15, 0.34));
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.06), 0 18px 42px rgba(0, 0, 0, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  backdrop-filter: blur(10px);
+  transform: translate(-50%, -50%) scale(0.96);
+  transition: opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+.touch-stick::before,
+.touch-stick::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.touch-stick::before {
+  inset: 47px;
+  border: 1px solid rgba(184, 255, 93, 0.38);
+  border-radius: inherit;
+}
+
+.touch-stick::after {
+  inset: 15px;
+  border: 2px solid rgba(79, 243, 255, 0.24);
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 26px rgba(79, 243, 255, 0.08),
+    0 0 22px rgba(79, 243, 255, 0.06);
+}
+
+.touch-stick span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, #ffffff, #b8ff5d 42%, #0f766e 100%);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24), 0 0 26px rgba(184, 255, 93, 0.26);
+  transform: translate(calc(-50% + var(--stick-x)), calc(-50% + var(--stick-y)));
+  transition: transform 34ms linear;
+}
+
+.touch-stick.is-active {
+  opacity: 0.92;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.touch-stick.is-boost-zone {
+  box-shadow: inset 0 0 0 2px rgba(184, 255, 93, 0.22), 0 0 38px rgba(184, 255, 93, 0.34), 0 18px 42px rgba(0, 0, 0, 0.22);
+}
+
+@media (hover: none), (pointer: coarse) {
+  body.is-playing .touch-stick {
+    display: block;
+  }
+}
+
+@media (max-width: 620px) {
+  .touch-stick {
+    width: 136px;
+    height: 136px;
+  }
+
+  .touch-stick::before { inset: 43px; }
+  .touch-stick::after { inset: 14px; }
+
+  .touch-stick span {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+/* Special power touch controls */
+.power-buttons {
+  position: absolute;
+  z-index: 6;
+  right: 14px;
+  bottom: 138px;
+  gap: 8px;
+  align-items: center;
+  padding: 7px;
+  border: 1px solid rgba(216, 243, 255, 0.18);
+  border-radius: 14px;
+  background: rgba(7, 17, 15, 0.62);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px);
+}
+
+.power-buttons button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(216, 243, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 1000;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  touch-action: manipulation;
+}
+
+.power-buttons button.is-ready {
+  background: linear-gradient(180deg, #b8ff5d, #4ff3ff);
+  color: #07110f;
+  box-shadow: 0 0 22px rgba(79, 243, 255, 0.28), 0 5px 0 rgba(6, 32, 28, 0.55);
+}
+
+body.is-playing .power-buttons {
+  display: flex;
+}
+
+@media (max-width: 620px) {
+  .power-buttons {
+    right: 10px;
+    bottom: 128px;
+  }
+
+  .power-buttons button {
+    width: 39px;
+    height: 39px;
+    border-radius: 11px;
+  }
+}
+/* Performance mode while the canvas is active */
+body.is-playing .game-shell::before,
+body.is-playing .game-shell::after {
+  display: none;
+  animation: none;
+  opacity: 0;
+}
+
+body.is-playing .top-hud,
+body.is-playing .radar-wrap,
+body.is-playing .touch-stick,
+body.is-playing .power-buttons {
+  backdrop-filter: none;
+}
+
+body.is-playing .logo-tile,
+body.is-playing .skin-preview::after,
+body.is-playing .palette-swatch::after {
+  animation: none;
 }

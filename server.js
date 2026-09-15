@@ -11,9 +11,18 @@ const PUBLIC_FILES = new Map([
   ["/index.html", "index.html"],
   ["/styles.css", "styles.css"],
   ["/game.js", "game.js"],
+  ["/logo.svg", "logo.svg"],
 ]);
 
-const defaultSkins = ["cyan", "lime", "pink", "amber", "violet", "ruby", "ice", "royal"];
+const epicSkins = [
+  { id: "cowboy", matches: 5 },
+  { id: "storm", matches: 7 },
+  { id: "nebula", matches: 10 },
+  { id: "phantom", matches: 14 },
+  { id: "solar", matches: 18 },
+];
+const epicSkinIds = epicSkins.map((skin) => skin.id);
+const defaultSkins = ["cyan", "lime", "pink", "amber", "violet", "ruby", "ice", "royal", ...epicSkinIds];
 const defaultTitles = ["rookie"];
 const adminTitles = ["admin", "rookie", "hunter", "collector", "champion", "speedster", "survivor"];
 const allowedTitles = new Set(adminTitles);
@@ -43,10 +52,30 @@ function sanitizeName(name, fallback = "Guest") {
   return String(name || "").trim().replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 14) || fallback;
 }
 
+function sanitizeSkin(skin) {
+  const id = String(skin || "cyan");
+  return defaultSkins.includes(id) ? id : "cyan";
+}
+
 function sanitizeRoom(room) {
   return String(room || "LOBBY").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) || "LOBBY";
 }
 
+
+
+function syncOwnedSkins(profile, name) {
+  profile.ownedSkins = Array.from(new Set(["cyan", ...(Array.isArray(profile.ownedSkins) ? profile.ownedSkins : [])])).filter((skin) => defaultSkins.includes(skin));
+  if (profile.isAdmin || profile.role === "admin") {
+    profile.ownedSkins = defaultSkins.slice();
+  } else {
+    const matches = Number(profile.matches) || 0;
+    for (const skin of epicSkins) {
+      if (matches >= skin.matches && !profile.ownedSkins.includes(skin.id)) profile.ownedSkins.push(skin.id);
+      if (matches < skin.matches) profile.ownedSkins = profile.ownedSkins.filter((id) => id !== skin.id);
+    }
+  }
+  if (!profile.ownedSkins.includes(profile.activeSkin)) profile.activeSkin = "cyan";
+}
 
 function cleanArray(value) {
   return Array.isArray(value) ? value.map((item) => sanitizeName(typeof item === "string" ? item : item.name, "")).filter(Boolean) : [];
@@ -85,19 +114,19 @@ function publicProfile(profile) {
   return safe;
 }
 function getProfile(name) {
-  const clean = sanitizeName(name, "NearBacon");
+  const clean = sanitizeName(name, "Guest");
   if (!data.profiles[clean]) {
     data.profiles[clean] = {
       name: clean,
-      coins: clean === "NearBacon" ? 5000 : 120,
+      coins: 120,
       bestScore: 0,
       matches: 0,
-      role: clean === "NearBacon" ? "admin" : "player",
-      isAdmin: clean === "NearBacon",
-      ownedSkins: clean === "NearBacon" ? defaultSkins : ["cyan"],
+      role: "player",
+      isAdmin: false,
+      ownedSkins: ["cyan"],
       activeSkin: "cyan",
-      title: clean === "NearBacon" ? "admin" : "rookie",
-      unlockedTitles: clean === "NearBacon" ? adminTitles : defaultTitles,
+      title: "rookie",
+      unlockedTitles: defaultTitles,
       achievements: [],
       claimedQuests: [],
       avatar: "near",
@@ -111,19 +140,23 @@ function getProfile(name) {
     saveData();
   }
   const profile = data.profiles[clean];
-  if (clean === "NearBacon") {
+  if (profile.isAdmin || profile.role === "admin") {
     profile.role = "admin";
     profile.isAdmin = true;
     profile.coins = Math.max(profile.coins || 0, 5000);
-    profile.ownedSkins = defaultSkins;
+    profile.ownedSkins = defaultSkins.slice();
     profile.title = "admin";
     profile.unlockedTitles = adminTitles;
+  } else {
+    profile.role = "player";
+    profile.isAdmin = false;
   }
   profile.friends = cleanArray(profile.friends);
   profile.friendRequests = cleanArray(profile.friendRequests);
   profile.outgoingRequests = cleanArray(profile.outgoingRequests);
   profile.roomInvites = Array.isArray(profile.roomInvites) ? profile.roomInvites.map((invite) => ({ from: sanitizeName(invite.from, ""), room: sanitizeRoom(invite.room) })).filter((invite) => invite.from && invite.room) : [];
   profile.ownedSkins ||= ["cyan"];
+  syncOwnedSkins(profile, clean);
   profile.unlockedTitles = Array.isArray(profile.unlockedTitles) && profile.unlockedTitles.length ? profile.unlockedTitles.filter((title) => allowedTitles.has(title)) : defaultTitles;
   if (!profile.unlockedTitles.length) profile.unlockedTitles = defaultTitles;
   profile.title = allowedTitles.has(profile.title) && profile.unlockedTitles.includes(profile.title) ? profile.title : profile.unlockedTitles[0];
@@ -172,7 +205,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && PUBLIC_FILES.has(url.pathname)) {
     const file = path.join(ROOT, PUBLIC_FILES.get(url.pathname));
     const ext = path.extname(file);
-    const type = ext === ".css" ? "text/css" : ext === ".js" ? "application/javascript" : "text/html";
+    const type = ext === ".css" ? "text/css" : ext === ".js" ? "application/javascript" : ext === ".svg" ? "image/svg+xml" : "text/html";
     res.writeHead(200, { "content-type": `${type}; charset=utf-8`, "cache-control": "no-store" });
     fs.createReadStream(file).pipe(res);
     return;
@@ -333,7 +366,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "POST" && url.pathname === "/api/profile") {
     const body = await readBody(req);
-    const name = sanitizeName(body.name, "NearBacon");
+    const name = sanitizeName(body.name, "Guest");
     const profile = getProfile(name);
     const tokenName = sessionName(body.token);
     if (profile.passwordHash && tokenName !== name) {
@@ -345,6 +378,7 @@ const server = http.createServer(async (req, res) => {
     profile.matches = Math.max(Number(profile.matches) || 0, Number(body.matches) || 0);
     profile.activeSkin = String(body.activeSkin || profile.activeSkin || "cyan");
     profile.ownedSkins = Array.from(new Set(["cyan", ...(Array.isArray(body.ownedSkins) ? body.ownedSkins : profile.ownedSkins || [])]));
+    syncOwnedSkins(profile, name);
     profile.unlockedTitles = Array.from(new Set([...(Array.isArray(profile.unlockedTitles) ? profile.unlockedTitles : defaultTitles), ...(Array.isArray(body.unlockedTitles) ? body.unlockedTitles : [])])).filter((title) => allowedTitles.has(title));
     profile.title = allowedTitles.has(body.title) && profile.unlockedTitles.includes(body.title) ? body.title : profile.title;
     profile.achievements = Array.isArray(body.achievements) ? body.achievements.slice(0, 30).map(String) : profile.achievements || [];
@@ -352,10 +386,9 @@ const server = http.createServer(async (req, res) => {
     profile.avatar = allowedAvatars.has(body.avatar) ? body.avatar : profile.avatar || "near";
     profile.theme = allowedThemes.has(body.theme) ? body.theme : profile.theme || "aurora";
     profile.language = body.language === "en" ? "en" : "tr";
-    if (name === "NearBacon") {
+    if (profile.isAdmin) {
       profile.role = "admin";
-      profile.isAdmin = true;
-      profile.ownedSkins = defaultSkins;
+      profile.ownedSkins = defaultSkins.slice();
       profile.title = "admin";
       profile.unlockedTitles = adminTitles;
     }
@@ -447,7 +480,7 @@ function roomMembers(room) {
 
 function roomState(room) {
   const clean = sanitizeRoom(room);
-  if (!rooms.has(clean)) rooms.set(clean, { hostId: "", started: false });
+  if (!rooms.has(clean)) rooms.set(clean, { hostId: "", started: false, botCount: 0 });
   return rooms.get(clean);
 }
 
@@ -455,7 +488,7 @@ function broadcastLobby(room) {
   const state = rooms.get(room);
   if (!state) return;
   const players = roomMembers(room).map((client) => ({ id: client.id, name: client.name, host: client.id === state.hostId }));
-  broadcastToRoom({ type: "lobby", room, hostId: state.hostId, started: state.started, players }, room);
+  broadcastToRoom({ type: "lobby", room, hostId: state.hostId, started: state.started, botCount: state.botCount || 0, players }, room);
 }
 
 function leaveRoom(client) {
@@ -518,10 +551,12 @@ function handleMessage(client, message) {
   if (message.type === "join") {
     const nextRoom = sanitizeRoom(message.room);
     if (client.room && client.room !== nextRoom) leaveRoom(client);
-    client.name = sanitizeName(message.name, "Guest");
-    client.skin = message.skin || "cyan";
+    const tokenName = sessionName(message.token);
+    client.name = tokenName || sanitizeName(message.name, "Guest");
+    client.isAdmin = Boolean(tokenName && getProfile(tokenName).isAdmin);
+    client.skin = sanitizeSkin(message.skin);
     client.room = nextRoom;
-    getProfile(client.name);
+    if (tokenName) getProfile(client.name);
     const state = roomState(client.room);
     const members = roomMembers(client.room);
     if (!state.hostId || !members.some((item) => item.id === state.hostId)) state.hostId = client.id;
@@ -544,7 +579,8 @@ function handleMessage(client, message) {
     const state = roomState(client.room);
     if (state.hostId !== client.id) return;
     state.started = true;
-    broadcastToRoom({ type: "start", room: client.room }, client.room);
+    state.botCount = Math.max(0, Math.min(18, Math.round(Number(message.botCount) || 0)));
+    broadcastToRoom({ type: "start", room: client.room, botCount: state.botCount }, client.room);
     broadcastLobby(client.room);
     return;
   }
@@ -559,7 +595,13 @@ function handleMessage(client, message) {
       type: "remote",
       id: client.id,
       name: client.name,
-      skin: message.skin || client.skin || "cyan",
+      title: String(message.title || "").slice(0, 24),
+      skin: sanitizeSkin(message.skin || client.skin || "cyan"),
+      powerActive: Boolean(message.powerActive),
+      dashActive: Boolean(message.dashActive),
+      twinActive: Boolean(message.twinActive),
+      goldActive: Boolean(message.goldActive),
+      powerLocked: Boolean(message.powerLocked),
       x: Number(message.x) || 0,
       y: Number(message.y) || 0,
       angle: Number(message.angle) || 0,
