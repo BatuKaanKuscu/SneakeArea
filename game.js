@@ -45,6 +45,10 @@ const deathText = document.getElementById("deathText");
 const playButton = document.getElementById("playButton");
 const playButtonText = document.getElementById("playButtonText");
 const retryButton = document.getElementById("retryButton");
+const tutorialPanel = document.getElementById("tutorialPanel");
+const tutorialPowerGrid = document.getElementById("tutorialPowerGrid");
+const tutorialPracticeButton = document.getElementById("tutorialPracticeButton");
+const tutorialBackButton = document.getElementById("tutorialBackButton");
 const lobbyPanel = document.getElementById("lobbyPanel");
 const lobbyCode = document.getElementById("lobbyCode");
 const lobbyStatus = document.getElementById("lobbyStatus");
@@ -89,14 +93,20 @@ const dashButton = document.getElementById("dashButton");
 const twinButton = document.getElementById("twinButton");
 const goldButton = document.getElementById("goldButton");
 const trapButton = document.getElementById("trapButton");
+const shieldButton = document.getElementById("shieldButton");
+const slowButton = document.getElementById("slowButton");
+const bloomButton = document.getElementById("bloomButton");
 const POWER_BINDING_DEFS = [
   { kind: "area", label: "Alan g\u00fcc\u00fc", desc: "Yak\u0131ndaki yemleri toplar", defaultCode: "KeyE" },
   { kind: "dash", label: "At\u0131l\u0131m", desc: "K\u0131sa mesafe ileri at\u0131l\u0131r", defaultCode: "KeyQ" },
   { kind: "twin", label: "Hologram", desc: "\u0130kili tak\u0131m ve yer de\u011fi\u015ftirme", defaultCode: "KeyR" },
   { kind: "gold", label: "Alt\u0131n h\u0131zlan\u0131\u015f", desc: "K\u0131sa s\u00fcre \u00e7ok h\u0131zl\u0131 gider", defaultCode: "KeyT" },
   { kind: "trap", label: "Tuzak", desc: "Kuyru\u011fa g\u00fc\u00e7 kilidi b\u0131rak\u0131r", defaultCode: "KeyF" },
+  { kind: "shield", label: "Kalkan", desc: "Bir \u00e7arp\u0131\u015fmay\u0131 emer", defaultCode: "KeyZ" },
+  { kind: "slow", label: "Yava\u015f Dalga", desc: "Yak\u0131ndaki rakipleri yava\u015flat\u0131r", defaultCode: "KeyC" },
+  { kind: "bloom", label: "Yem Ya\u011fmuru", desc: "\u00d6ne yem patlamas\u0131 b\u0131rak\u0131r", defaultCode: "KeyV" },
 ];
-const POWER_BUTTONS = { area: powerButton, dash: dashButton, twin: twinButton, gold: goldButton, trap: trapButton };
+const POWER_BUTTONS = { area: powerButton, dash: dashButton, twin: twinButton, gold: goldButton, trap: trapButton, shield: shieldButton, slow: slowButton, bloom: bloomButton };
 const RESERVED_POWER_KEY_CODES = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "ShiftLeft", "ShiftRight", "KeyI", "KeyJ", "KeyK", "KeyL", "KeyU", "Enter", "Escape", "Tab", "Backspace"]);
 
 const WORLD = 4300;
@@ -138,6 +148,18 @@ const TRAP_RECHARGE_RATE = 0.074;
 const TRAP_PICKUP_BONUS = 2.4;
 const TRAP_DURATION_MS = 16000;
 const TRAP_LOCK_MS = 15000;
+const SHIELD_DURATION_MS = 4200;
+const SHIELD_GRACE_MS = 900;
+const SHIELD_RECHARGE_RATE = 0.032;
+const SHIELD_PICKUP_BONUS = 1.5;
+const SLOW_RADIUS = 560;
+const SLOW_DURATION_MS = 4600;
+const SLOW_SPEED_MULTIPLIER = 0.56;
+const SLOW_RECHARGE_RATE = 0.052;
+const SLOW_PICKUP_BONUS = 1.7;
+const BLOOM_RECHARGE_RATE = 0.07;
+const BLOOM_PICKUP_BONUS = 2.0;
+const BLOOM_FOOD_COUNT = 22;
 const BOOST_RECHARGE_INNER = 0.38;
 const BOOST_OUTER_THRESHOLD = 0.86;
 const LEGACY_PROFILE_KEY = "snakeAeaProfile";
@@ -161,7 +183,20 @@ const POWER_BUTTON_VISUALS = {
   twin: { short: "H", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7c4-3 9-2 10 2 1 3-1 6-5 6H6"/><path d="M17 17c-4 3-9 2-10-2-1-3 1-6 5-6h6"/><circle cx="8" cy="15" r="1"/><circle cx="16" cy="9" r="1"/></svg>' },
   gold: { short: "G", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6-4.4-4.2 6-.8L12 3Z"/></svg>' },
   trap: { short: "T", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><path d="m7 7 10 10M17 7 7 17"/><circle cx="12" cy="12" r="3"/></svg>' },
+  shield: { short: "K", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 2.8 8.4 7 10 4.2-1.6 7-5.5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-5"/></svg>' },
+  slow: { short: "Y", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/><path d="M4 4l3 3M20 4l-3 3"/></svg>' },
+  bloom: { short: "B", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M5 10c4 0 7-3 7-7 0 4 3 7 7 7"/><path d="M5 16c4 0 7 2 7 5 0-3 3-5 7-5"/><circle cx="12" cy="12" r="2"/></svg>' },
 };
+const TUTORIAL_POWER_GUIDE = [
+  { kind: "area", tip: "Yak\u0131ndaki yemleri m\u0131knat\u0131s gibi toplar.", practice: "Yem kalabal\u0131\u011f\u0131na girince bas." },
+  { kind: "dash", tip: "K\u0131sa mesafede an\u0131nda ileri at\u0131l\u0131r.", practice: "Dar yerden ka\u00e7arken kullan." },
+  { kind: "twin", tip: "Etraf\u0131ndaki hedefe g\u00f6re hologram\u0131n\u0131 simetrik oynat\u0131r.", practice: "\u0130kinci bas\u0131\u015fta yer de\u011fi\u015ftirme sayac\u0131 ba\u015flar." },
+  { kind: "gold", tip: "K\u0131sa s\u00fcre \u00e7ok h\u0131zl\u0131 gidersin.", practice: "A\u00e7\u0131k alanda kullan." },
+  { kind: "trap", tip: "Kuyru\u011funun arkas\u0131na g\u00fc\u00e7 kilidi tuza\u011f\u0131 b\u0131rak\u0131r.", practice: "Pe\u015finden gelen botu tuza\u011fa \u00e7ek." },
+  { kind: "shield", tip: "Bir \u00e7arp\u0131\u015fmay\u0131 emer ve k\u0131sa dokunulmazl\u0131k verir.", practice: "Riskli kafa kafaya yakla\u015fmadan \u00f6nce a\u00e7." },
+  { kind: "slow", tip: "Yak\u0131ndaki botlar\u0131 birka\u00e7 saniyeli\u011fine yava\u015flat\u0131r.", practice: "Rakibi sarmadan \u00f6nce bas." },
+  { kind: "bloom", tip: "\u00d6n\u00fcne yem ya\u011fmuru patlat\u0131r.", practice: "H\u0131zl\u0131 b\u00fcy\u00fcmek i\u00e7in yemlerin i\u00e7inden ge\u00e7." },
+];
 
 const SKINS = [
   { id: "cyan", name: "Area Basic", price: 0, colors: ["#4ff3ff", "#b8ff5d"] },
@@ -235,6 +270,8 @@ let focusPlayer = null;
 let running = false;
 let selectedSkin = "cyan";
 let gameMode = "solo";
+let tutorialPracticeMode = false;
+let runningTutorial = false;
 let currentRoom = "";
 let botCountSetting = 9;
 let matchFinalized = false;
@@ -374,7 +411,8 @@ function viewportControlPoint(xPercent, yPercent, size) {
 
 function positionPowerButtons() {
   if (!powerButtons) return;
-  const clusterSize = touchControls.powerSize * 2 + 30;
+  const rows = Math.ceil(POWER_BINDING_DEFS.length / 2);
+  const clusterSize = Math.max(touchControls.powerSize * 2 + 30, touchControls.powerSize * rows + 48);
   const point = viewportControlPoint(touchControls.powerX, touchControls.powerY, clusterSize);
   powerButtons.style.left = `${point.x}px`;
   powerButtons.style.top = `${point.y}px`;
@@ -499,6 +537,9 @@ function isPowerActive(snake, now = performance.now()) { return Boolean(snake &&
 function isDashActive(snake, now = performance.now()) { return Boolean(snake && (snake.dashFlashUntil || 0) > now); }
 function isTwinActive(snake, now = performance.now()) { return Boolean(snake && (snake.twinActiveUntil || 0) > now); }
 function isGoldActive(snake, now = performance.now()) { return Boolean(snake && (snake.goldActiveUntil || 0) > now); }
+function isShieldActive(snake, now = performance.now()) { return Boolean(snake && (snake.shieldActiveUntil || 0) > now); }
+function isShieldGrace(snake, now = performance.now()) { return Boolean(snake && (snake.shieldGraceUntil || 0) > now); }
+function isSlowed(snake, now = performance.now()) { return Boolean(snake && (snake.slowUntil || 0) > now); }
 function arePowersLocked(snake, now = performance.now()) { return Boolean(snake && (snake.powerLockUntil || 0) > now); }
 function powerLockSeconds(snake, now = performance.now()) { return Math.max(0, Math.ceil(((snake?.powerLockUntil || 0) - now) / 1000)); }
 function canTriggerPower(snake, now = performance.now()) {
@@ -608,6 +649,54 @@ function activateTrap(snake, now = performance.now()) {
   spawnEffectBurst(tail.x, tail.y, "#ff3d6e", 10);
   return true;
 }
+function activateShield(snake, now = performance.now()) {
+  if (!canTriggerPower(snake, now) || (snake.shieldPower ?? 100) < 100 || isShieldActive(snake, now)) return false;
+  snake.shieldPower = 0;
+  snake.shieldActiveUntil = now + SHIELD_DURATION_MS;
+  snake.shieldGraceUntil = Math.max(snake.shieldGraceUntil || 0, now + 220);
+  spawnEffectBurst(snake.x, snake.y, "#d8f3ff", 16);
+  return true;
+}
+
+function activateSlow(snake, now = performance.now()) {
+  if (!canTriggerPower(snake, now) || (snake.slowPower ?? 100) < 100) return false;
+  snake.slowPower = 0;
+  let hits = 0;
+  const radiusSq = SLOW_RADIUS * SLOW_RADIUS;
+  for (const target of snakes) {
+    if (!target.alive || target.id === snake.id || target.type === "hologram" || target.ownerId === snake.id) continue;
+    const dx = target.x - snake.x;
+    const dy = target.y - snake.y;
+    if (dx * dx + dy * dy > radiusSq) continue;
+    target.slowUntil = Math.max(target.slowUntil || 0, now + SLOW_DURATION_MS);
+    hits++;
+  }
+  spawnEffectBurst(snake.x, snake.y, hits ? "#a78bfa" : "#8feeff", hits ? 18 : 9);
+  return true;
+}
+
+function activateBloom(snake, now = performance.now()) {
+  if (!canTriggerPower(snake, now) || (snake.bloomPower ?? 100) < 100) return false;
+  snake.bloomPower = 0;
+  const fx = clamp(snake.x + Math.cos(snake.angle) * 140, 90, WORLD - 90);
+  const fy = clamp(snake.y + Math.sin(snake.angle) * 140, 90, WORLD - 90);
+  spawnFood(BLOOM_FOOD_COUNT, fx, fy, 0.9);
+  spawnEffectBurst(fx, fy, snake.colors?.[1] || "#b8ff5d", 18);
+  return true;
+}
+
+function absorbShieldHit(snake, now = performance.now()) {
+  if (!snake || !snake.alive || snake.type === "hologram") return false;
+  if (!isShieldActive(snake, now) && !isShieldGrace(snake, now)) return false;
+  const broke = isShieldActive(snake, now);
+  snake.shieldActiveUntil = 0;
+  snake.shieldGraceUntil = now + SHIELD_GRACE_MS;
+  snake.x = clamp(snake.x, 36, WORLD - 36);
+  snake.y = clamp(snake.y, 36, WORLD - 36);
+  snake.boost = Math.max(snake.boost, 35);
+  spawnEffectBurst(snake.x, snake.y, broke ? "#d8f3ff" : "#8feeff", broke ? 18 : 6);
+  return true;
+}
 function nearestTwinTarget(source) {
   const maxDist = TWIN_MIRROR_TARGET_RANGE * TWIN_MIRROR_TARGET_RANGE;
   if (source.twinMirrorTargetId) {
@@ -677,6 +766,9 @@ function syncTwinHologram(source, now = performance.now()) {
   twin.twinSwapAt = source.twinSwapAt || 0;
   twin.twinSwapStartedAt = source.twinSwapStartedAt || 0;
   twin.goldActiveUntil = source.goldActiveUntil || 0;
+  twin.shieldActiveUntil = source.shieldActiveUntil || 0;
+  twin.shieldGraceUntil = source.shieldGraceUntil || 0;
+  twin.slowUntil = source.slowUntil || 0;
   twin.powerLockUntil = source.powerLockUntil || 0;
   const limit = Math.min(TWIN_SEGMENT_LIMIT, source.segments.length);
   twin.segments.length = limit;
@@ -720,8 +812,12 @@ function triggerSpecialPower(kind) {
   if (kind === "twin") return activateTwin(target);
   if (kind === "gold") return activateGold(target);
   if (kind === "trap") return activateTrap(target);
+  if (kind === "shield") return activateShield(target);
+  if (kind === "slow") return activateSlow(target);
+  if (kind === "bloom") return activateBloom(target);
   return false;
-}function snakeRadiusForLength(length, isHuman = true) { return (isHuman ? 12.5 : 11.5) + Math.min(13, Math.max(0, length - 18) * 0.055); }
+}
+function snakeRadiusForLength(length, isHuman = true) { return (isHuman ? 12.5 : 11.5) + Math.min(13, Math.max(0, length - 18) * 0.055); }
 function cleanName(value, fallback) { return (value || "").trim().replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 14) || fallback; }
 function getCurrentPlayerName() { return authToken && !(guestMode && guestMode.checked) ? profile.name : cleanName(profileName ? profileName.value : "", "Guest"); }
 function angleLerp(current, target, amount) {
@@ -1299,7 +1395,7 @@ function updateModeButtons() {
     if (roomCodeHintText) roomCodeHintText.textContent = "Oda kodu:";
   }
   roomCodeLabel.textContent = gameMode.startsWith("room") ? (roomCodeInput.value || currentRoom || "-") : "-";
-  if (playButtonText) playButtonText.textContent = gameMode.startsWith("room") ? "LOBİYE GİR" : "OYUNA GİR";
+  if (playButtonText) playButtonText.textContent = gameMode === "tutorial" ? "TUTORIALI AÇ" : gameMode.startsWith("room") ? "LOBİYE GİR" : "OYUNA GİR";
 }
 function resize() {
   width = window.innerWidth;
@@ -1451,7 +1547,7 @@ function makeSnake(name, skinId, options = {}) {
   const segments = [];
   for (let i = 0; i < length; i++) segments.push({ x: x - Math.cos(angle) * i * SEGMENT_GAP, y: y - Math.sin(angle) * i * SEGMENT_GAP });
   const skin = getSkin(skinId);
-  const snake = { id: options.id || `${Date.now()}-${Math.random()}`, name, title: options.title || "", skin: skin.id, colors: skin.colors, type, control: options.control || "bot", isPlayer: isHuman, alive: true, x, y, angle, turn: 0.09, segments, targetLength: length, score: Math.max(0, (length - 12) * 14), boost: 100, boostHeld: false, boostRechargeLocked: false, power: options.power ?? 100, powerActiveUntil: 0, dashPower: options.dashPower ?? 100, dashFlashUntil: 0, dashCooldownUntil: 0, twinPower: options.twinPower ?? 100, twinActiveUntil: 0, twinSwapAt: 0, twinSwapStartedAt: 0, twinSwapUsed: false, twinMirrorTargetId: options.twinMirrorTargetId || "", twinMirrorSide: options.twinMirrorSide || 0, goldPower: options.goldPower ?? 100, goldActiveUntil: 0, trapPower: options.trapPower ?? 100, powerLockUntil: 0, ownerId: options.ownerId || null, thinkAt: 0, aiAngle: angle, baseRadius: isHuman ? 12.5 : 11.5, radius: snakeRadiusForLength(length, isHuman), bounds: null, boundsRefreshAt: 0 };
+  const snake = { id: options.id || `${Date.now()}-${Math.random()}`, name, title: options.title || "", skin: skin.id, colors: skin.colors, type, control: options.control || "bot", isPlayer: isHuman, alive: true, x, y, angle, turn: 0.09, segments, targetLength: length, score: Math.max(0, (length - 12) * 14), boost: 100, boostHeld: false, boostRechargeLocked: false, power: options.power ?? 100, powerActiveUntil: 0, dashPower: options.dashPower ?? 100, dashFlashUntil: 0, dashCooldownUntil: 0, twinPower: options.twinPower ?? 100, twinActiveUntil: 0, twinSwapAt: 0, twinSwapStartedAt: 0, twinSwapUsed: false, twinMirrorTargetId: options.twinMirrorTargetId || "", twinMirrorSide: options.twinMirrorSide || 0, goldPower: options.goldPower ?? 100, goldActiveUntil: 0, trapPower: options.trapPower ?? 100, shieldPower: options.shieldPower ?? 100, shieldActiveUntil: 0, shieldGraceUntil: 0, slowPower: options.slowPower ?? 100, slowUntil: 0, bloomPower: options.bloomPower ?? 100, powerLockUntil: 0, ownerId: options.ownerId || null, thinkAt: 0, aiAngle: angle, baseRadius: isHuman ? 12.5 : 11.5, radius: snakeRadiusForLength(length, isHuman), bounds: null, boundsRefreshAt: 0 };
   refreshSnakeBounds(snake);
   return snake;
 }
@@ -1571,16 +1667,46 @@ function exitToMenu() {
   traps = [];
   clearFoods();
   closeOnline();
+  runningTutorial = false;
+  tutorialPracticeMode = false;
   setGameHudVisible(false);
   startPanel.classList.remove("is-hidden");
   if (lobbyPanel) lobbyPanel.classList.add("is-hidden");
+  if (tutorialPanel) tutorialPanel.classList.add("is-hidden");
   deathPanel.classList.add("is-hidden");
   if (radarWrap) radarWrap.classList.add("is-hidden");
   updateModeButtons();
   renderProfile();
 }
 
+function renderTutorialGuide() {
+  if (!tutorialPowerGrid) return;
+  tutorialPowerGrid.innerHTML = TUTORIAL_POWER_GUIDE.map((guide) => {
+    const item = POWER_BINDING_DEFS.find((entry) => entry.kind === guide.kind);
+    if (!item) return "";
+    const visual = POWER_BUTTON_VISUALS[guide.kind] || { icon: "" };
+    const key = displayKeyCode(powerKeybinds[guide.kind]);
+    return `<article class="tutorial-card tutorial-${guide.kind}"><div class="tutorial-icon">${visual.icon}</div><div><header><b>${item.label}</b><kbd>${key}</kbd></header><p>${guide.tip}</p><small>${guide.practice}</small></div></article>`;
+  }).join("");
+}
+
+function showTutorialPanel() {
+  renderTutorialGuide();
+  startPanel.classList.add("is-hidden");
+  if (tutorialPanel) tutorialPanel.classList.remove("is-hidden");
+  deathPanel.classList.add("is-hidden");
+  if (lobbyPanel) lobbyPanel.classList.add("is-hidden");
+  setGameHudVisible(false);
+  if (radarWrap) radarWrap.classList.add("is-hidden");
+  hideQuickPanel();
+}
+
+function startTutorialPractice() {
+  tutorialPracticeMode = true;
+  resetGame();
+}
 function handlePlayButton() {
+  if (gameMode === "tutorial") { showTutorialPanel(); return; }
   if (gameMode.startsWith("room")) enterLobby();
   else resetGame();
 }
@@ -1593,20 +1719,24 @@ function resetGame() {
   matchFinalized = false;
   matchHadOpponents = false;
   collectCursor = 0;
+  const isTutorial = gameMode === "tutorial" && tutorialPracticeMode;
+  tutorialPracticeMode = false;
+  runningTutorial = isTutorial;
   const p1Name = getCurrentPlayerName();
   selectedSkin = getPlayableSkinId(selectedSkin);
   if (authToken && !guestMode.checked) {
     profile.activeSkin = selectedSkin;
     saveProfile();
   }
-  player = makeSnake(p1Name, selectedSkin, { type: "human", control: "p1", title: currentProfileTitle(), x: WORLD / 2 - 70, y: WORLD / 2 });
+  player = makeSnake(p1Name, selectedSkin, { type: "human", control: "p1", title: currentProfileTitle(), x: WORLD / 2 - 70, y: WORLD / 2, length: isTutorial ? 26 : undefined });
   snakes.push(player);
   localPlayers.push(player);
-  const botsToSpawn = botCountSetting;
-  matchHadOpponents = botsToSpawn > 0;
+  const botsToSpawn = isTutorial ? 4 : botCountSetting;
+  matchHadOpponents = isTutorial ? false : botsToSpawn > 0;
   for (let i = 0; i < botsToSpawn; i++) {
     const skin = SKINS[Math.floor(random(0, SKINS.length))];
-    snakes.push(makeSnake(BOT_NAMES[i % BOT_NAMES.length], skin.id, { type: "bot" }));
+    const botOptions = isTutorial ? { type: "bot", x: WORLD / 2 + random(-520, 640), y: WORLD / 2 + random(-460, 460), length: 16 } : { type: "bot" };
+    snakes.push(makeSnake(BOT_NAMES[i % BOT_NAMES.length], skin.id, botOptions));
   }
   if (gameMode === "room-create") {
     if (!currentRoom) currentRoom = generateRoomCode();
@@ -1619,13 +1749,15 @@ function resetGame() {
   }
   roomCodeLabel.textContent = currentRoom || "-";
   spawnFood(targetFoodCount());
+  if (isTutorial) spawnFood(90, player.x + 170, player.y, 0.9);
   focusPlayer = player;
   camera.x = focusPlayer.x;
   camera.y = focusPlayer.y;
   running = true;
   setGameHudVisible(true);
   hideQuickPanel();
-  modeLabel.textContent = gameMode.startsWith("room") ? "Oda" : "Bot";
+  if (tutorialPanel) tutorialPanel.classList.add("is-hidden");
+  modeLabel.textContent = isTutorial ? "Tutorial" : gameMode.startsWith("room") ? "Oda" : "Bot";
   startPanel.classList.add("is-hidden");
   deathPanel.classList.add("is-hidden");
   if (lobbyPanel) lobbyPanel.classList.add("is-hidden");
@@ -1709,6 +1841,8 @@ function upsertRemoteSnake(remote) {
   snake.dashFlashUntil = remote.dashActive ? performance.now() + 180 : snake.dashFlashUntil || 0;
   snake.twinActiveUntil = remote.twinActive ? performance.now() + 220 : snake.twinActiveUntil || 0;
   snake.goldActiveUntil = remote.goldActive ? performance.now() + 220 : 0;
+  snake.shieldActiveUntil = remote.shieldActive ? performance.now() + 220 : 0;
+  snake.slowUntil = remote.slowed ? performance.now() + 220 : 0;
   snake.powerLockUntil = remote.powerLocked ? performance.now() + 220 : 0;
 }
 
@@ -1716,7 +1850,7 @@ function sendOnlineState(now) {
   if (!gameMode.startsWith("room") || !ws || ws.readyState !== WebSocket.OPEN || !player || !player.alive) return;
   if (now - lastNetworkSend < 70) return;
   lastNetworkSend = now;
-  ws.send(JSON.stringify({ type: "state", skin: selectedSkin, title: player.title || currentProfileTitle(), powerActive: isPowerActive(player, now), dashActive: isDashActive(player, now), twinActive: isTwinActive(player, now), goldActive: isGoldActive(player, now), powerLocked: arePowersLocked(player, now), x: player.x, y: player.y, angle: player.angle, score: player.score, targetLength: player.targetLength, segments: player.segments.slice(0, 70) }));
+  ws.send(JSON.stringify({ type: "state", skin: selectedSkin, title: player.title || currentProfileTitle(), powerActive: isPowerActive(player, now), dashActive: isDashActive(player, now), twinActive: isTwinActive(player, now), goldActive: isGoldActive(player, now), shieldActive: isShieldActive(player, now), slowed: isSlowed(player, now), powerLocked: arePowersLocked(player, now), x: player.x, y: player.y, angle: player.angle, score: player.score, targetLength: player.targetLength, segments: player.segments.slice(0, 70) }));
 }
 
 function screenToWorld(x, y) { return { x: camera.x + (x - width / 2) / scale, y: camera.y + (y - height / 2) / scale }; }
@@ -1846,7 +1980,9 @@ function moveSnake(snake, dt, now) {
   const canBoost = snake.boostHeld && !snake.boostRechargeLocked && snake.boost > 4 && snake.targetLength > 12;
   const powered = isPowerActive(snake, now);
   const golden = isGoldActive(snake, now);
-  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.12 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * dt;
+  const shielded = isShieldActive(snake, now) || isShieldGrace(snake, now);
+  const slowed = isSlowed(snake, now);
+  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.12 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * (shielded ? 0.98 : 1) * (slowed ? SLOW_SPEED_MULTIPLIER : 1) * dt;
   if (canBoost) {
     snake.boost = Math.max(0, snake.boost - 0.42 * dt);
     snake.targetLength = Math.max(12, snake.targetLength - 0.018 * dt);
@@ -1861,6 +1997,11 @@ function moveSnake(snake, dt, now) {
   if (!isTwinActive(snake, now)) snake.twinPower = Math.min(100, (snake.twinPower ?? 100) + TWIN_RECHARGE_RATE * dt);
   if (!golden) snake.goldPower = Math.min(100, (snake.goldPower ?? 100) + GOLD_RECHARGE_RATE * dt);
   snake.trapPower = Math.min(100, (snake.trapPower ?? 100) + TRAP_RECHARGE_RATE * dt);
+  if (!isShieldActive(snake, now)) snake.shieldPower = Math.min(100, (snake.shieldPower ?? 100) + SHIELD_RECHARGE_RATE * dt);
+  snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SLOW_RECHARGE_RATE * dt);
+  snake.bloomPower = Math.min(100, (snake.bloomPower ?? 100) + BLOOM_RECHARGE_RATE * dt);
+  if (slowed && effects.length < MAX_EFFECTS && Math.random() < 0.1) spawnEffectBurst(snake.x, snake.y, "#a78bfa", 1);
+  if (shielded && effects.length < MAX_EFFECTS && Math.random() < 0.12) spawnEffectBurst(snake.x, snake.y, "#d8f3ff", 1);
   if (golden && effects.length < MAX_EFFECTS && Math.random() < (snake.isPlayer ? 0.34 : 0.16)) {
     const fx = snake.x + Math.cos(snake.angle) * snake.radius * 2.2 + random(-5, 5);
     const fy = snake.y + Math.sin(snake.angle) * snake.radius * 2.2 + random(-5, 5);
@@ -1909,6 +2050,9 @@ function collectFood(snake, now = performance.now()) {
           snake.twinPower = Math.min(100, (snake.twinPower ?? 100) + TWIN_PICKUP_BONUS);
           snake.goldPower = Math.min(100, (snake.goldPower ?? 100) + GOLD_PICKUP_BONUS);
           snake.trapPower = Math.min(100, (snake.trapPower ?? 100) + TRAP_PICKUP_BONUS);
+          snake.shieldPower = Math.min(100, (snake.shieldPower ?? 100) + SHIELD_PICKUP_BONUS);
+          snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SLOW_PICKUP_BONUS);
+          snake.bloomPower = Math.min(100, (snake.bloomPower ?? 100) + BLOOM_PICKUP_BONUS);
           if (snake.isPlayer && collected <= 2) spawnEffectBurst(food.x, food.y, food.color, 1);
           collected++;
           if (!snake.isPlayer || collected >= (powered ? 10 : 5)) break collectLoop;
@@ -1923,6 +2067,7 @@ function collectFood(snake, now = performance.now()) {
 
 function killSnake(snake, killer) {
   if (!snake.alive || snake.type === "hologram") return;
+  if (absorbShieldHit(snake)) return;
   snake.alive = false;
   const corpseStep = Math.max(2, Math.ceil(snake.segments.length / 80));
   for (let i = 0; i < snake.segments.length; i += corpseStep) spawnFood(1, snake.segments[i].x, snake.segments[i].y, 1.5);
@@ -1953,7 +2098,7 @@ function finishMatch(options = {}) {
   const bestHuman = localPlayers.reduce((best, item) => (item.score + item.targetLength * 8 > best.score + best.targetLength * 8 ? item : best), localPlayers[0]);
   const finalScore = Math.round(bestHuman.score + bestHuman.targetLength * 8);
   const earnedCoins = victory ? VICTORY_COIN_REWARD : Math.max(10, Math.floor(finalScore / 55));
-  const canSaveMatch = authToken && !guestMode.checked;
+  const canSaveMatch = !runningTutorial && authToken && !guestMode.checked;
   if (canSaveMatch) {
     profile.coins += earnedCoins;
     profile.bestScore = Math.max(profile.bestScore, finalScore);
@@ -1979,8 +2124,8 @@ function resolveCollisions() {
     for (const other of snakes) {
       if (!snake.alive) break;
       if (!other.alive || other.type === "remote" || other.type === "hologram" || snake.id === other.id) continue;
-      const snakePowered = isPowerActive(snake);
-      const otherPowered = isPowerActive(other);
+      const snakePowered = isPowerActive(snake) || isShieldActive(snake) || isShieldGrace(snake);
+      const otherPowered = isPowerActive(other) || isShieldActive(other) || isShieldGrace(other);
       const headLimit = snake.radius + other.radius - 5;
       const headDx = snake.x - other.x;
       const headDy = snake.y - other.y;
@@ -2034,6 +2179,7 @@ function resolveTrapHits(now) {
       snake.twinActiveUntil = Math.min(snake.twinActiveUntil || 0, now);
       snake.twinSwapAt = 0;
       snake.twinSwapStartedAt = 0;
+      snake.shieldActiveUntil = Math.min(snake.shieldActiveUntil || 0, now);
       traps.splice(i, 1);
       spawnEffectBurst(snake.x, snake.y, "#ff3d6e", 14);
       break;
@@ -2093,6 +2239,9 @@ function update(dt, now) {
       setPowerButtonState(twinButton, !locked && (((focusPlayer.twinPower ?? 100) >= 100 && !isTwinActive(focusPlayer, now)) || (isTwinActive(focusPlayer, now) && !focusPlayer.twinSwapAt && !focusPlayer.twinSwapUsed)), locked ? 0 : (focusPlayer.twinPower ?? 100), locked ? `${powerLockSeconds(focusPlayer, now)}sn` : focusPlayer.twinSwapAt && focusPlayer.twinSwapAt > now ? `${Math.ceil((focusPlayer.twinSwapAt - now) / 1000)}sn` : isTwinActive(focusPlayer, now) ? "SW" : "", locked);
       setPowerButtonState(goldButton, !locked && (focusPlayer.goldPower ?? 100) >= 100 && !isGoldActive(focusPlayer, now), locked ? 0 : (focusPlayer.goldPower ?? 100), locked ? `${powerLockSeconds(focusPlayer, now)}sn` : isGoldActive(focusPlayer, now) ? "MAX" : "", locked);
       setPowerButtonState(trapButton, !locked && (focusPlayer.trapPower ?? 100) >= 100, locked ? 0 : (focusPlayer.trapPower ?? 100), locked ? `${powerLockSeconds(focusPlayer, now)}sn` : "", locked);
+      setPowerButtonState(shieldButton, !locked && (focusPlayer.shieldPower ?? 100) >= 100 && !isShieldActive(focusPlayer, now), locked ? 0 : (focusPlayer.shieldPower ?? 100), locked ? `${powerLockSeconds(focusPlayer, now)}sn` : isShieldActive(focusPlayer, now) ? "ON" : "", locked);
+      setPowerButtonState(slowButton, !locked && (focusPlayer.slowPower ?? 100) >= 100, locked ? 0 : (focusPlayer.slowPower ?? 100), locked ? `${powerLockSeconds(focusPlayer, now)}sn` : "", locked);
+      setPowerButtonState(bloomButton, !locked && (focusPlayer.bloomPower ?? 100) >= 100, locked ? 0 : (focusPlayer.bloomPower ?? 100), locked ? `${powerLockSeconds(focusPlayer, now)}sn` : "", locked);
       lastHudUpdate = now;
     }
   }
@@ -2269,6 +2418,8 @@ function drawSnake(snake, now = performance.now()) {
   const powered = isPowerActive(snake, now);
   const dashing = isDashActive(snake, now);
   const golden = isGoldActive(snake, now);
+  const shielded = isShieldActive(snake, now) || isShieldGrace(snake, now);
+  const slowed = isSlowed(snake, now);
   const locked = arePowersLocked(snake, now);
   const hologram = snake.type === "hologram";
   const headVisible = snake.x > viewBounds.left - padding && snake.x < viewBounds.right + padding && snake.y > viewBounds.top - padding && snake.y < viewBounds.bottom + padding;
@@ -2289,14 +2440,14 @@ function drawSnake(snake, now = performance.now()) {
   }
   if (!drewAny || !headVisible) { ctx.globalAlpha = 1; return; }
   ctx.globalAlpha = 1;
-  if (hologram || powered || dashing || golden || locked || skin.aura) {
+  if (hologram || powered || dashing || golden || shielded || slowed || locked || skin.aura) {
     ctx.save();
-    ctx.globalAlpha = hologram ? 0.32 : golden ? 0.46 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.34 : 0.18;
-    ctx.strokeStyle = hologram ? "#8feeff" : golden ? "#ffd166" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
-    ctx.lineWidth = hologram ? 3 : golden ? 6 : dashing ? 5 : locked ? 4 : powered ? 4 : 2;
+    ctx.globalAlpha = hologram ? 0.32 : golden ? 0.46 : shielded ? 0.42 : slowed ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.34 : 0.18;
+    ctx.strokeStyle = hologram ? "#8feeff" : golden ? "#ffd166" : shielded ? "#d8f3ff" : slowed ? "#a78bfa" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
+    ctx.lineWidth = hologram ? 3 : golden ? 6 : shielded ? 5 : slowed ? 4 : dashing ? 5 : locked ? 4 : powered ? 4 : 2;
     if (hologram) ctx.setLineDash([10, 9]);
     ctx.beginPath();
-    ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : dashing ? 24 : locked ? 20 : powered ? 18 : 9), 0, Math.PI * 2);
+    ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : shielded ? 26 : slowed ? 22 : dashing ? 24 : locked ? 20 : powered ? 18 : 9), 0, Math.PI * 2);
     ctx.stroke();
     if (hologram) ctx.setLineDash([]);
     ctx.restore();
@@ -2444,6 +2595,9 @@ function bindControls() {
   bindPowerButton(twinButton, "twin");
   bindPowerButton(goldButton, "gold");
   bindPowerButton(trapButton, "trap");
+  bindPowerButton(shieldButton, "shield");
+  bindPowerButton(slowButton, "slow");
+  bindPowerButton(bloomButton, "bloom");
   profileButton.addEventListener("click", () => showQuickPanel("profile"));
   if (friendsButton) friendsButton.addEventListener("click", () => showQuickPanel("friends"));
   shopButton.addEventListener("click", () => showQuickPanel("shop"));
@@ -2470,6 +2624,8 @@ function bindControls() {
   if (copyRoomButton) copyRoomButton.addEventListener("click", copyRoomCode);
   if (startRoomButton) startRoomButton.addEventListener("click", startRoomFromLobby);
   if (exitGameButton) exitGameButton.addEventListener("click", exitToMenu);
+  if (tutorialBackButton) tutorialBackButton.addEventListener("click", exitToMenu);
+  if (tutorialPracticeButton) tutorialPracticeButton.addEventListener("click", startTutorialPractice);
 }
 
 resize();

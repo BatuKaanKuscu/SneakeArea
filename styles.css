@@ -2265,3 +2265,130 @@ body.is-playing .palette-swatch::after {
   .touch-control-row { grid-template-columns: 1fr; }
   .touch-control-row output { justify-self: stretch; }
 }
+/* Tutorial mode */
+.segmented.four {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tutorial-panel {
+  position: absolute;
+  z-index: 7;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(860px, calc(100vw - 32px));
+  max-height: calc(100vh - 92px);
+  gap: 14px;
+  padding: 24px;
+  overflow: auto;
+  border: 1px solid rgba(216, 243, 255, 0.22);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #07110f;
+  box-shadow: 0 7px 0 rgba(18, 7, 43, 0.55), 0 24px 60px rgba(17, 4, 40, 0.28);
+  transform: translate(-50%, -50%);
+}
+
+.tutorial-hero {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #07110f, #0f766e);
+  color: #ffffff;
+}
+
+.tutorial-hero span {
+  color: rgba(216, 243, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+}
+
+.tutorial-hero h2,
+.tutorial-hero p { margin: 0; }
+.tutorial-hero p { max-width: 58ch; color: rgba(255, 255, 255, 0.76); font-weight: 800; }
+
+.tutorial-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tutorial-card {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 124px;
+  padding: 12px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, #f1faf7);
+}
+
+.tutorial-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 25%, #ffffff, #b8ff5d 46%, #0f766e 100%);
+  color: #07110f;
+}
+
+.tutorial-icon svg {
+  width: 29px;
+  height: 29px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tutorial-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tutorial-card b { color: #07110f; }
+.tutorial-card p { margin: 7px 0 5px; color: #34403c; font-size: 0.86rem; font-weight: 800; }
+.tutorial-card small { color: #64746f; font-size: 0.76rem; font-weight: 800; }
+.tutorial-card kbd {
+  min-width: 30px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #e8fbf5;
+  color: #0f766e;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 1000;
+  text-align: center;
+}
+
+.tutorial-actions {
+  display: grid;
+  justify-content: end;
+}
+
+.power-buttons button:nth-child(5) {
+  grid-column: auto;
+  justify-self: auto;
+}
+
+@media (max-width: 760px) {
+  .segmented.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tutorial-panel { width: min(560px, calc(100vw - 24px)); padding: 16px; }
+  .tutorial-grid { grid-template-columns: 1fr; }
+  .tutorial-actions { justify-content: stretch; }
+}
+
+@media (max-width: 520px) {
+  .segmented.four { grid-template-columns: 1fr; }
+  .tutorial-card { grid-template-columns: 44px minmax(0, 1fr); }
+  .tutorial-icon { width: 44px; height: 44px; }
+}

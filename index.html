@@ -99,8 +99,9 @@
           </header>
 
           <div class="mode-panel" aria-label="Oyun modu">
-            <div class="segmented three">
+            <div class="segmented four">
               <button class="mode-button is-active bot-mode-button" data-mode="solo"><svg class="dual-bot-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 10h6a2.5 2.5 0 0 1 2.5 2.5v3A2.5 2.5 0 0 1 10.5 18h-6A2.5 2.5 0 0 1 2 15.5v-3A2.5 2.5 0 0 1 4.5 10Z"/><path d="M13.5 7h6A2.5 2.5 0 0 1 22 9.5v3a2.5 2.5 0 0 1-2.5 2.5h-6a2.5 2.5 0 0 1-2.5-2.5v-3A2.5 2.5 0 0 1 13.5 7Z"/><path d="M8 10V7"/><path d="M16 7V4"/><path d="M6.5 14h.1"/><path d="M9.5 14h.1"/><path d="M15.5 11h.1"/><path d="M18.5 11h.1"/></svg><span>BOTLARLA</span></button>
+              <button class="mode-button" data-mode="tutorial"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9a4 4 0 0 1 4 4v12H8a3 3 0 0 0-3 3V4Z"/><path d="M8 8h6"/><path d="M8 12h7"/><path d="M8 16h5"/></svg><span>TUTORIAL</span></button>
               <button class="mode-button" data-mode="room-create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4V5Z"/><path d="M12 9v6"/><path d="M9 12h6"/></svg><span>ODA OLUŞTUR</span></button>
               <button class="mode-button" data-mode="room-join"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M14 4h5v16h-5"/></svg><span>KATIL</span></button>
             </div>
@@ -123,6 +124,19 @@
       </section>
 
 
+
+      <section class="tutorial-panel is-hidden" id="tutorialPanel" aria-label="Tutorial">
+        <button class="back-button" id="tutorialBackButton" aria-label="Tutorialdan çık">← ANA SAYFAYA DÖN</button>
+        <div class="tutorial-hero">
+          <span>TUTORIAL</span>
+          <h2>Güçleri öğren</h2>
+          <p>Önce güçlerin ne işe yaradığını gör, sonra deneme levelinde hepsini hazır şekilde dene.</p>
+        </div>
+        <div class="tutorial-grid" id="tutorialPowerGrid"></div>
+        <div class="tutorial-actions">
+          <button class="primary-action" id="tutorialPracticeButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7-11-7Z"/></svg><span>DENEME LEVELİNE GİR</span></button>
+        </div>
+      </section>
       <section class="lobby-panel is-hidden" id="lobbyPanel" aria-label="Oda lobisi">
         <button class="back-button" id="leaveLobbyButton" aria-label="Lobiden çık">← ANA SAYFAYA DÖN</button>
         <div class="lobby-hero">
@@ -153,6 +167,9 @@
         <button id="twinButton" type="button" aria-label="İkili Takım"><span>R</span></button>
         <button id="goldButton" type="button" aria-label="Altın Hızlanış"><span>T</span></button>
         <button id="trapButton" type="button" aria-label="Tuzak"><span>F</span></button>
+        <button id="shieldButton" type="button" aria-label="Kalkan"><span>Z</span></button>
+        <button id="slowButton" type="button" aria-label="Yavaş Dalga"><span>C</span></button>
+        <button id="bloomButton" type="button" aria-label="Yem Yağmuru"><span>V</span></button>
       </div>
       <button class="boost-button" id="boostButton" aria-label="Boost">BOOST</button>
     </main>
