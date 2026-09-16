@@ -1063,7 +1063,7 @@ function generateRoomCode() {
 
 function showQuickPanel(kind) {
   quickPanel.classList.remove("is-hidden");
-  const titleMap = { profile: "Profil", friends: "Arkadaşlar", shop: "Dükkan", achievements: "Başarımlar", quests: "Görevler", palette: "Renk Kataloğu", settings: "Ayarlar" };
+  const titleMap = { profile: "Profil", friends: "Arkada\u015flar", shop: "D\u00fckkan", achievements: "Ba\u015far\u0131mlar", quests: "G\u00f6revler", palette: "Renk Katalo\u011fu", settings: "Ayarlar" };
   quickTitle.textContent = titleMap[kind] || "Panel";
   if (quickAuth) quickAuth.classList.toggle("is-hidden", kind !== "profile");
   quickProfile.classList.toggle("is-hidden", kind !== "profile");
@@ -1074,6 +1074,7 @@ function showQuickPanel(kind) {
   quickPalette.classList.toggle("is-hidden", kind !== "palette");
   if (quickSettings) quickSettings.classList.toggle("is-hidden", kind !== "settings");
   renderProfile();
+  if (kind === "settings") renderSettings();
 }
 function hideQuickPanel() {
   quickPanel.classList.add("is-hidden");
@@ -2631,6 +2632,7 @@ function bindControls() {
 resize();
 bindControls();
 renderProfile();
+renderSettings();
 updatePowerKeyLabels();
 applyTouchControls();
 updateModeButtons();
