@@ -5,6 +5,7 @@ const rctx = radar.getContext("2d");
 const radarWrap = document.querySelector(".radar-wrap");
 
 const scoreEl = document.getElementById("score");
+const comboEl = document.getElementById("combo");
 const lengthEl = document.getElementById("length");
 const boostEl = document.getElementById("boost");
 const powerEl = document.getElementById("power");
@@ -64,6 +65,12 @@ const authFriendCount = document.getElementById("authFriendCount");
 const authOnlineCount = document.getElementById("authOnlineCount");
 const accountName = document.getElementById("accountName");
 const accountPassword = document.getElementById("accountPassword");
+const suggestNameButton = document.getElementById("suggestNameButton");
+const nameSuggestions = document.getElementById("nameSuggestions");
+const generatePasswordButton = document.getElementById("generatePasswordButton");
+const togglePasswordButton = document.getElementById("togglePasswordButton");
+const passwordStrengthMeter = document.getElementById("passwordStrength");
+const passwordHint = document.getElementById("passwordHint");
 const loginButton = document.getElementById("loginButton");
 const registerButton = document.getElementById("registerButton");
 const logoutButton = document.getElementById("logoutButton");
@@ -123,43 +130,47 @@ const BOOST_SPEED = 4.35;
 const EPIC_SKIN_ID = "cowboy";
 const EPIC_SKIN_IDS = ["cowboy", "storm", "nebula", "phantom", "solar"];
 const EPIC_UNLOCK_MATCHES = 5;
-const POWER_DURATION = 4200;
-const POWER_PICKUP_BONUS = 62;
+const POWER_DURATION = 5200;
+const POWER_PICKUP_BONUS = 82;
 const POWER_RECHARGE_RATE = 0.033;
 const DASH_COST = 100;
-const DASH_DISTANCE = 245;
+const DASH_DISTANCE = 300;
 const DASH_FLASH_MS = 320;
-const DASH_COOLDOWN_MS = 720;
+const DASH_COOLDOWN_MS = 650;
 const DASH_RECHARGE_RATE = 0.065;
-const DASH_PICKUP_BONUS = 2.8;
-const TWIN_DURATION_MS = 9000;
-const TWIN_RECHARGE_RATE = 0.018;
+const DASH_PICKUP_BONUS = 3.6;
+const TWIN_DURATION_MS = 11000;
+const TWIN_RECHARGE_RATE = 0.021;
 const TWIN_PICKUP_BONUS = 1.6;
 const TWIN_SEGMENT_LIMIT = 110;
 const TWIN_SWAP_DELAY_MS = 3000;
 const TWIN_FALLBACK_OFFSET = 320;
 const TWIN_MIRROR_TARGET_RANGE = 980;
 const VICTORY_COIN_REWARD = 400;
-const GOLD_DURATION_MS = 2600;
-const GOLD_SPEED_MULTIPLIER = 1.72;
+const GOLD_DURATION_MS = 3100;
+const GOLD_SPEED_MULTIPLIER = 1.82;
 const GOLD_RECHARGE_RATE = 0.042;
-const GOLD_PICKUP_BONUS = 2.2;
+const GOLD_PICKUP_BONUS = 2.8;
 const TRAP_RECHARGE_RATE = 0.074;
 const TRAP_PICKUP_BONUS = 2.4;
-const TRAP_DURATION_MS = 16000;
-const TRAP_LOCK_MS = 15000;
-const SHIELD_DURATION_MS = 4200;
-const SHIELD_GRACE_MS = 900;
+const TRAP_DURATION_MS = 18000;
+const TRAP_LOCK_MS = 16000;
+const SHIELD_DURATION_MS = 5200;
+const SHIELD_GRACE_MS = 1250;
 const SHIELD_RECHARGE_RATE = 0.032;
 const SHIELD_PICKUP_BONUS = 1.5;
-const SLOW_RADIUS = 560;
-const SLOW_DURATION_MS = 4600;
-const SLOW_SPEED_MULTIPLIER = 0.56;
+const SLOW_RADIUS = 650;
+const SLOW_DURATION_MS = 5400;
+const SLOW_SPEED_MULTIPLIER = 0.48;
 const SLOW_RECHARGE_RATE = 0.052;
 const SLOW_PICKUP_BONUS = 1.7;
 const BLOOM_RECHARGE_RATE = 0.07;
 const BLOOM_PICKUP_BONUS = 2.0;
-const BLOOM_FOOD_COUNT = 22;
+const BLOOM_FOOD_COUNT = 34;
+const AREA_PULL_RADIUS = 610;
+const AREA_PULL_SPEED = 20;
+const AREA_PULL_LIMIT = 24;
+const AREA_PICKUP_EXTRA = 18;
 const BOOST_RECHARGE_INNER = 0.38;
 const BOOST_OUTER_THRESHOLD = 0.86;
 const LEGACY_PROFILE_KEY = "snakeAeaProfile";
@@ -188,7 +199,7 @@ const POWER_BUTTON_VISUALS = {
   bloom: { short: "B", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M5 10c4 0 7-3 7-7 0 4 3 7 7 7"/><path d="M5 16c4 0 7 2 7 5 0-3 3-5 7-5"/><circle cx="12" cy="12" r="2"/></svg>' },
 };
 const TUTORIAL_POWER_GUIDE = [
-  { kind: "area", tip: "Yak\u0131ndaki yemleri m\u0131knat\u0131s gibi toplar.", practice: "Yem kalabal\u0131\u011f\u0131na girince bas." },
+  { kind: "area", tip: "Yak\u0131ndaki yemleri geni\u015f alanda toplar ve kendine do\u011fru \u00e7eker.", practice: "Yem kalabal\u0131\u011f\u0131na girince bas." },
   { kind: "dash", tip: "K\u0131sa mesafede an\u0131nda ileri at\u0131l\u0131r.", practice: "Dar yerden ka\u00e7arken kullan." },
   { kind: "twin", tip: "Etraf\u0131ndaki hedefe g\u00f6re hologram\u0131n\u0131 simetrik oynat\u0131r.", practice: "\u0130kinci bas\u0131\u015fta yer de\u011fi\u015ftirme sayac\u0131 ba\u015flar." },
   { kind: "gold", tip: "K\u0131sa s\u00fcre \u00e7ok h\u0131zl\u0131 gidersin.", practice: "A\u00e7\u0131k alanda kullan." },
@@ -223,6 +234,7 @@ const TITLE_CATALOG = {
   speedster: "Hız Ustası",
   survivor: "Dayanıklı",
   admin: "Admin",
+  ekmekstr: "Ekmekstr \u00d6zel",
 };
 
 const AVATARS = [
@@ -255,6 +267,15 @@ const PALETTES = [
   { id: "ice", name: "Ice", a: "#d8f3ff", b: "#5ee7ff" },
   { id: "forest", name: "Forest", a: "#b8ff5d", b: "#31e7a5" },
 ];
+const COMBO_WINDOW_MS = 2300;
+const COMBO_MAX = 8;
+const COMBO_SCORE_STEP = 0.09;
+const BONUS_FOOD_CHANCE = 0.018;
+const BONUS_FOODS = [
+  { id: "gold", label: "ALTIN", color: "#ffd166", aura: "#fff06a", value: 3.2, score: 65, boost: 18, power: 10, length: 1.4 },
+  { id: "surge", label: "SURGE", color: "#4ff3ff", aura: "#8feeff", value: 2.8, score: 45, boost: 30, power: 7, length: 0.8 },
+  { id: "core", label: "CORE", color: "#b8ff5d", aura: "#31e7a5", value: 3.6, score: 55, boost: 10, power: 18, length: 1.1 },
+];
 
 let width = 0;
 let height = 0;
@@ -262,6 +283,7 @@ let scale = 1;
 let foods = [];
 let foodBuckets = new Map();
 let effects = [];
+let floatingTexts = [];
 let traps = [];
 let snakes = [];
 let player = null;
@@ -678,12 +700,13 @@ function activateSlow(snake, now = performance.now()) {
 function activateBloom(snake, now = performance.now()) {
   if (!canTriggerPower(snake, now) || (snake.bloomPower ?? 100) < 100) return false;
   snake.bloomPower = 0;
-  const fx = clamp(snake.x + Math.cos(snake.angle) * 140, 90, WORLD - 90);
-  const fy = clamp(snake.y + Math.sin(snake.angle) * 140, 90, WORLD - 90);
-  spawnFood(BLOOM_FOOD_COUNT, fx, fy, 0.9);
-  spawnEffectBurst(fx, fy, snake.colors?.[1] || "#b8ff5d", 18);
+  const fx = clamp(snake.x + Math.cos(snake.angle) * 160, 90, WORLD - 90);
+  const fy = clamp(snake.y + Math.sin(snake.angle) * 160, 90, WORLD - 90);
+  spawnFood(BLOOM_FOOD_COUNT, fx, fy, 1.05);
+  spawnEffectBurst(fx, fy, snake.colors?.[1] || "#b8ff5d", 22);
   return true;
 }
+
 
 function absorbShieldHit(snake, now = performance.now()) {
   if (!snake || !snake.alive || snake.type === "hologram") return false;
@@ -806,7 +829,8 @@ function currentPowerTarget() {
 function triggerSpecialPower(kind) {
   if (!running) return false;
   const target = currentPowerTarget();
-  if (!target || arePowersLocked(target)) return false;
+  if (!target) return false;
+  if (arePowersLocked(target)) return false;
   if (kind === "area") return activatePower(target);
   if (kind === "dash") return activateDash(target);
   if (kind === "twin") return activateTwin(target);
@@ -826,7 +850,7 @@ function angleLerp(current, target, amount) {
 }
 
 function adminProfile(name = "Admin") {
-  return { name: cleanName(name, "Admin"), coins: 5000, bestScore: 0, matches: 0, role: "admin", isAdmin: true, title: "admin", unlockedTitles: ["admin", "rookie", "hunter", "collector", "champion", "speedster", "survivor"], achievements: [], claimedQuests: [], avatar: "near", ownedSkins: SKINS.map((skin) => skin.id), activeSkin: "cyan", theme: "aurora", language: "tr", friends: [] };
+  return { name: cleanName(name, "Admin"), coins: 5000, bestScore: 0, matches: 0, role: "admin", isAdmin: true, title: "admin", unlockedTitles: ["admin", "rookie", "hunter", "collector", "champion", "speedster", "survivor", "ekmekstr"], achievements: [], claimedQuests: [], avatar: "near", ownedSkins: SKINS.map((skin) => skin.id), activeSkin: "cyan", theme: "aurora", language: "tr", friends: [] };
 }
 
 function playerProfile(name = "Guest") {
@@ -857,6 +881,14 @@ function normalizeProfile(raw) {
   merged.role = merged.isAdmin ? "admin" : "player";
   merged.unlockedTitles = Array.isArray(merged.unlockedTitles) && merged.unlockedTitles.length ? Array.from(new Set(merged.unlockedTitles)) : ["rookie"];
   if (merged.isAdmin) merged.unlockedTitles = adminProfile(merged.name).unlockedTitles;
+  const isEkmekstrAccount = String(merged.name || "").toLowerCase() === "ekmekstr";
+  if (isEkmekstrAccount && !merged.isAdmin) {
+    if (!merged.unlockedTitles.includes("ekmekstr")) merged.unlockedTitles.push("ekmekstr");
+    merged.specialMusic = "ekmekstr";
+  } else {
+    merged.specialMusic = "";
+    if (!merged.isAdmin) merged.unlockedTitles = merged.unlockedTitles.filter((title) => title !== "ekmekstr");
+  }
   merged.title = merged.isAdmin ? "admin" : (merged.unlockedTitles.includes(merged.title) ? merged.title : merged.unlockedTitles[0]);
   const validSkinIds = new Set(SKINS.map((skin) => skin.id));
   merged.ownedSkins = merged.isAdmin ? SKINS.map((skin) => skin.id) : Array.from(new Set(["cyan", ...(merged.ownedSkins || [])])).filter((id) => validSkinIds.has(id));
@@ -869,10 +901,49 @@ function normalizeProfile(raw) {
   if (!merged.ownedSkins.includes(merged.activeSkin)) merged.activeSkin = "cyan";
   return merged;
 }
+
+let specialMusicAudio = null;
+function shouldPlaySpecialMusic() {
+  return Boolean(authToken && !(guestMode && guestMode.checked) && profile?.specialMusic === "ekmekstr" && String(profile?.name || "").toLowerCase() === "ekmekstr");
+}
+
+function ensureSpecialMusicAudio() {
+  if (!specialMusicAudio && typeof Audio !== "undefined") {
+    specialMusicAudio = new Audio("/ekmekstr-theme.wav");
+    specialMusicAudio.loop = true;
+    specialMusicAudio.volume = 0.28;
+  }
+  return specialMusicAudio;
+}
+
+function syncSpecialMusic() {
+  const audio = ensureSpecialMusicAudio();
+  if (!audio) return;
+  if (!shouldPlaySpecialMusic()) {
+    audio.pause();
+    audio.currentTime = 0;
+    return;
+  }
+  audio.play().catch(() => {});
+}
+
+window.addEventListener("pointerdown", syncSpecialMusic, { passive: true });
+window.addEventListener("keydown", syncSpecialMusic);
 async function api(path, options = {}) {
   const response = await fetch(path, { headers: { "content-type": "application/json" }, cache: "no-store", ...options });
-  if (!response.ok) throw new Error("server_error");
-  return response.json();
+  const text = await response.text();
+  let data = {};
+  if (text) {
+    try { data = JSON.parse(text); }
+    catch { data = {}; }
+  }
+  if (!response.ok) {
+    const error = new Error(data.error || "server_error");
+    error.status = response.status;
+    error.detail = data;
+    throw error;
+  }
+  return data;
 }
 
 async function loadServerProfile() {
@@ -934,10 +1005,214 @@ function setAuthStatus(text) {
   if (authStatus) authStatus.textContent = text;
 }
 
+const PASSWORD_HINTS = {
+  password_required: "Kayıt için güçlü bir parola yaz veya üret.",
+  common_password: "Bu parola çok tahmin edilebilir.",
+  password_too_short: "Parola en az 8 karakter olmalı.",
+  password_needs_mix: "Büyük/küçük harf, rakam ve sembol karışımı kullan.",
+  strong_password: "Güçlü parola hazır.",
+};
+
+function secureRandomInt(max) {
+  if (window.crypto?.getRandomValues) {
+    const values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    return values[0] % max;
+  }
+  return Math.floor(Math.random() * max);
+}
+
+function randomFrom(chars) {
+  return chars[secureRandomInt(chars.length)];
+}
+
+function clientPasswordStrength(password) {
+  const value = String(password || "");
+  const lower = value.toLowerCase();
+  const common = new Set(["123", "1234", "12345", "123456", "password", "qwerty", "abc123", "111111", "snake", "snakearea"]);
+  const checks = {
+    length: value.length >= 8,
+    long: value.length >= 12,
+    lower: /[a-z]/.test(value),
+    upper: /[A-Z]/.test(value),
+    digit: /\d/.test(value),
+    symbol: /[^A-Za-z0-9]/.test(value),
+  };
+  let score = [checks.length, checks.lower, checks.upper, checks.digit, checks.symbol].filter(Boolean).length;
+  if (checks.long) score += 1;
+  if (common.has(lower)) score -= 2;
+  score = Math.max(0, Math.min(5, score));
+  const feedback = !value ? "password_required" : common.has(lower) ? "common_password" : !checks.length ? "password_too_short" : score < 4 ? "password_needs_mix" : "strong_password";
+  return { ok: checks.length && score >= 4 && !common.has(lower), score, feedback };
+}
+
+function updatePasswordStrength() {
+  if (!accountPassword) return { ok: false, score: 0, feedback: "password_required" };
+  const result = clientPasswordStrength(accountPassword.value || "");
+  if (passwordStrengthMeter) {
+    passwordStrengthMeter.dataset.score = String(result.score);
+    passwordStrengthMeter.style.setProperty("--strength", `${Math.round((result.score / 5) * 100)}%`);
+  }
+  if (passwordHint) passwordHint.textContent = PASSWORD_HINTS[result.feedback] || PASSWORD_HINTS.password_required;
+  return result;
+}
+
+function makeLocalPassword(length = 14) {
+  const groups = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", "!@#$%&*?"];
+  const all = groups.join("");
+  const chars = groups.map(randomFrom);
+  while (chars.length < length) chars.push(randomFrom(all));
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = secureRandomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
+}
+
+const BLOCKED_NAME_TERMS = ["amk", "aq", "mk", "sik", "siker", "siktir", "orospu", "pic", "pezevenk", "yarrak", "yarak", "got", "bok", "ibne", "fuck", "shit", "bitch", "asshole", "bastard", "dick", "pussy", "cunt", "porn", "sex", "nazi", "hitler"];
+
+function stripSafetyVowels(value) {
+  return String(value || "").replace(/[aeiou]/g, "");
+}
+
+function normalizeNameForSafety(name) {
+  return String(name || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[ıİ]/g, "i")
+    .replace(/[şŞ]/g, "s")
+    .replace(/[ğĞ]/g, "g")
+    .replace(/[çÇ]/g, "c")
+    .replace(/[öÖ]/g, "o")
+    .replace(/[üÜ]/g, "u")
+    .replace(/[@]/g, "a")
+    .replace(/[!|]/g, "i")
+    .replace(/[$]/g, "s")
+    .replace(/[^a-z0-9_-]/g, "")
+    .replace(/[0134578]/g, (char) => ({ "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b" }[char] || char))
+    .replace(/[_-]/g, "");
+}
+
+function nameSafetyVariants(name) {
+  const compact = normalizeNameForSafety(name);
+  const squeezed = compact.replace(/(.)\1+/g, "$1");
+  return {
+    direct: Array.from(new Set([compact, squeezed].filter(Boolean))),
+    loose: stripSafetyVowels(squeezed),
+  };
+}
+
+function isSafeAccountName(name) {
+  const variants = nameSafetyVariants(name);
+  const directTerms = BLOCKED_NAME_TERMS.map((term) => normalizeNameForSafety(term));
+  const looseTerms = directTerms.filter((term) => term.length >= 4).map(stripSafetyVowels).filter((term) => term.length >= 3);
+  return variants.direct[0]?.length >= 3
+    && !directTerms.some((term) => variants.direct.some((variant) => variant.includes(term)))
+    && !looseTerms.some((term) => variants.loose.includes(term));
+}
+
+function localNameSuggestions() {
+  const consonants = "bcdfghjklmnprstvyz";
+  const vowels = "aeiou";
+  const endings = ["", "x", "n", "r", "s", "z", "io"];
+  const item = (list) => list[secureRandomInt(list.length)];
+  const syllable = () => {
+    const c = item(consonants);
+    const v = item(vowels);
+    const extra = secureRandomInt(100) < 22 ? item(consonants.replace(c, "") || consonants) : "";
+    return `${c}${v}${extra}`;
+  };
+  const makeName = () => {
+    const count = secureRandomInt(3) + 2;
+    let core = "";
+    for (let i = 0; i < count; i += 1) core += syllable();
+    if (secureRandomInt(100) < 45) core += item(endings);
+    const roll = secureRandomInt(100);
+    const suffix = roll < 28 ? String(secureRandomInt(90) + 10) : roll < 36 ? String(secureRandomInt(900) + 100) : "";
+    const maxCore = Math.max(3, 14 - suffix.length);
+    const clean = cleanName(`${core.slice(0, maxCore)}${suffix}`, "").toLowerCase();
+    return clean ? `${clean.charAt(0).toUpperCase()}${clean.slice(1)}` : "";
+  };
+  const suggestions = new Set();
+  for (let i = 0; suggestions.size < 6 && i < 180; i += 1) {
+    const name = makeName();
+    if (isSafeAccountName(name)) suggestions.add(name);
+  }
+  return [...suggestions];
+}
+
+function renderNameSuggestions(suggestions = []) {
+  if (!nameSuggestions) return;
+  const clean = suggestions.map((name) => cleanName(name, "")).filter(Boolean).slice(0, 6);
+  nameSuggestions.innerHTML = clean.length ? clean.map((name) => `<button type="button" data-suggested-name="${name}">${name}</button>`).join("") : "";
+  nameSuggestions.querySelectorAll("[data-suggested-name]").forEach((button) => button.addEventListener("click", () => {
+    accountName.value = button.dataset.suggestedName;
+    renderNameSuggestions([]);
+    setAuthStatus("İsim seçildi. Şimdi güçlü bir parola oluşturabilirsin.");
+  }));
+}
+
+async function suggestAccountNames() {
+  if (!accountName || (authToken && !(guestMode && guestMode.checked))) return;
+  const seed = cleanName(accountName.value, "");
+  setAuthStatus("İsim önerileri hazırlanıyor");
+  try {
+    const result = await api(`/api/auth/suggest-name?seed=${encodeURIComponent(seed)}`);
+    renderNameSuggestions(result.suggestions || []);
+    setAuthStatus("Beğendiğin isme tıkla");
+  } catch {
+    renderNameSuggestions(localNameSuggestions());
+    setAuthStatus("Yerel isim önerileri hazır");
+  }
+}
+
+async function generateStrongPassword() {
+  if (!accountPassword) return;
+  try {
+    const result = await api("/api/auth/password");
+    accountPassword.value = result.password || makeLocalPassword();
+  } catch {
+    accountPassword.value = makeLocalPassword();
+  }
+  accountPassword.type = "text";
+  updatePasswordStrength();
+  setAuthStatus("Güçlü parola oluşturuldu");
+}
+
+function togglePasswordVisibility() {
+  if (!accountPassword) return;
+  accountPassword.type = accountPassword.type === "password" ? "text" : "password";
+  if (togglePasswordButton) togglePasswordButton.title = accountPassword.type === "password" ? "Şifreyi göster" : "Şifreyi gizle";
+}
+
+function authErrorMessage(error, create) {
+  const code = error?.detail?.error || error?.message;
+  const messages = {
+    short_name: "Kullanıcı adı en az 3 karakter olmalı",
+    long_name: "Kullanıcı adı en fazla 14 karakter olabilir",
+    bad_name: "Kullanıcı adında sadece harf, rakam, _ ve - kullan",
+    reserved_name: "Bu isim kullanıma kapalı. Önerilerden birini seçebilirsin",
+    blocked_name: "Bu kullanıcı adı uygun değil. Önerilerden birini seçebilirsin",
+    weak_password: "Kayıt için daha güçlü bir parola gerekli",
+    name_taken: "Bu ad alınmış. Aşağıdaki önerilerden birini seçebilirsin",
+    login_failed: "Kullanıcı adı veya şifre hatalı",
+    server_error: create ? "Hesap oluşturulamadı" : "Giriş başarısız",
+  };
+  return messages[code] || (create ? "Hesap oluşturulamadı" : "Giriş başarısız");
+}
+
 async function loginAccount(create = false) {
+  if (!accountName || !accountPassword) return;
   const name = cleanName(accountName.value, "");
   const password = accountPassword.value || "";
-  if (!name || password.length < 3) { setAuthStatus("Kullanıcı adı ve 3+ karakter şifre gerekli"); return; }
+  if (!name) { setAuthStatus("Kullanıcı adı gerekli"); return; }
+  if (create && !isSafeAccountName(name)) { setAuthStatus("Bu kullanıcı adı uygun değil. Önerilerden birini seçebilirsin"); return; }
+  if (!create && password.length < 3) { setAuthStatus("Şifre en az 3 karakter olmalı"); return; }
+  if (create) {
+    const strength = updatePasswordStrength();
+    if (!strength.ok) { setAuthStatus("Kayıt için daha güçlü bir parola gerekli"); return; }
+  }
   try {
     const result = await api(create ? "/api/auth/register" : "/api/auth/login", { method: "POST", body: JSON.stringify({ name, password }) });
     authToken = result.token;
@@ -946,10 +1221,14 @@ async function loginAccount(create = false) {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
     guestMode.checked = false;
     accountPassword.value = "";
+    renderNameSuggestions([]);
+    updatePasswordStrength();
     setAuthStatus(create ? "Hesap oluşturuldu" : "Oturum açıldı");
     renderProfile();
-  } catch {
-    setAuthStatus(create ? "Bu ad kullanılıyor olabilir" : "Giriş başarısız");
+  } catch (error) {
+    if (Array.isArray(error?.detail?.suggestions)) renderNameSuggestions(error.detail.suggestions);
+    if (error?.detail?.strength) updatePasswordStrength();
+    setAuthStatus(authErrorMessage(error, create));
   }
 }
 
@@ -1103,7 +1382,16 @@ function renderProfile() {
   document.body.classList.remove(...PALETTES.map((palette) => `palette-${palette.id}`));
   document.body.classList.add(`palette-${profile.theme}`);
   if (languageCode) languageCode.textContent = profile.language === "tr" ? "TR" : "EN";
-  if (accountName && authToken && !accountName.value) accountName.value = profile.name;
+  if (accountName) {
+    accountName.disabled = isSignedIn;
+    if (isSignedIn) accountName.value = profile.name;
+  }
+  if (suggestNameButton) suggestNameButton.disabled = isSignedIn;
+  if (loginButton) loginButton.disabled = isSignedIn;
+  if (registerButton) registerButton.disabled = isSignedIn;
+  if (logoutButton) logoutButton.disabled = !authToken;
+  if (isSignedIn) renderNameSuggestions([]);
+  updatePasswordStrength();
   const friendTotal = (profile.friends || []).length;
   const onlineTotal = (profile.friends || []).filter((friend) => onlineNames.includes(typeof friend === "string" ? friend : friend.name) || Boolean(friend.online)).length;
   if (authFriendCount) authFriendCount.textContent = `${friendTotal} arkadaş`;
@@ -1125,6 +1413,7 @@ function renderProfile() {
   renderAchievements();
   renderQuests();
   renderPalette();
+  syncSpecialMusic();
 }
 
 function friendNameOf(friend) {
@@ -1473,6 +1762,52 @@ function removeFood(food) {
   }
 }
 
+function moveFood(food, x, y) {
+  if (!food) return;
+  const nextX = clamp(x, 36, WORLD - 36);
+  const nextY = clamp(y, 36, WORLD - 36);
+  const nextBucket = foodBucketKey(foodCell(nextX), foodCell(nextY));
+  if (nextBucket !== food.bucket) {
+    removeFoodFromBucket(food);
+    food.x = nextX;
+    food.y = nextY;
+    addFoodToBucket(food);
+  } else {
+    food.x = nextX;
+    food.y = nextY;
+  }
+}
+
+function pullNearbyFood(snake, dt = 1, now = performance.now()) {
+  if (!snake || !foods.length || !isPowerActive(snake, now)) return;
+  const radius = AREA_PULL_RADIUS;
+  const radiusSq = radius * radius;
+  const cellRange = Math.ceil(radius / FOOD_CELL);
+  const cx = foodCell(snake.x);
+  const cy = foodCell(snake.y);
+  let moved = 0;
+  for (let gx = cx - cellRange; gx <= cx + cellRange; gx++) {
+    for (let gy = cy - cellRange; gy <= cy + cellRange; gy++) {
+      const bucket = foodBuckets.get(foodBucketKey(gx, gy));
+      if (!bucket) continue;
+      for (let i = bucket.length - 1; i >= 0; i--) {
+        const food = bucket[i];
+        const dx = food.x - snake.x;
+        const dy = food.y - snake.y;
+        const distSq = dx * dx + dy * dy;
+        if (distSq > radiusSq || distSq < 64) continue;
+        const dist = Math.sqrt(distSq) || 1;
+        const pullStrength = 0.48 + (1 - dist / radius) * 0.86;
+        const step = Math.min(dist - 6, AREA_PULL_SPEED * dt * pullStrength);
+        if (step <= 0) continue;
+        moveFood(food, food.x - (dx / dist) * step, food.y - (dy / dist) * step);
+        moved++;
+        if (moved >= AREA_PULL_LIMIT) return;
+      }
+    }
+  }
+}
+
 function clearFoods() {
   foods = [];
   foodBuckets.clear();
@@ -1486,7 +1821,24 @@ function spawnFood(count, burstX, burstY, value = 1) {
     const x = aroundBurst ? burstX + random(-90, 90) : random(100, WORLD - 100);
     const y = aroundBurst ? burstY + random(-90, 90) : random(100, WORLD - 100);
     const skin = SKINS[Math.floor(random(0, SKINS.length))];
-    addFood({ x: clamp(x, 36, WORLD - 36), y: clamp(y, 36, WORLD - 36), r: random(3.2, 6.6) + value * 0.35, value, color: skin.colors[Math.floor(random(0, 2))], pulse: random(0, Math.PI * 2), index: 0, bucket: "" });
+    const bonus = !burst && Math.random() < BONUS_FOOD_CHANCE ? BONUS_FOODS[Math.floor(random(0, BONUS_FOODS.length))] : null;
+    addFood({
+      x: clamp(x, 36, WORLD - 36),
+      y: clamp(y, 36, WORLD - 36),
+      r: (bonus ? random(7.2, 9.6) : random(3.2, 6.6)) + value * 0.35,
+      value: bonus ? Math.max(value, bonus.value) : value,
+      color: bonus ? bonus.color : skin.colors[Math.floor(random(0, 2))],
+      aura: bonus ? bonus.aura : "",
+      kind: bonus ? bonus.id : "normal",
+      label: bonus ? bonus.label : "",
+      bonusScore: bonus ? bonus.score : 0,
+      bonusBoost: bonus ? bonus.boost : 0,
+      bonusPower: bonus ? bonus.power : 0,
+      bonusLength: bonus ? bonus.length : 0,
+      pulse: random(0, Math.PI * 2),
+      index: 0,
+      bucket: "",
+    });
   }
 }
 
@@ -1522,6 +1874,43 @@ function updateEffects(dt) {
   effects.length = write;
 }
 
+function spawnFloatingText(x, y, text, color = "#ffffff", size = 18) {
+  if (floatingTexts.length > 28) floatingTexts.shift();
+  floatingTexts.push({ x, y, text, color, size, life: 54, maxLife: 54, vy: -0.58 });
+}
+
+function updateFloatingTexts(dt) {
+  let write = 0;
+  for (let i = 0; i < floatingTexts.length; i++) {
+    const item = floatingTexts[i];
+    item.life -= dt;
+    if (item.life <= 0) continue;
+    item.y += item.vy * dt;
+    item.vy *= 0.985;
+    floatingTexts[write++] = item;
+  }
+  floatingTexts.length = write;
+}
+
+function drawFloatingTexts() {
+  if (!floatingTexts.length) return;
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineWidth = 4 / scale;
+  for (const item of floatingTexts) {
+    const alpha = Math.max(0, Math.min(1, item.life / item.maxLife));
+    ctx.globalAlpha = alpha;
+    ctx.font = `1000 ${item.size / scale}px Inter, system-ui, sans-serif`;
+    ctx.strokeStyle = "rgba(7,17,15,0.62)";
+    ctx.fillStyle = item.color;
+    ctx.strokeText(item.text, item.x, item.y);
+    ctx.fillText(item.text, item.x, item.y);
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
 function drawEffects() {
   if (!effects.length) return;
   ctx.save();
@@ -1548,7 +1937,7 @@ function makeSnake(name, skinId, options = {}) {
   const segments = [];
   for (let i = 0; i < length; i++) segments.push({ x: x - Math.cos(angle) * i * SEGMENT_GAP, y: y - Math.sin(angle) * i * SEGMENT_GAP });
   const skin = getSkin(skinId);
-  const snake = { id: options.id || `${Date.now()}-${Math.random()}`, name, title: options.title || "", skin: skin.id, colors: skin.colors, type, control: options.control || "bot", isPlayer: isHuman, alive: true, x, y, angle, turn: 0.09, segments, targetLength: length, score: Math.max(0, (length - 12) * 14), boost: 100, boostHeld: false, boostRechargeLocked: false, power: options.power ?? 100, powerActiveUntil: 0, dashPower: options.dashPower ?? 100, dashFlashUntil: 0, dashCooldownUntil: 0, twinPower: options.twinPower ?? 100, twinActiveUntil: 0, twinSwapAt: 0, twinSwapStartedAt: 0, twinSwapUsed: false, twinMirrorTargetId: options.twinMirrorTargetId || "", twinMirrorSide: options.twinMirrorSide || 0, goldPower: options.goldPower ?? 100, goldActiveUntil: 0, trapPower: options.trapPower ?? 100, shieldPower: options.shieldPower ?? 100, shieldActiveUntil: 0, shieldGraceUntil: 0, slowPower: options.slowPower ?? 100, slowUntil: 0, bloomPower: options.bloomPower ?? 100, powerLockUntil: 0, ownerId: options.ownerId || null, thinkAt: 0, aiAngle: angle, baseRadius: isHuman ? 12.5 : 11.5, radius: snakeRadiusForLength(length, isHuman), bounds: null, boundsRefreshAt: 0 };
+  const snake = { id: options.id || `${Date.now()}-${Math.random()}`, name, title: options.title || "", skin: skin.id, colors: skin.colors, type, control: options.control || "bot", isPlayer: isHuman, alive: true, x, y, angle, turn: 0.09, segments, targetLength: length, score: Math.max(0, (length - 12) * 14), combo: 0, comboUntil: 0, lastFoodAt: 0, lastComboTextAt: 0, boost: 100, boostHeld: false, boostRechargeLocked: false, power: options.power ?? 100, powerActiveUntil: 0, dashPower: options.dashPower ?? 100, dashFlashUntil: 0, dashCooldownUntil: 0, twinPower: options.twinPower ?? 100, twinActiveUntil: 0, twinSwapAt: 0, twinSwapStartedAt: 0, twinSwapUsed: false, twinMirrorTargetId: options.twinMirrorTargetId || "", twinMirrorSide: options.twinMirrorSide || 0, goldPower: options.goldPower ?? 100, goldActiveUntil: 0, trapPower: options.trapPower ?? 100, shieldPower: options.shieldPower ?? 100, shieldActiveUntil: 0, shieldGraceUntil: 0, slowPower: options.slowPower ?? 100, slowUntil: 0, bloomPower: options.bloomPower ?? 100, powerLockUntil: 0, ownerId: options.ownerId || null, thinkAt: 0, aiAngle: angle, baseRadius: isHuman ? 12.5 : 11.5, radius: snakeRadiusForLength(length, isHuman), bounds: null, boundsRefreshAt: 0 };
   refreshSnakeBounds(snake);
   return snake;
 }
@@ -1593,6 +1982,30 @@ function renderLobby() {
   if (lobbyStatus) lobbyStatus.textContent = isRoomHost ? "Oda hazır. Arkadaşların katılınca oyunu sen başlatırsın." : "Oda kurucusunun oyunu başlatması bekleniyor.";
 }
 
+function seedRoomRemotePlayers() {
+  if (!running || !gameMode.startsWith("room") || !player || !wsId || !Array.isArray(lobbyPlayers) || !lobbyPlayers.length) return;
+  const others = lobbyPlayers.filter((item) => item && item.id && item.id !== wsId);
+  const total = Math.max(1, others.length);
+  for (let i = 0; i < others.length; i++) {
+    const member = others[i];
+    if (snakes.some((snake) => snake.id === member.id)) continue;
+    const angle = -Math.PI / 2 + (Math.PI * 2 * i) / total;
+    const distance = 210 + (i % 3) * 76;
+    const skin = getSkin(member.skin || "cyan");
+    const remote = makeSnake(member.name || "Online", skin.id, {
+      type: "remote",
+      id: member.id,
+      title: member.host ? "Kurucu" : "Oyuncu",
+      x: clamp(player.x + Math.cos(angle) * distance, 80, WORLD - 80),
+      y: clamp(player.y + Math.sin(angle) * distance, 80, WORLD - 80),
+      length: 18,
+    });
+    remote.isPlayer = false;
+    remote.lastSeenAt = performance.now();
+    snakes.push(remote);
+    matchHadOpponents = true;
+  }
+}
 function enterLobby() {
   if (gameMode === "room-create") {
     if (!currentRoom) currentRoom = generateRoomCode();
@@ -1665,6 +2078,7 @@ function exitToMenu() {
   player = null;
   focusPlayer = null;
   effects = [];
+  floatingTexts = [];
   traps = [];
   clearFoods();
   closeOnline();
@@ -1734,11 +2148,26 @@ function resetGame() {
   localPlayers.push(player);
   const botsToSpawn = isTutorial ? 4 : botCountSetting;
   matchHadOpponents = isTutorial ? false : botsToSpawn > 0;
+  const visibleBotCount = isTutorial ? botsToSpawn : Math.min(botsToSpawn, Math.max(3, Math.ceil(botsToSpawn * 0.45)));
   for (let i = 0; i < botsToSpawn; i++) {
     const skin = SKINS[Math.floor(random(0, SKINS.length))];
-    const botOptions = isTutorial ? { type: "bot", x: WORLD / 2 + random(-520, 640), y: WORLD / 2 + random(-460, 460), length: 16 } : { type: "bot" };
+    let botOptions;
+    if (isTutorial) {
+      botOptions = { type: "bot", x: WORLD / 2 + random(-520, 640), y: WORLD / 2 + random(-460, 460), length: 16 };
+    } else if (i < visibleBotCount) {
+      const angle = random(0, Math.PI * 2);
+      const distance = random(360, 820);
+      botOptions = {
+        type: "bot",
+        x: clamp(player.x + Math.cos(angle) * distance, 260, WORLD - 260),
+        y: clamp(player.y + Math.sin(angle) * distance, 260, WORLD - 260),
+      };
+    } else {
+      botOptions = { type: "bot" };
+    }
     snakes.push(makeSnake(BOT_NAMES[i % BOT_NAMES.length], skin.id, botOptions));
   }
+  seedRoomRemotePlayers();
   if (gameMode === "room-create") {
     if (!currentRoom) currentRoom = generateRoomCode();
     roomCodeInput.value = currentRoom;
@@ -1798,6 +2227,7 @@ function handleOnlineMessage(message) {
     lobbyHostId = message.hostId || "";
     isRoomHost = Boolean(wsId && lobbyHostId === wsId);
     renderLobby();
+    if (running && gameMode.startsWith("room")) seedRoomRemotePlayers();
   }
   if (message.type === "start") {
     if (Number.isFinite(message.botCount)) {
@@ -1821,23 +2251,40 @@ function upsertRemoteSnake(remote) {
   const skin = getSkin(remote.skin);
   let snake = snakes.find((item) => item.id === remote.id);
   if (!snake) {
-    snake = makeSnake(remote.name || "Online", skin.id, { type: "remote", id: remote.id, title: remote.title || "" });
+    snake = makeSnake(remote.name || "Online", skin.id, { type: "remote", id: remote.id, title: remote.title || "", x: Number(remote.x), y: Number(remote.y), length: Number(remote.targetLength) || 18 });
     matchHadOpponents = true;
     snakes.push(snake);
   }
+  const x = Number(remote.x);
+  const y = Number(remote.y);
   snake.name = remote.name || snake.name;
   snake.title = remote.title || snake.title || "";
   snake.skin = skin.id;
   snake.colors = skin.colors;
   snake.type = "remote";
+  snake.isPlayer = false;
   snake.alive = true;
-  snake.x = remote.x;
-  snake.y = remote.y;
-  snake.angle = remote.angle;
-  snake.score = remote.score || 0;
-  snake.targetLength = remote.targetLength || 18;
-  snake.radius = snakeRadiusForLength(snake.targetLength, snake.isPlayer || snake.type === "human");
-  snake.segments = Array.isArray(remote.segments) && remote.segments.length ? remote.segments : snake.segments;
+  snake.x = Number.isFinite(x) ? clamp(x, 18, WORLD - 18) : snake.x;
+  snake.y = Number.isFinite(y) ? clamp(y, 18, WORLD - 18) : snake.y;
+  snake.angle = Number.isFinite(remote.angle) ? remote.angle : snake.angle;
+  snake.score = Number(remote.score) || 0;
+  snake.targetLength = Math.max(8, Number(remote.targetLength) || 18);
+  snake.radius = snakeRadiusForLength(snake.targetLength, false);
+  const remoteSegments = Array.isArray(remote.segments)
+    ? remote.segments
+        .slice(0, Math.max(8, Math.min(120, Math.ceil(snake.targetLength))))
+        .map((segment) => ({ x: Number(segment?.x), y: Number(segment?.y) }))
+        .filter((segment) => Number.isFinite(segment.x) && Number.isFinite(segment.y))
+    : [];
+  if (remoteSegments.length) {
+    const head = remoteSegments[0];
+    if ((head.x - snake.x) ** 2 + (head.y - snake.y) ** 2 > (snake.radius * 2.5) ** 2) remoteSegments.unshift({ x: snake.x, y: snake.y });
+    snake.segments = remoteSegments;
+  } else {
+    snake.segments = [{ x: snake.x, y: snake.y }, ...snake.segments.slice(0, Math.max(7, Math.floor(snake.targetLength) - 1))];
+  }
+  refreshSnakeBounds(snake);
+  snake.boundsRefreshAt = performance.now() + 220;
   snake.powerActiveUntil = remote.powerActive ? performance.now() + 180 : 0;
   snake.dashFlashUntil = remote.dashActive ? performance.now() + 180 : snake.dashFlashUntil || 0;
   snake.twinActiveUntil = remote.twinActive ? performance.now() + 220 : snake.twinActiveUntil || 0;
@@ -1983,7 +2430,7 @@ function moveSnake(snake, dt, now) {
   const golden = isGoldActive(snake, now);
   const shielded = isShieldActive(snake, now) || isShieldGrace(snake, now);
   const slowed = isSlowed(snake, now);
-  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.12 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * (shielded ? 0.98 : 1) * (slowed ? SLOW_SPEED_MULTIPLIER : 1) * dt;
+  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.16 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * (shielded ? 0.98 : 1) * (slowed ? SLOW_SPEED_MULTIPLIER : 1) * dt;
   if (canBoost) {
     snake.boost = Math.max(0, snake.boost - 0.42 * dt);
     snake.targetLength = Math.max(12, snake.targetLength - 0.018 * dt);
@@ -2003,6 +2450,10 @@ function moveSnake(snake, dt, now) {
   snake.bloomPower = Math.min(100, (snake.bloomPower ?? 100) + BLOOM_RECHARGE_RATE * dt);
   if (slowed && effects.length < MAX_EFFECTS && Math.random() < 0.1) spawnEffectBurst(snake.x, snake.y, "#a78bfa", 1);
   if (shielded && effects.length < MAX_EFFECTS && Math.random() < 0.12) spawnEffectBurst(snake.x, snake.y, "#d8f3ff", 1);
+  if (powered && (snake.isPlayer || snake.type === "human") && now > (snake.nextFoodPullAt || 0)) {
+    pullNearbyFood(snake, dt, now);
+    snake.nextFoodPullAt = now + 28;
+  }
   if (golden && effects.length < MAX_EFFECTS && Math.random() < (snake.isPlayer ? 0.34 : 0.16)) {
     const fx = snake.x + Math.cos(snake.angle) * snake.radius * 2.2 + random(-5, 5);
     const fy = snake.y + Math.sin(snake.angle) * snake.radius * 2.2 + random(-5, 5);
@@ -2030,7 +2481,7 @@ function collectFood(snake, now = performance.now()) {
   const cx = foodCell(snake.x);
   const cy = foodCell(snake.y);
   const powered = isPowerActive(snake, now);
-  const foodRange = powered ? 2 : 1;
+  const foodRange = powered ? 3 : 1;
   collectLoop:
   for (let gx = cx - foodRange; gx <= cx + foodRange; gx++) {
     for (let gy = cy - foodRange; gy <= cy + foodRange; gy++) {
@@ -2038,25 +2489,38 @@ function collectFood(snake, now = performance.now()) {
       if (!bucket) continue;
       for (let i = bucket.length - 1; i >= 0; i--) {
         const food = bucket[i];
-        const pickup = snake.radius + food.r + (powered ? POWER_PICKUP_BONUS : 3);
+        const pickup = snake.radius + food.r + (powered ? POWER_PICKUP_BONUS + AREA_PICKUP_EXTRA : 3);
         const dx = food.x - snake.x;
         const dy = food.y - snake.y;
         if (dx * dx + dy * dy < pickup * pickup) {
           removeFood(food);
-          snake.targetLength += 0.85 + food.value * 0.55;
-          snake.score += Math.round(10 + food.value * 10);
-          if (!snake.boostRechargeLocked) snake.boost = Math.min(100, snake.boost + 2.2);
-          if (!powered) snake.power = Math.min(100, snake.power + 3.5);
-          snake.dashPower = Math.min(100, (snake.dashPower ?? 100) + DASH_PICKUP_BONUS);
-          snake.twinPower = Math.min(100, (snake.twinPower ?? 100) + TWIN_PICKUP_BONUS);
-          snake.goldPower = Math.min(100, (snake.goldPower ?? 100) + GOLD_PICKUP_BONUS);
-          snake.trapPower = Math.min(100, (snake.trapPower ?? 100) + TRAP_PICKUP_BONUS);
-          snake.shieldPower = Math.min(100, (snake.shieldPower ?? 100) + SHIELD_PICKUP_BONUS);
-          snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SLOW_PICKUP_BONUS);
-          snake.bloomPower = Math.min(100, (snake.bloomPower ?? 100) + BLOOM_PICKUP_BONUS);
-          if (snake.isPlayer && collected <= 2) spawnEffectBurst(food.x, food.y, food.color, 1);
+          const chained = now - (snake.lastFoodAt || 0) <= COMBO_WINDOW_MS;
+          snake.combo = chained ? Math.min(COMBO_MAX, (snake.combo || 0) + 1) : 1;
+          snake.lastFoodAt = now;
+          snake.comboUntil = now + COMBO_WINDOW_MS;
+          const multiplier = 1 + Math.max(0, snake.combo - 1) * COMBO_SCORE_STEP;
+          const bonusFood = food.kind && food.kind !== "normal";
+          const baseScore = 10 + food.value * 10 + (food.bonusScore || 0);
+          snake.targetLength += 0.85 + food.value * 0.55 + (food.bonusLength || 0);
+          snake.score += Math.round(baseScore * (bonusFood ? multiplier + 0.18 : multiplier));
+          if (!snake.boostRechargeLocked) snake.boost = Math.min(100, snake.boost + 2.2 + (food.bonusBoost || 0));
+          const bonusPower = food.bonusPower || 0;
+          if (!powered) snake.power = Math.min(100, snake.power + 3.5 + bonusPower);
+          snake.dashPower = Math.min(100, (snake.dashPower ?? 100) + DASH_PICKUP_BONUS + bonusPower * 0.55);
+          snake.twinPower = Math.min(100, (snake.twinPower ?? 100) + TWIN_PICKUP_BONUS + bonusPower * 0.45);
+          snake.goldPower = Math.min(100, (snake.goldPower ?? 100) + GOLD_PICKUP_BONUS + bonusPower * 0.55);
+          snake.trapPower = Math.min(100, (snake.trapPower ?? 100) + TRAP_PICKUP_BONUS + bonusPower * 0.35);
+          snake.shieldPower = Math.min(100, (snake.shieldPower ?? 100) + SHIELD_PICKUP_BONUS + bonusPower * 0.35);
+          snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SLOW_PICKUP_BONUS + bonusPower * 0.35);
+          snake.bloomPower = Math.min(100, (snake.bloomPower ?? 100) + BLOOM_PICKUP_BONUS + bonusPower * 0.35);
+          if (snake.isPlayer && collected <= 2) spawnEffectBurst(food.x, food.y, bonusFood ? food.aura || food.color : food.color, bonusFood ? 8 : 1);
+          if (snake.isPlayer && (bonusFood || (snake.combo >= 3 && now - (snake.lastComboTextAt || 0) > 560))) {
+            const label = bonusFood ? `${food.label} +${Math.round(baseScore)}` : `x${snake.combo} KOMBO`;
+            spawnFloatingText(food.x, food.y - 24, label, bonusFood ? food.aura || food.color : "#ffffff", bonusFood ? 20 : 17);
+            snake.lastComboTextAt = now;
+          }
           collected++;
-          if (!snake.isPlayer || collected >= (powered ? 10 : 5)) break collectLoop;
+          if (!snake.isPlayer || collected >= (powered ? 14 : 5)) break collectLoop;
         }
       }
     }
@@ -2091,6 +2555,17 @@ function maybeFinishVictory() {
   finishMatch({ victory: true });
 }
 
+function resultCompetitors() {
+  return snakes.filter((item) => item.type !== "hologram");
+}
+
+function resultPlacementFor(snake, victory = false) {
+  if (victory) return 1;
+  const competitors = resultCompetitors();
+  const aliveOthers = competitors.filter((item) => item !== snake && item.alive).length;
+  return Math.max(1, Math.min(competitors.length || 1, aliveOthers + 1));
+}
+
 function finishMatch(options = {}) {
   if (matchFinalized) return;
   const victory = Boolean(options.victory);
@@ -2098,6 +2573,9 @@ function finishMatch(options = {}) {
   running = false;
   const bestHuman = localPlayers.reduce((best, item) => (item.score + item.targetLength * 8 > best.score + best.targetLength * 8 ? item : best), localPlayers[0]);
   const finalScore = Math.round(bestHuman.score + bestHuman.targetLength * 8);
+  const competitors = resultCompetitors();
+  const placement = resultPlacementFor(bestHuman, victory);
+  const totalPlaces = Math.max(placement, competitors.length || localPlayers.length || 1);
   const earnedCoins = victory ? VICTORY_COIN_REWARD : Math.max(10, Math.floor(finalScore / 55));
   const canSaveMatch = !runningTutorial && authToken && !guestMode.checked;
   if (canSaveMatch) {
@@ -2107,17 +2585,19 @@ function finishMatch(options = {}) {
     syncEpicSkinUnlock();
     saveProfile();
   }
-  if (deathTitle) deathTitle.textContent = victory ? "1. oldunuz!" : "Yılan dağıldı";
+  if (deathTitle) deathTitle.textContent = `${placement}. oldunuz!`;
+  const rankText = `Sıralama: ${placement}/${totalPlaces}.`;
   if (victory) {
-    deathText.textContent = canSaveMatch ? `${bestHuman.name} arenada son kaldı. +${earnedCoins} coin kazandın.` : `${bestHuman.name} arenada son kaldı. Misafir modunda 400 coin kaydedilmedi.`;
+    deathText.textContent = canSaveMatch ? `${rankText} ${bestHuman.name} arenada son kaldı. +${earnedCoins} coin kazandın.` : `${rankText} ${bestHuman.name} arenada son kaldı. Misafir modunda 400 coin kaydedilmedi.`;
   } else {
-    deathText.textContent = canSaveMatch ? `${bestHuman.name} skoru ${finalScore}. +${earnedCoins} coin kazandın.` : `${bestHuman.name} skoru ${finalScore}. Misafir modunda profil kaydedilmedi.`;
+    deathText.textContent = canSaveMatch ? `${rankText} ${bestHuman.name} skoru ${finalScore}. +${earnedCoins} coin kazandın.` : `${rankText} ${bestHuman.name} skoru ${finalScore}. Misafir modunda profil kaydedilmedi.`;
   }
+  const retryLabel = retryButton ? retryButton.querySelector("span") : null;
+  if (retryLabel) retryLabel.textContent = "ANA SAYFAYA DÖN";
   setGameHudVisible(false);
   deathPanel.classList.remove("is-hidden");
   renderProfile();
 }
-
 function resolveCollisions() {
   for (const snake of snakes) {
     if (!snake.alive || snake.type === "remote" || snake.type === "hologram") continue;
@@ -2220,12 +2700,14 @@ function update(dt, now) {
     sendOnlineState(now);
   }
   updateEffects(dt);
+  updateFloatingTexts(dt);
   focusPlayer = localPlayers.find((item) => item.alive) || focusPlayer || player;
   if (focusPlayer) {
     camera.x += (focusPlayer.x - camera.x) * 0.08;
     camera.y += (focusPlayer.y - camera.y) * 0.08;
     if (now - lastHudUpdate > HUD_INTERVAL) {
       scoreEl.textContent = Math.round(focusPlayer.score).toLocaleString("tr-TR");
+      if (comboEl) comboEl.textContent = focusPlayer.comboUntil > now && (focusPlayer.combo || 0) > 1 ? `x${focusPlayer.combo}` : "x1";
       lengthEl.textContent = Math.floor(focusPlayer.targetLength).toString();
       boostEl.textContent = `${Math.round(focusPlayer.boost)}%`;
       const locked = arePowersLocked(focusPlayer, now);
@@ -2282,12 +2764,24 @@ function drawFood(now) {
       if (!bucket) continue;
       for (let i = 0; i < bucket.length; i++) {
         const food = bucket[i];
+        const bonusFood = food.kind && food.kind !== "normal";
+        if (bonusFood) {
+          const pulse = 1 + Math.sin(now * 0.006 + food.pulse) * 0.16;
+          ctx.save();
+          ctx.globalAlpha = 0.42;
+          ctx.strokeStyle = food.aura || food.color;
+          ctx.lineWidth = 3 / scale;
+          ctx.beginPath();
+          ctx.arc(food.x, food.y, food.r * (1.9 + pulse * 0.22), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
         if (food.color !== lastColor) {
           ctx.fillStyle = food.color;
           lastColor = food.color;
         }
         ctx.beginPath();
-        ctx.arc(food.x, food.y, food.r, 0, Math.PI * 2);
+        ctx.arc(food.x, food.y, bonusFood ? food.r * (1 + Math.sin(now * 0.007 + food.pulse) * 0.08) : food.r, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -2443,12 +2937,12 @@ function drawSnake(snake, now = performance.now()) {
   ctx.globalAlpha = 1;
   if (hologram || powered || dashing || golden || shielded || slowed || locked || skin.aura) {
     ctx.save();
-    ctx.globalAlpha = hologram ? 0.32 : golden ? 0.46 : shielded ? 0.42 : slowed ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.34 : 0.18;
+    ctx.globalAlpha = hologram ? 0.32 : golden ? 0.46 : shielded ? 0.42 : slowed ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.38 : 0.18;
     ctx.strokeStyle = hologram ? "#8feeff" : golden ? "#ffd166" : shielded ? "#d8f3ff" : slowed ? "#a78bfa" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
-    ctx.lineWidth = hologram ? 3 : golden ? 6 : shielded ? 5 : slowed ? 4 : dashing ? 5 : locked ? 4 : powered ? 4 : 2;
+    ctx.lineWidth = hologram ? 3 : golden ? 6 : shielded ? 5 : slowed ? 4 : dashing ? 5 : locked ? 4 : powered ? 5 : 2;
     if (hologram) ctx.setLineDash([10, 9]);
     ctx.beginPath();
-    ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : shielded ? 26 : slowed ? 22 : dashing ? 24 : locked ? 20 : powered ? 18 : 9), 0, Math.PI * 2);
+    ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : shielded ? 26 : slowed ? 22 : dashing ? 24 : locked ? 20 : powered ? 24 : 9), 0, Math.PI * 2);
     ctx.stroke();
     if (hologram) ctx.setLineDash([]);
     ctx.restore();
@@ -2492,6 +2986,7 @@ function render(now) {
   drawFood(now);
   drawTraps(now);
   drawEffects();
+  drawFloatingTexts();
   for (const snake of snakes) drawSnake(snake, now);
   ctx.restore();
   drawVignette();
@@ -2616,11 +3111,16 @@ function bindControls() {
   if (loginButton) loginButton.addEventListener("click", () => loginAccount(false));
   if (registerButton) registerButton.addEventListener("click", () => loginAccount(true));
   if (logoutButton) logoutButton.addEventListener("click", logoutAccount);
+  if (suggestNameButton) suggestNameButton.addEventListener("click", suggestAccountNames);
+  if (generatePasswordButton) generatePasswordButton.addEventListener("click", generateStrongPassword);
+  if (togglePasswordButton) togglePasswordButton.addEventListener("click", togglePasswordVisibility);
+  if (accountName) accountName.addEventListener("input", () => { renderNameSuggestions([]); if (accountName.value && !isSafeAccountName(accountName.value)) setAuthStatus("Bu kullanıcı adı uygun değil"); });
+  if (accountPassword) accountPassword.addEventListener("input", updatePasswordStrength);
   if (accountPassword) accountPassword.addEventListener("keydown", (event) => { if (event.key === "Enter") loginAccount(false); });
   if (addFriendButton) addFriendButton.addEventListener("click", addFriend);
   if (friendName) friendName.addEventListener("keydown", (event) => { if (event.key === "Enter") addFriend(); });
   playButton.addEventListener("click", handlePlayButton);
-  retryButton.addEventListener("click", resetGame);
+  retryButton.addEventListener("click", exitToMenu);
   if (leaveLobbyButton) leaveLobbyButton.addEventListener("click", exitToMenu);
   if (copyRoomButton) copyRoomButton.addEventListener("click", copyRoomCode);
   if (startRoomButton) startRoomButton.addEventListener("click", startRoomFromLobby);

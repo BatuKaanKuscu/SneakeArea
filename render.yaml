@@ -1,4 +1,4 @@
-﻿services:
+services:
   - type: web
     name: snake-area
     runtime: node
@@ -6,5 +6,11 @@
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: snake-area-data
+      mountPath: /var/data
+      sizeGB: 1
     autoDeployTrigger: commit
-

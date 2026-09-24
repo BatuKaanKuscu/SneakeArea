@@ -964,6 +964,99 @@ body.palette-forest .game-shell {
   box-shadow: 0 4px 0 #c8d4d7;
 }
 
+.account-field-row,
+.password-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 8px;
+  align-items: end;
+}
+
+.password-field {
+  grid-template-columns: minmax(0, 1fr) 42px 42px;
+}
+
+.password-field input,
+.account-field-row input {
+  min-width: 0;
+}
+
+.mini-tool-button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #f4eef9;
+  color: #3f1590;
+  box-shadow: 0 3px 0 #d7cce5;
+}
+
+.mini-tool-button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.name-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-height: 0;
+}
+
+.name-suggestions button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: 999px;
+  background: #eef8f4;
+  color: #0f766e;
+  font-size: 0.72rem;
+  font-weight: 1000;
+}
+
+.password-strength {
+  --strength: 0%;
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dfe8e6;
+}
+
+.password-strength::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--strength);
+  border-radius: inherit;
+  background: #ef4444;
+  transition: width 160ms ease, background 160ms ease;
+}
+
+.password-strength[data-score="3"]::before { background: #f59e0b; }
+.password-strength[data-score="4"]::before,
+.password-strength[data-score="5"]::before { background: #0f766e; }
+
+.password-hint {
+  color: #6f6677;
+  font-size: 0.7rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.auth-panel button:disabled,
+.account-field-row input:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
 .friend-service {
   display: grid;
   gap: 12px;
@@ -2391,4 +2484,8 @@ body.is-playing .palette-swatch::after {
   .segmented.four { grid-template-columns: 1fr; }
   .tutorial-card { grid-template-columns: 44px minmax(0, 1fr); }
   .tutorial-icon { width: 44px; height: 44px; }
+}
+.combo-stat strong {
+  color: #b8ff5d;
+  text-shadow: 0 0 12px rgba(184, 255, 93, 0.38);
 }

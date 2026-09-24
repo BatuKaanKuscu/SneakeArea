@@ -5,13 +5,16 @@ const crypto = require("crypto");
 
 const PORT = Number(process.env.PORT || 8765);
 const ROOT = __dirname;
-const DATA_FILE = path.join(ROOT, "data.json");
+const DEFAULT_DATA_FILE = path.join(ROOT, "data.json");
+const DATA_DIR = process.env.DATA_DIR || (process.env.RENDER ? "/var/data" : "");
+const DATA_FILE = process.env.DATA_FILE || process.env.DATA_PATH || (DATA_DIR ? path.join(DATA_DIR, "data.json") : DEFAULT_DATA_FILE);
 const PUBLIC_FILES = new Map([
   ["/", "index.html"],
   ["/index.html", "index.html"],
   ["/styles.css", "styles.css"],
   ["/game.js", "game.js"],
   ["/logo.svg", "logo.svg"],
+  ["/ekmekstr-theme.wav", "ekmekstr-theme.wav"],
 ]);
 
 const epicSkins = [
@@ -23,8 +26,11 @@ const epicSkins = [
 ];
 const epicSkinIds = epicSkins.map((skin) => skin.id);
 const defaultSkins = ["cyan", "lime", "pink", "amber", "violet", "ruby", "ice", "royal", ...epicSkinIds];
+const baseTitles = ["rookie", "hunter", "collector", "champion", "speedster", "survivor"];
+const specialTitles = ["ekmekstr"];
 const defaultTitles = ["rookie"];
-const adminTitles = ["admin", "rookie", "hunter", "collector", "champion", "speedster", "survivor"];
+const adminTitles = Array.from(new Set(["admin", ...baseTitles, ...specialTitles]));
+const playerTitles = Array.from(new Set([...baseTitles, ...specialTitles]));
 const allowedTitles = new Set(adminTitles);
 const allowedAvatars = new Set(["near", "area", "bolt", "crown", "coin", "wave"]);
 const allowedThemes = new Set(["aurora", "ember", "ice", "forest"]);
@@ -34,6 +40,7 @@ let rooms = new Map();
 
 function loadData() {
   try {
+    ensureDataFile();
     const loaded = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
     loaded.profiles ||= {};
     loaded.sessions ||= {};
@@ -43,9 +50,22 @@ function loadData() {
   }
 }
 
+function ensureDataFile() {
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+  if (fs.existsSync(DATA_FILE)) return;
+  if (DATA_FILE !== DEFAULT_DATA_FILE && fs.existsSync(DEFAULT_DATA_FILE)) {
+    fs.copyFileSync(DEFAULT_DATA_FILE, DATA_FILE);
+    return;
+  }
+  fs.writeFileSync(DATA_FILE, JSON.stringify({ profiles: {}, sessions: {} }, null, 2));
+}
 function saveData() {
   data.sessions ||= {};
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+  const payload = JSON.stringify(data, null, 2);
+  const tempFile = `${DATA_FILE}.tmp`;
+  fs.writeFileSync(tempFile, payload);
+  fs.renameSync(tempFile, DATA_FILE);
 }
 
 function sanitizeName(name, fallback = "Guest") {
@@ -63,6 +83,158 @@ function sanitizeRoom(room) {
 
 
 
+const reservedNames = new Set(["admin", "administrator", "moderator", "snakearea", "snake_area", "guest", "misafir", "nearbacon", "ekmekstr"]);
+const blockedNameTerms = [
+  "amk", "aq", "mk", "sik", "siker", "siktir", "orospu", "pic", "pezevenk", "yarrak", "yarak", "got", "bok", "ibne",
+  "fuck", "shit", "bitch", "asshole", "bastard", "dick", "pussy", "cunt", "porn", "sex", "nazi", "hitler",
+];
+const nameConsonants = "bcdfghjklmnprstvyz";
+const nameVowels = "aeiou";
+const nameEndings = ["", "x", "n", "r", "s", "z", "io"];
+const passwordGroups = [
+  "ABCDEFGHJKLMNPQRSTUVWXYZ",
+  "abcdefghijkmnopqrstuvwxyz",
+  "23456789",
+  "!@#$%&*?",
+];
+const commonPasswords = new Set(["123", "1234", "12345", "123456", "password", "qwerty", "abc123", "111111", "snake", "snakearea"]);
+
+function findProfileKey(name) {
+  const clean = sanitizeName(name, "");
+  if (!clean || !data.profiles) return "";
+  if (data.profiles[clean]) return clean;
+  const lower = clean.toLowerCase();
+  return Object.keys(data.profiles).find((key) => key.toLowerCase() === lower) || "";
+}
+
+function hasRegisteredProfile(name) {
+  const key = findProfileKey(name);
+  return Boolean(key && data.profiles[key]?.passwordHash);
+}
+
+function stripSafetyVowels(value) {
+  return String(value || "").replace(/[aeiou]/g, "");
+}
+
+function normalizedNameForSafety(name) {
+  return String(name || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[ıİ]/g, "i")
+    .replace(/[şŞ]/g, "s")
+    .replace(/[ğĞ]/g, "g")
+    .replace(/[çÇ]/g, "c")
+    .replace(/[öÖ]/g, "o")
+    .replace(/[üÜ]/g, "u")
+    .replace(/[@]/g, "a")
+    .replace(/[!|]/g, "i")
+    .replace(/[$]/g, "s")
+    .replace(/[^a-z0-9_-]/g, "")
+    .replace(/[0134578]/g, (char) => ({ "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b" }[char] || char))
+    .replace(/[_-]/g, "");
+}
+
+function safetyNameVariants(name) {
+  const compact = normalizedNameForSafety(name);
+  const squeezed = compact.replace(/(.)\1+/g, "$1");
+  return {
+    direct: Array.from(new Set([compact, squeezed].filter(Boolean))),
+    loose: stripSafetyVowels(squeezed),
+  };
+}
+
+function hasBlockedNameTerm(name) {
+  const variants = safetyNameVariants(name);
+  const directTerms = blockedNameTerms.map((term) => normalizedNameForSafety(term));
+  const looseTerms = directTerms.filter((term) => term.length >= 4).map(stripSafetyVowels).filter((term) => term.length >= 3);
+  return directTerms.some((term) => variants.direct.some((variant) => variant.includes(term)))
+    || looseTerms.some((term) => variants.loose.includes(term));
+}
+
+function validateAccountName(name) {
+  const clean = sanitizeName(name, "");
+  if (!clean || clean.length < 3) return { ok: false, error: "short_name" };
+  if (clean.length > 14) return { ok: false, error: "long_name" };
+  if (!/^[a-zA-Z0-9_-]+$/.test(clean)) return { ok: false, error: "bad_name" };
+  if (reservedNames.has(clean.toLowerCase())) return { ok: false, error: "reserved_name" };
+  if (hasBlockedNameTerm(clean)) return { ok: false, error: "blocked_name" };
+  return { ok: true, name: clean };
+}
+
+function randomInt(max) {
+  return crypto.randomInt ? crypto.randomInt(max) : Math.floor(Math.random() * max);
+}
+
+function pick(list) {
+  return list[randomInt(list.length)];
+}
+
+function titleCaseName(value) {
+  const clean = sanitizeName(value, "").toLowerCase();
+  return clean ? `${clean.charAt(0).toUpperCase()}${clean.slice(1)}` : "";
+}
+
+function randomSyllable(index = 0) {
+  const c = pick(nameConsonants);
+  const v = pick(nameVowels);
+  const extra = randomInt(100) < 22 ? pick(nameConsonants.replace(c, "") || nameConsonants) : "";
+  return index === 0 ? `${c}${v}${extra}` : `${c}${v}${extra}`;
+}
+
+function generateRandomName() {
+  const syllableCount = randomInt(3) + 2;
+  let core = "";
+  for (let i = 0; i < syllableCount; i += 1) core += randomSyllable(i);
+  if (randomInt(100) < 45) core += pick(nameEndings);
+  const suffixRoll = randomInt(100);
+  const suffix = suffixRoll < 28 ? String(randomInt(90) + 10) : suffixRoll < 36 ? String(randomInt(900) + 100) : "";
+  const maxCore = Math.max(3, 14 - suffix.length);
+  return titleCaseName(`${core.slice(0, maxCore)}${suffix}`);
+}
+
+function buildNameSuggestions() {
+  const suggestions = [];
+  const add = (value) => {
+    const name = sanitizeName(value, "");
+    if (!validateAccountName(name).ok || hasRegisteredProfile(name) || suggestions.includes(name)) return;
+    suggestions.push(name);
+  };
+  for (let attempt = 0; suggestions.length < 6 && attempt < 240; attempt += 1) add(generateRandomName());
+  return suggestions;
+}
+
+function passwordStrength(password) {
+  const value = String(password || "");
+  const lower = value.toLowerCase();
+  const checks = {
+    length: value.length >= 8,
+    long: value.length >= 12,
+    lower: /[a-z]/.test(value),
+    upper: /[A-Z]/.test(value),
+    digit: /\d/.test(value),
+    symbol: /[^A-Za-z0-9]/.test(value),
+  };
+  const common = commonPasswords.has(lower);
+  let score = [checks.length, checks.lower, checks.upper, checks.digit, checks.symbol].filter(Boolean).length;
+  if (checks.long) score += 1;
+  if (common) score -= 2;
+  score = Math.max(0, Math.min(5, score));
+  const ok = checks.length && score >= 4 && !common;
+  const feedback = !value ? "password_required" : common ? "common_password" : !checks.length ? "password_too_short" : score < 4 ? "password_needs_mix" : "strong_password";
+  return { ok, score, feedback };
+}
+
+function generatePassword(length = 14) {
+  const all = passwordGroups.join("");
+  const chars = passwordGroups.map((group) => pick(group));
+  while (chars.length < length) chars.push(pick(all));
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
+}
 function syncOwnedSkins(profile, name) {
   profile.ownedSkins = Array.from(new Set(["cyan", ...(Array.isArray(profile.ownedSkins) ? profile.ownedSkins : [])])).filter((skin) => defaultSkins.includes(skin));
   if (profile.isAdmin || profile.role === "admin") {
@@ -109,12 +281,64 @@ function sessionName(token) {
   return data.sessions?.[String(token || "")]?.name || "";
 }
 
+function specialNameKey(name) {
+  return sanitizeName(name, "").toLowerCase();
+}
+
+function applySpecialEntitlements(profile, name) {
+  const key = specialNameKey(name || profile.name);
+  if (key === "nearbacon") {
+    profile.name = "NearBacon";
+    profile.role = "admin";
+    profile.isAdmin = true;
+    profile.coins = Math.max(Number(profile.coins) || 0, 999999);
+    profile.ownedSkins = defaultSkins.slice();
+    profile.unlockedTitles = adminTitles.slice();
+    profile.title = "admin";
+    profile.specialMusic = "";
+    return profile;
+  }
+  if (key === "ekmekstr") {
+    profile.name = "Ekmekstr";
+    profile.role = "player";
+    profile.isAdmin = false;
+    profile.coins = Math.max(Number(profile.coins) || 0, 25000);
+    profile.unlockedTitles = playerTitles.filter((title) => title !== "admin");
+    profile.title = profile.unlockedTitles.includes(profile.title) && profile.title !== "admin" ? profile.title : "ekmekstr";
+    profile.specialMusic = "ekmekstr";
+    return profile;
+  }
+  profile.specialMusic = "";
+  profile.unlockedTitles = (Array.isArray(profile.unlockedTitles) ? profile.unlockedTitles : defaultTitles).filter((title) => title !== "ekmekstr");
+  if (profile.title === "ekmekstr") profile.title = profile.unlockedTitles[0] || "rookie";
+  return profile;
+}
+
+const specialAccountSeeds = [
+  { name: "Ekmekstr", salt: "seed-ekmekstr-2026", hash: "2a512b08f98311b298dcfebd98fae198f6e519a02171c9bd8e1d38dfbb73c7ca" },
+  { name: "NearBacon", salt: "seed-nearbacon-2026", hash: "c9f10d99572d4296927853e9e39dcb55b15d64db97cdc4c959ecf43409b663fd" },
+];
+
+function ensureSeedAccounts() {
+  for (const account of specialAccountSeeds) {
+    const existingKey = findProfileKey(account.name);
+    const key = existingKey || account.name;
+    const profile = getProfile(key);
+    profile.passwordSalt = account.salt;
+    profile.passwordHash = account.hash;
+    profile.createdAt ||= Date.now();
+    profile.seededAccount = true;
+    applySpecialEntitlements(profile, account.name);
+  }
+  saveData();
+}
 function publicProfile(profile) {
   const { passwordHash, passwordSalt, ...safe } = profile;
   return safe;
 }
 function getProfile(name) {
-  const clean = sanitizeName(name, "Guest");
+  const requested = sanitizeName(name, "Guest");
+  const clean = findProfileKey(requested) || requested;
   if (!data.profiles[clean]) {
     data.profiles[clean] = {
       name: clean,
@@ -165,8 +389,11 @@ function getProfile(name) {
   profile.avatar = allowedAvatars.has(profile.avatar) ? profile.avatar : "near";
   profile.theme = allowedThemes.has(profile.theme) ? profile.theme : "aurora";
   profile.language = profile.language === "en" ? "en" : "tr";
+  applySpecialEntitlements(profile, clean);
   return profile;
 }
+
+ensureSeedAccounts();
 
 function readBody(req) {
   return new Promise((resolve) => {
@@ -205,9 +432,20 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && PUBLIC_FILES.has(url.pathname)) {
     const file = path.join(ROOT, PUBLIC_FILES.get(url.pathname));
     const ext = path.extname(file);
-    const type = ext === ".css" ? "text/css" : ext === ".js" ? "application/javascript" : ext === ".svg" ? "image/svg+xml" : "text/html";
+    const type = ext === ".css" ? "text/css" : ext === ".js" ? "application/javascript" : ext === ".svg" ? "image/svg+xml" : ext === ".wav" ? "audio/wav" : "text/html";
     res.writeHead(200, { "content-type": `${type}; charset=utf-8`, "cache-control": "no-store" });
     fs.createReadStream(file).pipe(res);
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/auth/suggest-name") {
+    sendJson(res, 200, { suggestions: buildNameSuggestions(url.searchParams.get("seed") || "") });
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/auth/password") {
+    const password = generatePassword();
+    sendJson(res, 200, { password, strength: passwordStrength(password) });
     return;
   }
 
@@ -215,16 +453,24 @@ const server = http.createServer(async (req, res) => {
     const body = await readBody(req);
     const name = sanitizeName(body.name, "");
     const password = String(body.password || "");
-    if (!name || password.length < 3) {
-      sendJson(res, 400, { error: "bad_credentials" });
+    const nameCheck = validateAccountName(name);
+    if (!nameCheck.ok) {
+      sendJson(res, 400, { error: nameCheck.error, suggestions: buildNameSuggestions(name) });
+      return;
+    }
+    const strength = passwordStrength(password);
+    if (!strength.ok) {
+      sendJson(res, 400, { error: "weak_password", strength });
+      return;
+    }
+    if (hasRegisteredProfile(name)) {
+      sendJson(res, 409, { error: "name_taken", suggestions: buildNameSuggestions(name) });
       return;
     }
     const profile = getProfile(name);
-    if (profile.passwordHash) {
-      sendJson(res, 409, { error: "name_taken" });
-      return;
-    }
     setPassword(profile, password);
+    profile.createdAt ||= Date.now();
+    profile.lastLoginAt = Date.now();
     const token = makeSession(profile.name);
     saveData();
     sendJson(res, 200, { token, profile: withFriendStatus(profile) });
@@ -234,15 +480,17 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/api/auth/login") {
     const body = await readBody(req);
     const name = sanitizeName(body.name, "");
-    const profile = name ? data.profiles[name] : null;
+    const key = findProfileKey(name);
+    const profile = key ? data.profiles[key] : null;
     if (!profile || !validPassword(profile, body.password)) {
       sendJson(res, 401, { error: "login_failed" });
       return;
     }
-    getProfile(name);
-    const token = makeSession(name);
+    const activeProfile = getProfile(key);
+    activeProfile.lastLoginAt = Date.now();
+    const token = makeSession(activeProfile.name);
     saveData();
-    sendJson(res, 200, { token, profile: withFriendStatus(getProfile(name)) });
+    sendJson(res, 200, { token, profile: withFriendStatus(activeProfile) });
     return;
   }
 
@@ -280,7 +528,7 @@ const server = http.createServer(async (req, res) => {
       return "none";
     };
     const users = Object.keys(data.profiles || {})
-      .filter((name) => name.toLowerCase().includes(q) && name !== requester)
+      .filter((name) => data.profiles[name]?.passwordHash && name.toLowerCase().includes(q) && name !== requester)
       .sort((a, b) => Number(!b.toLowerCase().startsWith(q)) - Number(!a.toLowerCase().startsWith(q)) || a.localeCompare(b))
       .slice(0, 8)
       .map((name) => ({ name, online: online.has(name), relation: relationFor(name) }));
@@ -290,11 +538,13 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/api/friends/request") {
     const body = await readBody(req);
     const name = sessionName(body.token);
-    const friend = sanitizeName(body.friend, "");
-    if (!name || !friend || friend === name || !data.profiles[friend]) {
+    let friend = sanitizeName(body.friend, "");
+    const friendKey = findProfileKey(friend);
+    if (!name || !friendKey || friendKey === name || !data.profiles[friendKey]?.passwordHash) {
       sendJson(res, 400, { error: "bad_friend" });
       return;
     }
+    friend = friendKey;
     const profile = getProfile(name);
     const target = getProfile(friend);
     if (profile.friends.includes(friend)) {
@@ -487,7 +737,7 @@ function roomState(room) {
 function broadcastLobby(room) {
   const state = rooms.get(room);
   if (!state) return;
-  const players = roomMembers(room).map((client) => ({ id: client.id, name: client.name, host: client.id === state.hostId }));
+  const players = roomMembers(room).map((client) => ({ id: client.id, name: client.name, skin: sanitizeSkin(client.skin || "cyan"), host: client.id === state.hostId }));
   broadcastToRoom({ type: "lobby", room, hostId: state.hostId, started: state.started, botCount: state.botCount || 0, players }, room);
 }
 
@@ -601,6 +851,8 @@ function handleMessage(client, message) {
       dashActive: Boolean(message.dashActive),
       twinActive: Boolean(message.twinActive),
       goldActive: Boolean(message.goldActive),
+      shieldActive: Boolean(message.shieldActive),
+      slowed: Boolean(message.slowed),
       powerLocked: Boolean(message.powerLocked),
       x: Number(message.x) || 0,
       y: Number(message.y) || 0,
