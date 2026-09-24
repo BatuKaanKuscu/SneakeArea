@@ -1069,6 +1069,7 @@ function makeLocalPassword(length = 14) {
   return chars.join("");
 }
 
+const PROTECTED_ACCOUNT_ALIASES = new Set(["nearbacon", "ekmekstr", "ekmekstar", "ekmekmst"]);
 const BLOCKED_NAME_TERMS = ["amk", "aq", "mk", "sik", "siker", "siktir", "orospu", "pic", "pezevenk", "yarrak", "yarak", "got", "bok", "ibne", "fuck", "shit", "bitch", "asshole", "bastard", "dick", "pussy", "cunt", "porn", "sex", "nazi", "hitler"];
 
 function stripSafetyVowels(value) {
@@ -1103,11 +1104,16 @@ function nameSafetyVariants(name) {
   };
 }
 
+function isProtectedAccountAlias(name) {
+  return PROTECTED_ACCOUNT_ALIASES.has(normalizeNameForSafety(cleanName(name, "")));
+}
+
 function isSafeAccountName(name) {
   const variants = nameSafetyVariants(name);
   const directTerms = BLOCKED_NAME_TERMS.map((term) => normalizeNameForSafety(term));
   const looseTerms = directTerms.filter((term) => term.length >= 4).map(stripSafetyVowels).filter((term) => term.length >= 3);
   return variants.direct[0]?.length >= 3
+    && !isProtectedAccountAlias(name)
     && !directTerms.some((term) => variants.direct.some((variant) => variant.includes(term)))
     && !looseTerms.some((term) => variants.loose.includes(term));
 }

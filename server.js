@@ -83,7 +83,7 @@ function sanitizeRoom(room) {
 
 
 
-const reservedNames = new Set(["admin", "administrator", "moderator", "snakearea", "snake_area", "guest", "misafir", "nearbacon", "ekmekstr"]);
+const reservedNames = new Set(["admin", "administrator", "moderator", "snakearea", "snake_area", "guest", "misafir", "nearbacon", "ekmekstr", "ekmekstar", "ekmekmst"]);
 const blockedNameTerms = [
   "amk", "aq", "mk", "sik", "siker", "siktir", "orospu", "pic", "pezevenk", "yarrak", "yarak", "got", "bok", "ibne",
   "fuck", "shit", "bitch", "asshole", "bastard", "dick", "pussy", "cunt", "porn", "sex", "nazi", "hitler",
@@ -98,6 +98,7 @@ const passwordGroups = [
   "!@#$%&*?",
 ];
 const commonPasswords = new Set(["123", "1234", "12345", "123456", "password", "qwerty", "abc123", "111111", "snake", "snakearea"]);
+const protectedAccountAliases = new Set(["nearbacon", "ekmekstr", "ekmekstar", "ekmekmst"]);
 
 function findProfileKey(name) {
   const clean = sanitizeName(name, "");
@@ -107,9 +108,33 @@ function findProfileKey(name) {
   return Object.keys(data.profiles).find((key) => key.toLowerCase() === lower) || "";
 }
 
+function accountFingerprint(name) {
+  return normalizedNameForSafety(sanitizeName(name, ""));
+}
+
+function isProtectedAccountAlias(name) {
+  return protectedAccountAliases.has(accountFingerprint(name));
+}
+
+function findRegisteredProfileKey(name) {
+  const clean = sanitizeName(name, "");
+  if (!clean || !data.profiles) return "";
+  const exactKey = findProfileKey(clean);
+  if (exactKey && data.profiles[exactKey]?.passwordHash) return exactKey;
+  const fingerprint = accountFingerprint(clean);
+  return Object.keys(data.profiles).find((key) => {
+    const profile = data.profiles[key] || {};
+    if (!profile.passwordHash && !profile.seededAccount) return false;
+    return accountFingerprint(profile.name || key) === fingerprint;
+  }) || "";
+}
+
 function hasRegisteredProfile(name) {
-  const key = findProfileKey(name);
-  return Boolean(key && data.profiles[key]?.passwordHash);
+  return Boolean(findRegisteredProfileKey(name));
+}
+
+function isAccountNameTaken(name) {
+  return isProtectedAccountAlias(name) || hasRegisteredProfile(name);
 }
 
 function stripSafetyVowels(value) {
@@ -157,7 +182,7 @@ function validateAccountName(name) {
   if (!clean || clean.length < 3) return { ok: false, error: "short_name" };
   if (clean.length > 14) return { ok: false, error: "long_name" };
   if (!/^[a-zA-Z0-9_-]+$/.test(clean)) return { ok: false, error: "bad_name" };
-  if (reservedNames.has(clean.toLowerCase())) return { ok: false, error: "reserved_name" };
+  if (reservedNames.has(clean.toLowerCase()) || isProtectedAccountAlias(clean)) return { ok: false, error: "reserved_name" };
   if (hasBlockedNameTerm(clean)) return { ok: false, error: "blocked_name" };
   return { ok: true, name: clean };
 }
@@ -197,7 +222,7 @@ function buildNameSuggestions() {
   const suggestions = [];
   const add = (value) => {
     const name = sanitizeName(value, "");
-    if (!validateAccountName(name).ok || hasRegisteredProfile(name) || suggestions.includes(name)) return;
+    if (!validateAccountName(name).ok || isAccountNameTaken(name) || suggestions.includes(name)) return;
     suggestions.push(name);
   };
   for (let attempt = 0; suggestions.length < 6 && attempt < 240; attempt += 1) add(generateRandomName());
@@ -463,7 +488,7 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 400, { error: "weak_password", strength });
       return;
     }
-    if (hasRegisteredProfile(name)) {
+    if (isAccountNameTaken(name)) {
       sendJson(res, 409, { error: "name_taken", suggestions: buildNameSuggestions(name) });
       return;
     }
