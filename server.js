@@ -373,7 +373,7 @@ function applySpecialEntitlements(profile, name) {
 }
 
 const specialAccountSeeds = [
-  { name: "Ekmekstr", salt: "seed-ekmekstr-2026", hash: "2a512b08f98311b298dcfebd98fae198f6e519a02171c9bd8e1d38dfbb73c7ca" },
+  { name: "Ekmekstr", salt: "seed-ekmekstr-2026", hash: "49b2a66cdfcb0933cb077320e919aa14c54f662c751c551736b56afd4d46ca92" },
   { name: "NearBacon", salt: "seed-nearbacon-2026", hash: "c9f10d99572d4296927853e9e39dcb55b15d64db97cdc4c959ecf43409b663fd" },
 ];
 
