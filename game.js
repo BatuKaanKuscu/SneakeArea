@@ -155,10 +155,10 @@ const TRAP_RECHARGE_RATE = 0.074;
 const TRAP_PICKUP_BONUS = 2.4;
 const TRAP_DURATION_MS = 18000;
 const TRAP_LOCK_MS = 16000;
-const SHIELD_DURATION_MS = 5200;
-const SHIELD_GRACE_MS = 1250;
-const SHIELD_RECHARGE_RATE = 0.032;
-const SHIELD_PICKUP_BONUS = 1.5;
+const SHIELD_DURATION_MS = 3400;
+const SHIELD_GRACE_MS = 700;
+const SHIELD_RECHARGE_RATE = 0.024;
+const SHIELD_PICKUP_BONUS = 0.9;
 const SLOW_RADIUS = 650;
 const SLOW_DURATION_MS = 5400;
 const SLOW_SPEED_MULTIPLIER = 0.48;
@@ -171,6 +171,9 @@ const AREA_PULL_RADIUS = 610;
 const AREA_PULL_SPEED = 20;
 const AREA_PULL_LIMIT = 24;
 const AREA_PICKUP_EXTRA = 18;
+const BOT_TARGET_RANGE = 1080;
+const BOT_PRESS_RANGE = 720;
+const BOT_BODY_DANGER_RANGE = 235;
 const BOOST_RECHARGE_INNER = 0.38;
 const BOOST_OUTER_THRESHOLD = 0.86;
 const LEGACY_PROFILE_KEY = "snakeAeaProfile";
@@ -716,7 +719,7 @@ function absorbShieldHit(snake, now = performance.now()) {
   snake.shieldGraceUntil = now + SHIELD_GRACE_MS;
   snake.x = clamp(snake.x, 36, WORLD - 36);
   snake.y = clamp(snake.y, 36, WORLD - 36);
-  snake.boost = Math.max(snake.boost, 35);
+  snake.boost = Math.max(snake.boost, 20);
   spawnEffectBurst(snake.x, snake.y, broke ? "#d8f3ff" : "#8feeff", broke ? 18 : 6);
   return true;
 }
@@ -745,7 +748,18 @@ function twinMirrorAnchor(source) {
   const target = nearestTwinTarget(source);
   if (target) {
     source.twinMirrorTargetId = target.id;
-    return { x: target.x, y: target.y, targetId: target.id };
+    source.twinMirrorSide = source.twinMirrorSide || (Math.random() < 0.5 ? -1 : 1);
+    const dx = source.x - target.x;
+    const dy = source.y - target.y;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const sideX = -dy / dist;
+    const sideY = dx / dist;
+    const wrapOffset = clamp(130 + source.radius * 3.4 + (1 - clamp(dist / TWIN_MIRROR_TARGET_RANGE, 0, 1)) * 120, 130, 270);
+    return {
+      x: clamp(target.x + sideX * source.twinMirrorSide * wrapOffset, 36, WORLD - 36),
+      y: clamp(target.y + sideY * source.twinMirrorSide * wrapOffset, 36, WORLD - 36),
+      targetId: target.id,
+    };
   }
   source.twinMirrorTargetId = "";
   source.twinMirrorSide = source.twinMirrorSide || (Math.random() < 0.5 ? -1 : 1);
@@ -768,13 +782,13 @@ function syncTwinHologram(source, now = performance.now()) {
   const twinId = `holo-${source.id}`;
   let twin = snakes.find((item) => item.id === twinId);
   if (!twin) {
-    twin = makeSnake("Hologram", source.skin, { type: "hologram", id: twinId, title: "İkili Takım", x: mirroredHead.x, y: mirroredHead.y, length: Math.min(TWIN_SEGMENT_LIMIT, source.segments.length || 18), ownerId: source.id });
+    twin = makeSnake(source.name, source.skin, { type: "hologram", id: twinId, title: source.title || "", x: mirroredHead.x, y: mirroredHead.y, length: Math.min(TWIN_SEGMENT_LIMIT, source.segments.length || 18), ownerId: source.id });
     snakes.push(twin);
   }
   twin.ownerId = source.id;
   twin.alive = true;
-  twin.name = "Hologram";
-  twin.title = "İkili Takım";
+  twin.name = source.name;
+  twin.title = source.title || "";
   twin.skin = source.skin;
   twin.colors = source.colors;
   twin.x = mirroredHead.x;
@@ -2406,9 +2420,7 @@ function updateHumanIntent(snake) {
   }
 }
 
-function thinkForBot(snake, now) {
-  if (now < snake.thinkAt) return;
-  snake.thinkAt = now + random(240, 560);
+function botNearestFood(snake) {
   let closestFood = null;
   let closestDist = Infinity;
   const start = Math.floor(random(0, 8));
@@ -2418,13 +2430,115 @@ function thinkForBot(snake, now) {
     const d = dx * dx + dy * dy;
     if (d < closestDist) { closestDist = d; closestFood = foods[i]; }
   }
-  let desired = closestFood ? Math.atan2(closestFood.y - snake.y, closestFood.x - snake.x) : snake.aiAngle + random(-0.8, 0.8);
+  return { food: closestFood, distSq: closestDist };
+}
+
+function botNearestOpponent(snake) {
+  let target = null;
+  let bestDist = Infinity;
+  for (const candidate of snakes) {
+    if (!candidate.alive || candidate.id === snake.id || candidate.ownerId === snake.id) continue;
+    if (snake.ownerId && candidate.id === snake.ownerId) continue;
+    const dx = candidate.x - snake.x;
+    const dy = candidate.y - snake.y;
+    let dist = dx * dx + dy * dy;
+    if (candidate.type === "hologram") dist *= 0.62;
+    if (candidate.isPlayer || candidate.type === "human") dist *= 0.82;
+    if (dist < bestDist) { bestDist = dist; target = candidate; }
+  }
+  return target ? { target, distSq: bestDist } : null;
+}
+
+function botNearestBodyThreat(snake) {
+  const maxDistSq = BOT_BODY_DANGER_RANGE * BOT_BODY_DANGER_RANGE;
+  let threat = null;
+  let bestDist = maxDistSq;
+  for (const other of snakes) {
+    if (!other.alive || other.id === snake.id || other.ownerId === snake.id) continue;
+    if (other.bounds && (snake.x < other.bounds.left - BOT_BODY_DANGER_RANGE || snake.x > other.bounds.right + BOT_BODY_DANGER_RANGE || snake.y < other.bounds.top - BOT_BODY_DANGER_RANGE || snake.y > other.bounds.bottom + BOT_BODY_DANGER_RANGE)) continue;
+    const stride = other.type === "hologram" ? 10 : 7;
+    for (let i = 8; i < other.segments.length; i += stride) {
+      const seg = other.segments[i];
+      const dx = snake.x - seg.x;
+      const dy = snake.y - seg.y;
+      const dist = dx * dx + dy * dy;
+      if (dist < bestDist) { bestDist = dist; threat = seg; }
+    }
+  }
+  return threat ? { point: threat, distSq: bestDist } : null;
+}
+
+function tryBotPowerUse(snake, targetInfo, threatInfo, now) {
+  if (now < (snake.nextBotPowerAt || 0) || arePowersLocked(snake, now)) return false;
+  snake.nextBotPowerAt = now + random(520, 1180);
+  const target = targetInfo?.target || null;
+  const distSq = targetInfo?.distSq ?? Infinity;
+  const dist = Math.sqrt(distSq);
+  const nearWall = snake.x < 180 || snake.x > WORLD - 180 || snake.y < 180 || snake.y > WORLD - 180;
+  const danger = nearWall || (threatInfo && threatInfo.distSq < BOT_BODY_DANGER_RANGE * BOT_BODY_DANGER_RANGE * 0.72);
+  if (danger && (snake.shieldPower ?? 100) >= 100 && Math.random() < 0.56) return activateShield(snake, now);
+  if (danger && (snake.dashPower ?? 100) >= DASH_COST && Math.random() < 0.38) {
+    if (threatInfo?.point) snake.angle = Math.atan2(snake.y - threatInfo.point.y, snake.x - threatInfo.point.x);
+    return activateDash(snake, now);
+  }
+  if (!target) return false;
+  if (dist < 660 && (snake.slowPower ?? 100) >= 100 && Math.random() < 0.36) return activateSlow(snake, now);
+  if (dist < 480 && (snake.trapPower ?? 100) >= 100 && Math.random() < 0.32) return activateTrap(snake, now);
+  if (dist < 900 && !isTwinActive(snake, now) && (snake.twinPower ?? 100) >= 100 && Math.random() < 0.34) return activateTwin(snake, now);
+  if (dist > 360 && dist < 980 && (snake.goldPower ?? 100) >= 100 && !isGoldActive(snake, now) && Math.random() < 0.34) return activateGold(snake, now);
+  if (dist < 520 && (snake.dashPower ?? 100) >= DASH_COST && Math.random() < 0.24) {
+    snake.angle = Math.atan2(target.y - snake.y, target.x - snake.x);
+    return activateDash(snake, now);
+  }
+  if (dist < 720 && (snake.bloomPower ?? 100) >= 100 && Math.random() < 0.16) return activateBloom(snake, now);
+  if ((snake.power ?? 0) >= 100 && !isPowerActive(snake, now) && Math.random() < 0.14) return activatePower(snake, now);
+  return false;
+}
+
+function thinkForBot(snake, now) {
+  if (now < snake.thinkAt) return;
+  snake.thinkAt = now + random(170, 360);
+  const foodInfo = botNearestFood(snake);
+  const targetInfo = botNearestOpponent(snake);
+  const threatInfo = botNearestBodyThreat(snake);
+  if (!snake.aiStrafeSide) snake.aiStrafeSide = Math.random() < 0.5 ? -1 : 1;
+  if (now > (snake.aiSideFlipAt || 0)) {
+    if (Math.random() < 0.36) snake.aiStrafeSide *= -1;
+    snake.aiSideFlipAt = now + random(2400, 5200);
+  }
+
+  let desired = foodInfo.food ? Math.atan2(foodInfo.food.y - snake.y, foodInfo.food.x - snake.x) : snake.aiAngle + random(-0.65, 0.65);
+  const target = targetInfo?.target;
+  if (target && targetInfo.distSq < BOT_TARGET_RANGE * BOT_TARGET_RANGE) {
+    const dx = target.x - snake.x;
+    const dy = target.y - snake.y;
+    const dist = Math.max(1, Math.sqrt(targetInfo.distSq));
+    const direct = Math.atan2(dy, dx);
+    const stronger = snake.targetLength + (isPowerActive(snake, now) ? 8 : 0) >= target.targetLength * 0.86;
+    if (!stronger && dist < 330) {
+      desired = direct + Math.PI + snake.aiStrafeSide * 0.42;
+    } else {
+      const closePressure = clamp((BOT_PRESS_RANGE - dist) / BOT_PRESS_RANGE, 0, 1);
+      const surroundOffset = snake.aiStrafeSide * (stronger ? 0.34 + closePressure * 1.08 : 1.18);
+      desired = direct + surroundOffset;
+      if (stronger && dist < 260) desired = direct + snake.aiStrafeSide * 1.52;
+    }
+  }
+
+  if (threatInfo && threatInfo.distSq < BOT_BODY_DANGER_RANGE * BOT_BODY_DANGER_RANGE) {
+    desired = Math.atan2(snake.y - threatInfo.point.y, snake.x - threatInfo.point.x) + snake.aiStrafeSide * 0.38;
+  }
   if (snake.x < 260) desired = 0;
   if (snake.x > WORLD - 260) desired = Math.PI;
   if (snake.y < 260) desired = Math.PI / 2;
   if (snake.y > WORLD - 260) desired = -Math.PI / 2;
   snake.aiAngle = desired;
-  snake.boostHeld = closestDist > 67600 && snake.boost > 35 && Math.random() < 0.2;
+
+  const chasing = targetInfo && targetInfo.distSq > 300 * 300 && targetInfo.distSq < BOT_TARGET_RANGE * BOT_TARGET_RANGE;
+  const escaping = threatInfo && threatInfo.distSq < BOT_BODY_DANGER_RANGE * BOT_BODY_DANGER_RANGE;
+  const foodFar = foodInfo.distSq > 460 * 460;
+  snake.boostHeld = snake.boost > 28 && (escaping || chasing || foodFar) && Math.random() < (escaping ? 0.74 : chasing ? 0.58 : 0.34);
+  tryBotPowerUse(snake, targetInfo, threatInfo, now);
 }
 
 function moveSnake(snake, dt, now) {
@@ -2436,7 +2550,7 @@ function moveSnake(snake, dt, now) {
   const golden = isGoldActive(snake, now);
   const shielded = isShieldActive(snake, now) || isShieldGrace(snake, now);
   const slowed = isSlowed(snake, now);
-  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.16 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * (shielded ? 0.98 : 1) * (slowed ? SLOW_SPEED_MULTIPLIER : 1) * dt;
+  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.16 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * (shielded ? 0.94 : 1) * (slowed ? SLOW_SPEED_MULTIPLIER : 1) * dt;
   if (canBoost) {
     snake.boost = Math.max(0, snake.boost - 0.42 * dt);
     snake.targetLength = Math.max(12, snake.targetLength - 0.018 * dt);
@@ -2516,7 +2630,7 @@ function collectFood(snake, now = performance.now()) {
           snake.twinPower = Math.min(100, (snake.twinPower ?? 100) + TWIN_PICKUP_BONUS + bonusPower * 0.45);
           snake.goldPower = Math.min(100, (snake.goldPower ?? 100) + GOLD_PICKUP_BONUS + bonusPower * 0.55);
           snake.trapPower = Math.min(100, (snake.trapPower ?? 100) + TRAP_PICKUP_BONUS + bonusPower * 0.35);
-          snake.shieldPower = Math.min(100, (snake.shieldPower ?? 100) + SHIELD_PICKUP_BONUS + bonusPower * 0.35);
+          snake.shieldPower = Math.min(100, (snake.shieldPower ?? 100) + SHIELD_PICKUP_BONUS + bonusPower * 0.2);
           snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SLOW_PICKUP_BONUS + bonusPower * 0.35);
           snake.bloomPower = Math.min(100, (snake.bloomPower ?? 100) + BLOOM_PICKUP_BONUS + bonusPower * 0.35);
           if (snake.isPlayer && collected <= 2) spawnEffectBurst(food.x, food.y, bonusFood ? food.aura || food.color : food.color, bonusFood ? 8 : 1);
@@ -2926,7 +3040,7 @@ function drawSnake(snake, now = performance.now()) {
   const headVisible = snake.x > viewBounds.left - padding && snake.x < viewBounds.right + padding && snake.y > viewBounds.top - padding && snake.y < viewBounds.bottom + padding;
   let drewAny = false;
   const segmentCount = snake.segments.length;
-  const drawStep = hologram ? (segmentCount > 80 ? 3 : 2) : !snake.isPlayer ? (segmentCount > 120 ? 4 : segmentCount > 70 ? 3 : segmentCount > 36 ? 2 : 1) : 1;
+  const drawStep = !snake.isPlayer ? (segmentCount > 120 ? 4 : segmentCount > 70 ? 3 : segmentCount > 36 ? 2 : 1) : 1;
   for (let i = segmentCount - 1; i >= 0; i -= drawStep) {
     const seg = snake.segments[i];
     if (seg.x < viewBounds.left - padding || seg.x > viewBounds.right + padding || seg.y < viewBounds.top - padding || seg.y > viewBounds.bottom + padding) continue;
@@ -2934,42 +3048,38 @@ function drawSnake(snake, now = performance.now()) {
     const t = i / Math.max(1, segmentCount - 1);
     const radius = Math.max(5, snake.radius * (1 - t * 0.42));
     ctx.beginPath();
-    ctx.fillStyle = hologram ? (i % 2 ? "rgba(79,243,255,0.34)" : "rgba(216,243,255,0.28)") : i % 2 ? secondary : primary;
-    ctx.globalAlpha = hologram ? 0.62 - t * 0.28 : snake.type === "remote" ? 0.78 : 1 - t * 0.12;
+    ctx.fillStyle = i % 2 ? secondary : primary;
+    ctx.globalAlpha = snake.type === "remote" ? 0.78 : 1 - t * 0.12;
     ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
   if (!drewAny || !headVisible) { ctx.globalAlpha = 1; return; }
   ctx.globalAlpha = 1;
-  if (hologram || powered || dashing || golden || shielded || slowed || locked || skin.aura) {
+  if (powered || dashing || golden || shielded || slowed || locked || skin.aura) {
     ctx.save();
-    ctx.globalAlpha = hologram ? 0.32 : golden ? 0.46 : shielded ? 0.42 : slowed ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.38 : 0.18;
-    ctx.strokeStyle = hologram ? "#8feeff" : golden ? "#ffd166" : shielded ? "#d8f3ff" : slowed ? "#a78bfa" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
-    ctx.lineWidth = hologram ? 3 : golden ? 6 : shielded ? 5 : slowed ? 4 : dashing ? 5 : locked ? 4 : powered ? 5 : 2;
-    if (hologram) ctx.setLineDash([10, 9]);
-    ctx.beginPath();
+    ctx.globalAlpha = golden ? 0.46 : shielded ? 0.42 : slowed ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.38 : 0.18;
+    ctx.strokeStyle = golden ? "#ffd166" : shielded ? "#d8f3ff" : slowed ? "#a78bfa" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
+    ctx.lineWidth = golden ? 6 : shielded ? 5 : slowed ? 4 : dashing ? 5 : locked ? 4 : powered ? 5 : 2;    ctx.beginPath();
     ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : shielded ? 26 : slowed ? 22 : dashing ? 24 : locked ? 20 : powered ? 24 : 9), 0, Math.PI * 2);
-    ctx.stroke();
-    if (hologram) ctx.setLineDash([]);
-    ctx.restore();
+    ctx.stroke();    ctx.restore();
   }
-  ctx.fillStyle = hologram ? "rgba(216,243,255,0.9)" : "#06110f";
+  ctx.fillStyle = "#06110f";
   const eyeA = snake.angle + 0.55; const eyeB = snake.angle - 0.55;
   ctx.beginPath(); ctx.arc(snake.x + Math.cos(eyeA) * 8, snake.y + Math.sin(eyeA) * 8, 2.6, 0, Math.PI * 2); ctx.arc(snake.x + Math.cos(eyeB) * 8, snake.y + Math.sin(eyeB) * 8, 2.6, 0, Math.PI * 2); ctx.fill();
-  if (!hologram) drawCowboyGear(snake, now);
+  drawCowboyGear(snake, now);
   if (snake.twinSwapAt && snake.twinSwapAt > now) {
     const remaining = snake.twinSwapAt - now;
     const digit = Math.max(1, Math.ceil(remaining / 1000));
     const phase = 1 - ((remaining % 1000) / 1000);
     ctx.save();
     ctx.globalAlpha = 0.9 - phase * 0.55;
-    ctx.fillStyle = hologram ? "#8feeff" : "#d8f3ff";
+    ctx.fillStyle = "#d8f3ff";
     ctx.font = "900 34px Inter, system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(digit.toString(), snake.x, snake.y - snake.radius - 44 - phase * 8);
     ctx.restore();
   }
-  ctx.fillStyle = hologram ? "rgba(143,238,255,0.74)" : snake.type === "remote" ? "#d8f3ff" : snake.control === "p2" ? "#fff06a" : "rgba(255,255,255,0.88)";
+  ctx.fillStyle = snake.type === "remote" ? "#d8f3ff" : snake.control === "p2" ? "#fff06a" : "rgba(255,255,255,0.88)";
   ctx.font = "700 13px Inter, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.fillText(snake.name, snake.x, snake.y - snake.radius - 24);
   if (snake.title) {
     ctx.font = "800 10px Inter, system-ui, sans-serif";
@@ -3016,7 +3126,7 @@ function drawRadar(now) {
   const rw = radar.width; const rh = radar.height;
   if (!player) { rctx.clearRect(0, 0, rw, rh); return; }
   rctx.clearRect(0, 0, rw, rh); rctx.fillStyle = "rgba(255,255,255,0.04)"; rctx.fillRect(0, 0, rw, rh); rctx.strokeStyle = "rgba(196,255,231,0.16)"; rctx.strokeRect(7, 7, rw - 14, rh - 14);
-  for (const snake of snakes) { if (!snake.alive) continue; const x = (snake.x / WORLD) * (rw - 16) + 8; const y = (snake.y / WORLD) * (rh - 16) + 8; rctx.fillStyle = snake.type === "hologram" ? "#4ff3ff" : snake.type === "remote" ? "#d8f3ff" : snake.isPlayer ? "#ffffff" : snake.colors[0]; rctx.beginPath(); rctx.arc(x, y, snake.isPlayer ? 4 : 2.6, 0, Math.PI * 2); rctx.fill(); }
+  for (const snake of snakes) { if (!snake.alive) continue; const x = (snake.x / WORLD) * (rw - 16) + 8; const y = (snake.y / WORLD) * (rh - 16) + 8; rctx.fillStyle = snake.type === "remote" ? "#d8f3ff" : snake.isPlayer ? "#ffffff" : snake.colors[0]; rctx.beginPath(); rctx.arc(x, y, snake.isPlayer ? 4 : 2.6, 0, Math.PI * 2); rctx.fill(); }
 }
 
 function updateLeaderboard() {
