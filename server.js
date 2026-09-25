@@ -6,8 +6,10 @@ const crypto = require("crypto");
 const PORT = Number(process.env.PORT || 8765);
 const ROOT = __dirname;
 const DEFAULT_DATA_FILE = path.join(ROOT, "data.json");
-const DATA_DIR = process.env.DATA_DIR || (process.env.RENDER ? "/var/data" : "");
-const DATA_FILE = process.env.DATA_FILE || process.env.DATA_PATH || (DATA_DIR ? path.join(DATA_DIR, "data.json") : DEFAULT_DATA_FILE);
+const FALLBACK_DATA_DIR = path.join(ROOT, "storage");
+const DATA_DIR = process.env.DATA_DIR || (process.env.RENDER ? FALLBACK_DATA_DIR : "");
+let DATA_FILE = process.env.DATA_FILE || process.env.DATA_PATH || (DATA_DIR ? path.join(DATA_DIR, "data.json") : DEFAULT_DATA_FILE);
+const FALLBACK_DATA_FILE = path.join(FALLBACK_DATA_DIR, "data.json");
 const PUBLIC_FILES = new Map([
   ["/", "index.html"],
   ["/index.html", "index.html"],
@@ -50,22 +52,53 @@ function loadData() {
   }
 }
 
-function ensureDataFile() {
-  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-  if (fs.existsSync(DATA_FILE)) return;
-  if (DATA_FILE !== DEFAULT_DATA_FILE && fs.existsSync(DEFAULT_DATA_FILE)) {
-    fs.copyFileSync(DEFAULT_DATA_FILE, DATA_FILE);
+function uniqueDataFileCandidates() {
+  return Array.from(new Set([DATA_FILE, FALLBACK_DATA_FILE, DEFAULT_DATA_FILE].filter(Boolean)));
+}
+
+function prepareDataFile(file) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  if (fs.existsSync(file)) return;
+  if (file !== DEFAULT_DATA_FILE && fs.existsSync(DEFAULT_DATA_FILE)) {
+    fs.copyFileSync(DEFAULT_DATA_FILE, file);
     return;
   }
-  fs.writeFileSync(DATA_FILE, JSON.stringify({ profiles: {}, sessions: {} }, null, 2));
+  fs.writeFileSync(file, JSON.stringify({ profiles: {}, sessions: {} }, null, 2));
 }
+
+function ensureDataFile() {
+  let lastError;
+  for (const file of uniqueDataFileCandidates()) {
+    try {
+      prepareDataFile(file);
+      DATA_FILE = file;
+      return file;
+    } catch (error) {
+      lastError = error;
+      console.warn(`[data] ${file} is not writable: ${error.message}`);
+    }
+  }
+  throw lastError;
+}
+
 function saveData() {
   data.sessions ||= {};
-  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
   const payload = JSON.stringify(data, null, 2);
-  const tempFile = `${DATA_FILE}.tmp`;
-  fs.writeFileSync(tempFile, payload);
-  fs.renameSync(tempFile, DATA_FILE);
+  let lastError;
+  for (const file of uniqueDataFileCandidates()) {
+    try {
+      prepareDataFile(file);
+      const tempFile = `${file}.tmp`;
+      fs.writeFileSync(tempFile, payload);
+      fs.renameSync(tempFile, file);
+      DATA_FILE = file;
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(`[data] ${file} could not be saved: ${error.message}`);
+    }
+  }
+  throw lastError;
 }
 
 function sanitizeName(name, fallback = "Guest") {

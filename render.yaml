@@ -8,9 +8,9 @@ services:
     healthCheckPath: /
     envVars:
       - key: DATA_DIR
-        value: /var/data
+        value: /opt/render/project/src/storage
     disk:
       name: snake-area-data
-      mountPath: /var/data
+      mountPath: /opt/render/project/src/storage
       sizeGB: 1
     autoDeployTrigger: commit
