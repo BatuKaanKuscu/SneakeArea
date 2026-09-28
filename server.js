@@ -36,6 +36,8 @@ const playerTitles = Array.from(new Set([...baseTitles, ...specialTitles]));
 const allowedTitles = new Set(adminTitles);
 const allowedAvatars = new Set(["near", "area", "bolt", "crown", "coin", "wave"]);
 const allowedThemes = new Set(["aurora", "ember", "ice", "forest"]);
+const ROOM_PREFIX = "AREA";
+const ADMIN_ROOM_CODE = `${ROOM_PREFIX}51`;
 let data = loadData();
 let clients = new Map();
 let rooms = new Map();
@@ -111,7 +113,16 @@ function sanitizeSkin(skin) {
 }
 
 function sanitizeRoom(room) {
-  return String(room || "LOBBY").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) || "LOBBY";
+  const raw = String(room || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!raw) return ROOM_PREFIX;
+  const suffix = raw.startsWith(ROOM_PREFIX)
+    ? raw.slice(ROOM_PREFIX.length)
+    : ROOM_PREFIX.startsWith(raw) ? "" : raw;
+  return `${ROOM_PREFIX}${suffix.slice(0, 4)}`;
+}
+
+function isAdminRoom(room) {
+  return sanitizeRoom(room) === ADMIN_ROOM_CODE;
 }
 
 
@@ -858,13 +869,17 @@ function handleFrame(client, buffer) {
 function handleMessage(client, message) {
   if (message.type === "join") {
     const nextRoom = sanitizeRoom(message.room);
-    if (client.room && client.room !== nextRoom) leaveRoom(client);
     const tokenName = sessionName(message.token);
-    client.name = tokenName || sanitizeName(message.name, "Guest");
-    client.isAdmin = Boolean(tokenName && getProfile(tokenName).isAdmin);
+    const profile = tokenName ? getProfile(tokenName) : null;
+    if (isAdminRoom(nextRoom) && !profile?.isAdmin) {
+      sendWs(client, { type: "room-error", code: "admin_room", room: nextRoom });
+      return;
+    }
+    if (client.room && client.room !== nextRoom) leaveRoom(client);
+    client.name = profile?.name || sanitizeName(message.name, "Guest");
+    client.isAdmin = Boolean(profile?.isAdmin);
     client.skin = sanitizeSkin(message.skin);
     client.room = nextRoom;
-    if (tokenName) getProfile(client.name);
     const state = roomState(client.room);
     const members = roomMembers(client.room);
     if (!state.hostId || !members.some((item) => item.id === state.hostId)) state.hostId = client.id;
@@ -880,7 +895,6 @@ function handleMessage(client, message) {
     broadcastOnline();
     return;
   }
-
 
   if (message.type === "start") {
     if (!client.room) return;

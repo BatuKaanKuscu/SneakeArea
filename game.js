@@ -298,6 +298,8 @@ let gameMode = "solo";
 let tutorialPracticeMode = false;
 let runningTutorial = false;
 let currentRoom = "";
+const ROOM_PREFIX = "AREA";
+const ADMIN_ROOM_CODE = `${ROOM_PREFIX}51`;
 let botCountSetting = 9;
 let matchFinalized = false;
 let matchHadOpponents = false;
@@ -1357,7 +1359,61 @@ function useRoomInvite(room) {
   hideQuickPanel();
 }
 function generateRoomCode() {
-  return `AREA${Math.floor(1000 + Math.random() * 9000)}`;
+  return `${ROOM_PREFIX}${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+function normalizeRoomCode(value, fallback = ROOM_PREFIX) {
+  const raw = String(value || fallback || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const suffix = raw.startsWith(ROOM_PREFIX)
+    ? raw.slice(ROOM_PREFIX.length)
+    : ROOM_PREFIX.startsWith(raw) ? "" : raw;
+  return `${ROOM_PREFIX}${suffix.slice(0, 4)}`;
+}
+
+function roomCodeSuffix(value) {
+  return normalizeRoomCode(value).slice(ROOM_PREFIX.length);
+}
+
+function isAdminRoomCode(value) {
+  return normalizeRoomCode(value) === ADMIN_ROOM_CODE;
+}
+
+function syncRoomCodeInput(value = roomCodeInput?.value || ROOM_PREFIX, options = {}) {
+  const code = normalizeRoomCode(value);
+  if (roomCodeInput) {
+    roomCodeInput.value = code;
+    if (options.caret !== false && document.activeElement === roomCodeInput && roomCodeInput.setSelectionRange) {
+      const desired = options.end ? code.length : Math.max(ROOM_PREFIX.length, Math.min(code.length, roomCodeInput.selectionStart || code.length));
+      roomCodeInput.setSelectionRange(desired, desired);
+    }
+  }
+  if (roomCodeLabel) roomCodeLabel.textContent = code || ROOM_PREFIX;
+  return code;
+}
+
+function protectRoomPrefix(event) {
+  if (gameMode !== "room-join" || !roomCodeInput) return;
+  const start = roomCodeInput.selectionStart ?? 0;
+  const end = roomCodeInput.selectionEnd ?? start;
+  if ((event.key === "Backspace" && start <= ROOM_PREFIX.length && end <= ROOM_PREFIX.length)
+    || (event.key === "Delete" && start < ROOM_PREFIX.length)) {
+    event.preventDefault();
+    syncRoomCodeInput(roomCodeInput.value, { end: false });
+  }
+}
+
+function handleRoomCodeInput() {
+  if (gameMode !== "room-join") return;
+  syncRoomCodeInput(roomCodeInput.value);
+}
+
+function focusRoomCodeSuffix() {
+  if (!roomCodeInput || gameMode !== "room-join") return;
+  syncRoomCodeInput(roomCodeInput.value || ROOM_PREFIX, { caret: false });
+  if (roomCodeInput.setSelectionRange) {
+    const end = roomCodeInput.value.length;
+    roomCodeInput.setSelectionRange(Math.max(ROOM_PREFIX.length, end), end);
+  }
 }
 
 function showQuickPanel(kind) {
@@ -1686,25 +1742,26 @@ function updateModeButtons() {
   if (p2Field) p2Field.classList.toggle("is-visible", gameMode === "party");
   roomPanel.classList.toggle("is-hidden", !gameMode.startsWith("room"));
   if (gameMode === "room-create") {
-    if (!currentRoom) currentRoom = generateRoomCode();
-    roomCodeInput.value = currentRoom;
+    if (!currentRoom || currentRoom === ROOM_PREFIX) currentRoom = generateRoomCode();
+    syncRoomCodeInput(currentRoom, { caret: false });
     roomCodeInput.placeholder = "Otomatik oda kodu";
     roomCodeInput.readOnly = true;
     roomCodeInput.classList.add("system-code");
     if (roomCodeHintText) roomCodeHintText.textContent = "Oda kodun:";
   } else if (gameMode === "room-join") {
     roomCodeInput.readOnly = false;
-    roomCodeInput.placeholder = "Oda kodunu gir";
+    roomCodeInput.placeholder = "AREA51 veya AREA1234";
     roomCodeInput.classList.remove("system-code");
-    if (currentRoom && roomCodeInput.value === currentRoom) roomCodeInput.value = "";
+    syncRoomCodeInput(roomCodeInput.value || currentRoom || ROOM_PREFIX, { end: true });
     if (roomCodeHintText) roomCodeHintText.textContent = "Katılacağın oda:";
   } else {
     roomCodeInput.readOnly = false;
     roomCodeInput.placeholder = "Oda kodu";
     roomCodeInput.classList.remove("system-code");
     if (roomCodeHintText) roomCodeHintText.textContent = "Oda kodu:";
+    roomCodeLabel.textContent = "-";
   }
-  roomCodeLabel.textContent = gameMode.startsWith("room") ? (roomCodeInput.value || currentRoom || "-") : "-";
+  roomCodeLabel.textContent = gameMode.startsWith("room") ? (normalizeRoomCode(roomCodeInput.value || currentRoom || ROOM_PREFIX)) : "-";
   if (playButtonText) playButtonText.textContent = gameMode === "tutorial" ? "TUTORIALI AÇ" : gameMode.startsWith("room") ? "LOBİYE GİR" : "OYUNA GİR";
 }
 function resize() {
@@ -2028,17 +2085,24 @@ function seedRoomRemotePlayers() {
 }
 function enterLobby() {
   if (gameMode === "room-create") {
-    if (!currentRoom) currentRoom = generateRoomCode();
-    roomCodeInput.value = currentRoom;
+    if (!currentRoom || currentRoom === ROOM_PREFIX) currentRoom = generateRoomCode();
+    syncRoomCodeInput(currentRoom, { caret: false });
     isRoomHost = true;
   } else if (gameMode === "room-join") {
-    currentRoom = cleanName(roomCodeInput.value, "").toUpperCase();
-    if (!currentRoom) {
+    currentRoom = normalizeRoomCode(roomCodeInput.value);
+    if (!roomCodeSuffix(currentRoom)) {
       roomCodeInput.focus();
-      roomCodeLabel.textContent = "Kod gerekli";
+      syncRoomCodeInput(ROOM_PREFIX, { end: true });
+      roomCodeLabel.textContent = "AREA sonrası kod gerekli";
       return;
     }
-    roomCodeInput.value = currentRoom;
+    if (isAdminRoomCode(currentRoom) && !isAdminUser()) {
+      syncRoomCodeInput(currentRoom, { end: true });
+      roomCodeLabel.textContent = "Admin odası";
+      setAuthStatus("AREA51 sadece adminlere özel");
+      return;
+    }
+    syncRoomCodeInput(currentRoom, { caret: false });
     isRoomHost = false;
   } else {
     resetGame();
@@ -2217,7 +2281,8 @@ function resetGame() {
 }
 
 function connectOnline(fromLobby = false) {
-  if (!currentRoom) currentRoom = "LOBBY";
+  if (!currentRoom) currentRoom = ROOM_PREFIX;
+  currentRoom = normalizeRoomCode(currentRoom);
   roomCodeLabel.textContent = currentRoom;
   const joinMessage = () => JSON.stringify({ type: "join", token: authToken || "", name: getCurrentPlayerName(), skin: getPlayableSkinId(selectedSkin), room: currentRoom, host: isRoomHost });
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -2241,7 +2306,17 @@ function connectOnline(fromLobby = false) {
 
 function handleOnlineMessage(message) {
   if (message.type === "welcome") wsId = message.id;
-  if (message.type === "room") { currentRoom = message.room; roomCodeLabel.textContent = currentRoom; renderProfile(); renderLobby(); }
+  if (message.type === "room-error") {
+    const text = message.code === "admin_room" ? "AREA51 sadece adminlere özel" : "Odaya girilemedi";
+    if (lobbyStatus) lobbyStatus.textContent = text;
+    if (roomCodeLabel) roomCodeLabel.textContent = message.room || currentRoom || ROOM_PREFIX;
+    setAuthStatus(text);
+    closeOnline();
+    if (lobbyPanel) lobbyPanel.classList.add("is-hidden");
+    startPanel.classList.remove("is-hidden");
+    return;
+  }
+  if (message.type === "room") { currentRoom = normalizeRoomCode(message.room); syncRoomCodeInput(currentRoom, { caret: false }); renderProfile(); renderLobby(); }
   if (message.type === "lobby") {
     lobbyPlayers = message.players || [];
     lobbyHostId = message.hostId || "";
@@ -3220,7 +3295,11 @@ function bindControls() {
   translateButton.addEventListener("click", toggleLanguage);
   closeQuickPanel.addEventListener("click", hideQuickPanel);
   document.querySelectorAll(".mode-button").forEach((button) => button.addEventListener("click", () => { gameMode = button.dataset.mode; updateModeButtons(); }));
-  if (roomCodeInput) roomCodeInput.addEventListener("input", () => { if (gameMode === "room-join") roomCodeLabel.textContent = cleanName(roomCodeInput.value, "").toUpperCase() || "-"; });
+  if (roomCodeInput) {
+    roomCodeInput.addEventListener("keydown", protectRoomPrefix);
+    roomCodeInput.addEventListener("input", handleRoomCodeInput);
+    roomCodeInput.addEventListener("focus", focusRoomCodeSuffix);
+  }
   botCountInput.addEventListener("input", () => { botCountSetting = Number(botCountInput.value); botCountValue.textContent = botCountSetting.toString(); });
   if (profileName) profileName.addEventListener("change", () => renderProfile());
   if (guestMode) guestMode.addEventListener("change", () => { renderProfile(); });
