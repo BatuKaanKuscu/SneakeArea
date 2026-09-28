@@ -17,6 +17,7 @@ const PUBLIC_FILES = new Map([
   ["/game.js", "game.js"],
   ["/logo.svg", "logo.svg"],
   ["/ekmekstr-theme.wav", "ekmekstr-theme.wav"],
+  ["/arena-theme.wav", "arena-theme.wav"],
 ]);
 
 const epicSkins = [

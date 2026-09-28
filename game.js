@@ -341,6 +341,10 @@ let lastNetworkSend = 0;
 let serverAvailable = false;
 let listeningKeybind = "";
 let settingsMessage = "";
+const AUDIO_SETTINGS_KEY = "snakeAreaAudioSettings";
+let audioSettings = loadAudioSettings();
+let audioUnlocked = false;
+let gameAudioContext = null;
 let powerKeybinds = loadPowerKeybinds();
 let touchControls = loadTouchControls();
 
@@ -855,17 +859,20 @@ function currentPowerTarget() {
 function triggerSpecialPower(kind) {
   if (!running) return false;
   const target = currentPowerTarget();
-  if (!target) return false;
-  if (arePowersLocked(target)) return false;
-  if (kind === "area") return activatePower(target);
-  if (kind === "dash") return activateDash(target);
-  if (kind === "twin") return activateTwin(target);
-  if (kind === "gold") return activateGold(target);
-  if (kind === "trap") return activateTrap(target);
-  if (kind === "shield") return activateShield(target);
-  if (kind === "slow") return activateSlow(target);
-  if (kind === "bloom") return activateBloom(target);
-  return false;
+  if (!target || arePowersLocked(target)) return false;
+  const activators = {
+    area: activatePower,
+    dash: activateDash,
+    twin: activateTwin,
+    gold: activateGold,
+    trap: activateTrap,
+    shield: activateShield,
+    slow: activateSlow,
+    bloom: activateBloom,
+  };
+  const activated = Boolean(activators[kind]?.(target));
+  if (activated) playSoundEffect("power");
+  return activated;
 }
 function snakeRadiusForLength(length, isHuman = true) { return (isHuman ? 12.5 : 11.5) + Math.min(13, Math.max(0, length - 18) * 0.055); }
 function cleanName(value, fallback) { return (value || "").trim().replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 14) || fallback; }
@@ -929,32 +936,116 @@ function normalizeProfile(raw) {
 }
 
 let specialMusicAudio = null;
+let arenaMusicAudio = null;
+
+function loadAudioSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(AUDIO_SETTINGS_KEY) || "{}");
+    return {
+      muted: Boolean(saved.muted),
+      musicVolume: clamp(Number(saved.musicVolume ?? 35), 0, 100),
+      effectsVolume: clamp(Number(saved.effectsVolume ?? 65), 0, 100),
+    };
+  } catch {
+    return { muted: false, musicVolume: 35, effectsVolume: 65 };
+  }
+}
+
+function saveAudioSettings() {
+  localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify(audioSettings));
+  applyAudioSettings();
+}
+
 function shouldPlaySpecialMusic() {
   return Boolean(authToken && !(guestMode && guestMode.checked) && profile?.specialMusic === "ekmekstr" && String(profile?.name || "").toLowerCase() === "ekmekstr");
 }
 
-function ensureSpecialMusicAudio() {
-  if (!specialMusicAudio && typeof Audio !== "undefined") {
+function ensureMusicAudio() {
+  if (typeof Audio === "undefined") return {};
+  if (!specialMusicAudio) {
     specialMusicAudio = new Audio("/ekmekstr-theme.wav");
     specialMusicAudio.loop = true;
-    specialMusicAudio.volume = 0.28;
+    specialMusicAudio.preload = "auto";
+    specialMusicAudio.playsInline = true;
   }
-  return specialMusicAudio;
+  if (!arenaMusicAudio) {
+    arenaMusicAudio = new Audio("/arena-theme.wav");
+    arenaMusicAudio.loop = true;
+    arenaMusicAudio.preload = "auto";
+    arenaMusicAudio.playsInline = true;
+  }
+  return { specialMusicAudio, arenaMusicAudio };
+}
+
+function applyAudioSettings() {
+  const tracks = ensureMusicAudio();
+  const volume = audioSettings.muted ? 0 : audioSettings.musicVolume / 100;
+  if (tracks.specialMusicAudio) tracks.specialMusicAudio.volume = volume;
+  if (tracks.arenaMusicAudio) tracks.arenaMusicAudio.volume = volume;
+  if (gameAudioContext?.state === "suspended" && audioUnlocked && !audioSettings.muted) gameAudioContext.resume().catch(() => {});
 }
 
 function syncSpecialMusic() {
-  const audio = ensureSpecialMusicAudio();
-  if (!audio) return;
-  if (!shouldPlaySpecialMusic()) {
-    audio.pause();
-    audio.currentTime = 0;
+  const tracks = ensureMusicAudio();
+  const selected = shouldPlaySpecialMusic() ? tracks.specialMusicAudio : tracks.arenaMusicAudio;
+  const other = selected === tracks.specialMusicAudio ? tracks.arenaMusicAudio : tracks.specialMusicAudio;
+  if (other && !other.paused) {
+    other.pause();
+    other.currentTime = 0;
+  }
+  applyAudioSettings();
+  if (!selected || audioSettings.muted || !audioUnlocked) {
+    if (selected && audioSettings.muted) selected.pause();
     return;
   }
-  audio.play().catch(() => {});
+  selected.play().catch(() => {});
 }
 
-window.addEventListener("pointerdown", syncSpecialMusic, { passive: true });
-window.addEventListener("keydown", syncSpecialMusic);
+function unlockGameAudio() {
+  if (audioUnlocked) {
+    if (gameAudioContext?.state === "suspended") gameAudioContext.resume().catch(() => {});
+    syncSpecialMusic();
+    return;
+  }
+  audioUnlocked = true;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (AudioContextClass && !gameAudioContext) gameAudioContext = new AudioContextClass();
+  if (gameAudioContext?.state === "suspended") gameAudioContext.resume().catch(() => {});
+  const tracks = ensureMusicAudio();
+  const candidates = [tracks.specialMusicAudio, tracks.arenaMusicAudio].filter(Boolean);
+  const unlocks = candidates.map((track) => {
+    track.volume = 0;
+    const attempt = track.play();
+    return attempt?.then ? attempt.then(() => { track.pause(); }).catch(() => {}) : Promise.resolve();
+  });
+  Promise.allSettled(unlocks).then(() => {
+    applyAudioSettings();
+    syncSpecialMusic();
+  });
+}
+
+function playSoundEffect(kind = "power") {
+  if (audioSettings.muted || audioSettings.effectsVolume <= 0 || !audioUnlocked) return;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  if (!gameAudioContext) gameAudioContext = new AudioContextClass();
+  const now = gameAudioContext.currentTime;
+  const oscillator = gameAudioContext.createOscillator();
+  const gain = gameAudioContext.createGain();
+  oscillator.type = kind === "food" ? "sine" : "triangle";
+  oscillator.frequency.setValueAtTime(kind === "food" ? 520 : 220, now);
+  oscillator.frequency.exponentialRampToValueAtTime(kind === "food" ? 760 : 520, now + 0.1);
+  gain.gain.setValueAtTime(Math.max(0.001, audioSettings.effectsVolume / 100 * 0.12), now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+  oscillator.connect(gain);
+  gain.connect(gameAudioContext.destination);
+  oscillator.start(now);
+  oscillator.stop(now + 0.13);
+}
+
+window.addEventListener("pointerdown", unlockGameAudio, { passive: true });
+window.addEventListener("touchstart", unlockGameAudio, { passive: true, once: true });
+window.addEventListener("keydown", unlockGameAudio);
 async function api(path, options = {}) {
   const response = await fetch(path, { headers: { "content-type": "application/json" }, cache: "no-store", ...options });
   const text = await response.text();
@@ -1707,7 +1798,16 @@ function renderSettings() {
     <input type="range" min="${item.min}" max="${item.max}" value="${touchControls[item.key]}" data-touch-control="${item.key}" />
     <output data-touch-output="${item.key}">${touchControlLabel(item.key)}</output>
   </label>`).join("");
-  quickSettings.innerHTML = `
+  const audioMuted = audioSettings.muted;
+  const audioCard = `
+    <section class="settings-card audio-settings-card">
+      <header class="settings-head"><div><span>SES</span><h3>Müzik ve efektler</h3></div><label class="audio-toggle"><input type="checkbox" data-audio-muted="1" ${audioMuted ? "checked" : ""} /><span>${audioMuted ? "Sessiz" : "Açık"}</span></label></header>
+      <div class="audio-control-list">
+        <label class="audio-control-row"><span><b>Müzik</b><small>${shouldPlaySpecialMusic() ? "Ekmekstr özel parçası" : "Snake Area arena parçası"}</small></span><input type="range" min="0" max="100" value="${audioSettings.musicVolume}" data-audio-volume="musicVolume" /><output>${Math.round(audioSettings.musicVolume)}%</output></label>
+        <label class="audio-control-row"><span><b>Efektler</b><small>Güç ve oyun sesleri</small></span><input type="range" min="0" max="100" value="${audioSettings.effectsVolume}" data-audio-volume="effectsVolume" /><output>${Math.round(audioSettings.effectsVolume)}%</output></label>
+      </div>
+    </section>`;
+  quickSettings.innerHTML = audioCard + `
     <section class="settings-card">
       <header class="settings-head"><div><span>KONTROLLER</span><h3>\u00d6zel g\u00fc\u00e7 tu\u015flar\u0131</h3></div><button class="inline-action is-muted" data-reset-keybinds="1">S\u0131f\u0131rla</button></header>
       <div class="keybind-list">${keyRows}</div>
@@ -1718,6 +1818,19 @@ function renderSettings() {
       <div class="control-preview" aria-hidden="true"><span class="preview-stick"></span><span class="preview-buttons"><i></i><i></i><i></i><i></i></span></div>
       <div class="touch-control-list">${touchRows}</div>
     </section>`;
+  quickSettings.querySelector("[data-audio-muted]")?.addEventListener("change", (event) => {
+    audioSettings.muted = event.target.checked;
+    saveAudioSettings();
+    if (!audioSettings.muted) unlockGameAudio();
+    renderSettings();
+  });
+  quickSettings.querySelectorAll("[data-audio-volume]").forEach((input) => input.addEventListener("input", () => {
+    audioSettings[input.dataset.audioVolume] = clamp(Number(input.value), 0, 100);
+    const output = input.parentElement?.querySelector("output");
+    if (output) output.textContent = Math.round(Number(input.value)) + "%";
+    saveAudioSettings();
+    if (!audioSettings.muted) unlockGameAudio();
+  }));
   quickSettings.querySelectorAll("[data-keybind-kind]").forEach((button) => button.addEventListener("click", () => startKeybindCapture(button.dataset.keybindKind)));
   quickSettings.querySelector("[data-reset-keybinds]")?.addEventListener("click", resetPowerKeybinds);
   quickSettings.querySelector("[data-reset-touch]")?.addEventListener("click", resetTouchControls);
