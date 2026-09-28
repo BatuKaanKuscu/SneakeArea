@@ -171,6 +171,14 @@
         </div>
         <div class="lobby-players" id="lobbyPlayers"></div>
       </section>
+      <aside class="room-chat is-hidden" id="roomChat" aria-label="Oda sohbeti">
+        <header><div><strong>ODA SOHBETİ</strong><small id="roomChatCode">-</small></div><button id="roomChatToggle" type="button" aria-label="Sohbeti küçült">−</button></header>
+        <div class="chat-messages" id="roomChatMessages" aria-live="polite"></div>
+        <form class="chat-compose" id="roomChatForm">
+          <input id="roomChatInput" maxlength="240" placeholder="Mesaj yaz..." autocomplete="off" />
+          <button type="submit" aria-label="Mesaj gönder">Gönder</button>
+        </form>
+      </aside>
       <section class="death-panel is-hidden" id="deathPanel" aria-label="Oyun bitti">
         <h2>Yılan dağıldı</h2>
         <p id="deathText">Skorun 0.</p>

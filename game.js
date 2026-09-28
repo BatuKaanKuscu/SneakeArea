@@ -57,6 +57,12 @@ const lobbyPlayersEl = document.getElementById("lobbyPlayers");
 const leaveLobbyButton = document.getElementById("leaveLobbyButton");
 const copyRoomButton = document.getElementById("copyRoomButton");
 const startRoomButton = document.getElementById("startRoomButton");
+const roomChat = document.getElementById("roomChat");
+const roomChatCode = document.getElementById("roomChatCode");
+const roomChatToggle = document.getElementById("roomChatToggle");
+const roomChatMessages = document.getElementById("roomChatMessages");
+const roomChatForm = document.getElementById("roomChatForm");
+const roomChatInput = document.getElementById("roomChatInput");
 const profileName = document.getElementById("profileName");
 const guestMode = document.getElementById("guestMode");
 const profileAvatar = document.getElementById("profileAvatar");
@@ -298,6 +304,9 @@ let gameMode = "solo";
 let tutorialPracticeMode = false;
 let runningTutorial = false;
 let currentRoom = "";
+let roomChatHistory = [];
+let selectedFriendChat = "";
+let friendChatHistory = [];
 const ROOM_PREFIX = "AREA";
 const ADMIN_ROOM_CODE = `${ROOM_PREFIX}51`;
 let botCountSetting = 9;
@@ -1504,6 +1513,81 @@ function friendOnline(friend) {
   const name = friendNameOf(friend);
   return onlineNames.includes(name) || Boolean(friend && friend.online);
 }
+
+function escapeChatText(value) {
+  return String(value || "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
+}
+
+function chatTime(value) {
+  return new Date(Number(value) || Date.now()).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function renderChatMessages(container, messages) {
+  if (!container) return;
+  container.innerHTML = messages.length
+    ? messages.map((item) => '<article class="chat-message ' + (item.from === profile.name ? "is-mine" : "") + '"><div><b>' + escapeChatText(item.from) + '</b><time>' + chatTime(item.createdAt) + '</time></div><p>' + escapeChatText(item.message) + '</p></article>').join("")
+    : '<p class="chat-empty">Henüz mesaj yok.</p>';
+  container.scrollTop = container.scrollHeight;
+}
+
+function renderRoomChat() {
+  if (roomChatCode) roomChatCode.textContent = currentRoom || "-";
+  renderChatMessages(roomChatMessages, roomChatHistory);
+}
+
+function setRoomChatVisible(visible) {
+  if (!roomChat) return;
+  roomChat.classList.toggle("is-hidden", !visible);
+  if (visible) renderRoomChat();
+}
+
+function sendRoomChat(event) {
+  event?.preventDefault();
+  const message = String(roomChatInput?.value || "").trim().slice(0, 240);
+  if (!message || !ws || ws.readyState !== WebSocket.OPEN || !currentRoom) return;
+  ws.send(JSON.stringify({ type: "room-chat", message }));
+  roomChatInput.value = "";
+}
+
+async function openFriendChat(name) {
+  selectedFriendChat = name;
+  friendChatHistory = [];
+  renderFriends();
+  try {
+    const result = await api("/api/friends/messages?token=" + encodeURIComponent(authToken) + "&friend=" + encodeURIComponent(name));
+    if (selectedFriendChat !== name) return;
+    friendChatHistory = Array.isArray(result.messages) ? result.messages : [];
+    renderFriendConversation();
+  } catch {
+    setAuthStatus("Sohbet yüklenemedi");
+  }
+}
+
+function renderFriendConversation() {
+  const messages = document.getElementById("friendChatMessages");
+  const title = document.getElementById("friendChatTitle");
+  if (title) title.textContent = selectedFriendChat || "Arkadaş sohbeti";
+  renderChatMessages(messages, friendChatHistory);
+}
+
+async function sendFriendChat(event) {
+  event?.preventDefault();
+  const input = document.getElementById("friendChatInput");
+  const message = String(input?.value || "").trim().slice(0, 240);
+  if (!message || !selectedFriendChat || !authToken) return;
+  if (input) input.disabled = true;
+  try {
+    const result = await api("/api/friends/messages", { method: "POST", body: JSON.stringify({ token: authToken, friend: selectedFriendChat, message }) });
+    friendChatHistory.push(result.message);
+    friendChatHistory = friendChatHistory.slice(-80);
+    if (input) input.value = "";
+    renderFriendConversation();
+  } catch {
+    setAuthStatus("Mesaj gönderilemedi");
+  } finally {
+    if (input) { input.disabled = false; input.focus(); }
+  }
+}
 function renderFriends() {
   const friends = profile.friends || [];
   const requests = profile.friendRequests || [];
@@ -1542,7 +1626,7 @@ function renderFriends() {
     ? friends.map((friend) => {
       const name = friendNameOf(friend);
       const online = friendOnline(friend);
-      return `<article class="friend-row"><div><b>${name}</b><small>${online ? "Çevrim içi" : "Çevrim dışı"}</small></div><div class="friend-actions"><button data-invite-friend="${name}">Davet</button><button class="is-muted" data-remove-friend="${name}">Çıkar</button></div></article>`;
+      return `<article class="friend-row"><div><b>${name}</b><small>${online ? "Çevrim içi" : "Çevrim dışı"}</small></div><div class="friend-actions"><button data-chat-friend="${name}">Sohbet</button><button data-invite-friend="${name}">Davet</button><button class="is-muted" data-remove-friend="${name}">Çıkar</button></div></article>`;
     }).join("")
     : `<article class="friend-row muted"><div><b>Henüz arkadaş yok</b><small>Kullanıcı ara ve istek gönder</small></div></article>`;
   quickFriends.innerHTML = `
@@ -1557,6 +1641,11 @@ function renderFriends() {
       <div id="friendSearchResults" class="friend-results"><article class="friend-row muted"><div><b>Arama hazır</b><small>En az 2 karakter yaz</small></div></article></div>
     </section>
     <section class="friend-card"><h3>Arkadaşların</h3>${friendsHtml}</section>
+    <section class="friend-card friend-chat-card ${selectedFriendChat ? "" : "is-hidden"}" id="friendChatCard">
+      <header><h3 id="friendChatTitle">Arkadaş sohbeti</h3><button class="is-muted" data-close-friend-chat="1">Kapat</button></header>
+      <div class="chat-messages friend-chat-messages" id="friendChatMessages"></div>
+      <form class="chat-compose" id="friendChatForm"><input id="friendChatInput" maxlength="240" placeholder="Mesaj yaz..." autocomplete="off" /><button type="submit">Gönder</button></form>
+    </section>
     <section class="friend-card"><h3>Gelen istekler</h3>${requestHtml}</section>
     <section class="friend-card"><h3>Giden istekler</h3>${outgoingHtml}</section>
     <section class="friend-card"><h3>Oda davetleri</h3>${inviteHtml}</section>`;
@@ -1567,6 +1656,10 @@ function renderFriends() {
     searchInput.searchTimer = setTimeout(searchUsers, 220);
   });
   searchInput?.addEventListener("keydown", (event) => { if (event.key === "Enter") searchUsers(); });
+  quickFriends.querySelectorAll("[data-chat-friend]").forEach((button) => button.addEventListener("click", () => openFriendChat(button.dataset.chatFriend)));
+  quickFriends.querySelector("[data-close-friend-chat]")?.addEventListener("click", () => { selectedFriendChat = ""; friendChatHistory = []; renderFriends(); });
+  document.getElementById("friendChatForm")?.addEventListener("submit", sendFriendChat);
+  renderFriendConversation();
   quickFriends.querySelectorAll("[data-accept-friend]").forEach((button) => button.addEventListener("click", () => respondFriendRequest(button.dataset.acceptFriend, true)));
   quickFriends.querySelectorAll("[data-reject-friend]").forEach((button) => button.addEventListener("click", () => respondFriendRequest(button.dataset.rejectFriend, false)));
   quickFriends.querySelectorAll("[data-invite-friend]").forEach((button) => button.addEventListener("click", () => inviteFriend(button.dataset.inviteFriend)));
@@ -2118,11 +2211,13 @@ function enterLobby() {
   if (radarWrap) radarWrap.classList.add("is-hidden");
   hideQuickPanel();
   renderLobby();
+  setRoomChatVisible(true);
   connectOnline(true);
 }
 
 function beginRoomGame() {
   if (lobbyPanel) lobbyPanel.classList.add("is-hidden");
+  setRoomChatVisible(true);
   resetGame();
 }
 
@@ -2166,6 +2261,8 @@ function exitToMenu() {
   traps = [];
   clearFoods();
   closeOnline();
+  setRoomChatVisible(false);
+  roomChatHistory = [];
   runningTutorial = false;
   tutorialPracticeMode = false;
   setGameHudVisible(false);
@@ -2316,7 +2413,21 @@ function handleOnlineMessage(message) {
     startPanel.classList.remove("is-hidden");
     return;
   }
-  if (message.type === "room") { currentRoom = normalizeRoomCode(message.room); syncRoomCodeInput(currentRoom, { caret: false }); renderProfile(); renderLobby(); }
+  if (message.type === "room") { currentRoom = normalizeRoomCode(message.room); syncRoomCodeInput(currentRoom, { caret: false }); renderProfile(); renderLobby(); renderRoomChat(); }
+  if (message.type === "room-chat-history") {
+    roomChatHistory = Array.isArray(message.messages) ? message.messages.slice(-50) : [];
+    renderRoomChat();
+  }
+  if (message.type === "room-chat" && message.message) {
+    roomChatHistory.push(message.message);
+    roomChatHistory = roomChatHistory.slice(-50);
+    renderRoomChat();
+  }
+  if (message.type === "friend-message" && message.message && message.message.from === selectedFriendChat) {
+    friendChatHistory.push(message.message);
+    friendChatHistory = friendChatHistory.slice(-80);
+    renderFriendConversation();
+  }
   if (message.type === "lobby") {
     lobbyPlayers = message.players || [];
     lobbyHostId = message.hostId || "";
@@ -3319,6 +3430,11 @@ function bindControls() {
   if (leaveLobbyButton) leaveLobbyButton.addEventListener("click", exitToMenu);
   if (copyRoomButton) copyRoomButton.addEventListener("click", copyRoomCode);
   if (startRoomButton) startRoomButton.addEventListener("click", startRoomFromLobby);
+  if (roomChatForm) roomChatForm.addEventListener("submit", sendRoomChat);
+  if (roomChatToggle) roomChatToggle.addEventListener("click", () => {
+    roomChat?.classList.toggle("is-collapsed");
+    roomChatToggle.textContent = roomChat?.classList.contains("is-collapsed") ? "+" : "−";
+  });
   if (exitGameButton) exitGameButton.addEventListener("click", exitToMenu);
   if (tutorialBackButton) tutorialBackButton.addEventListener("click", exitToMenu);
   if (tutorialPracticeButton) tutorialPracticeButton.addEventListener("click", startTutorialPractice);

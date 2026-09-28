@@ -48,9 +48,10 @@ function loadData() {
     const loaded = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
     loaded.profiles ||= {};
     loaded.sessions ||= {};
+    loaded.friendMessages = Array.isArray(loaded.friendMessages) ? loaded.friendMessages : [];
     return loaded;
   } catch {
-    return { profiles: {}, sessions: {} };
+    return { profiles: {}, sessions: {}, friendMessages: [] };
   }
 }
 
@@ -123,6 +124,23 @@ function sanitizeRoom(room) {
 
 function isAdminRoom(room) {
   return sanitizeRoom(room) === ADMIN_ROOM_CODE;
+}
+
+function sanitizeChatMessage(value) {
+  return String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 240);
+}
+
+function conversationMessages(first, second) {
+  const names = new Set([first, second]);
+  return (data.friendMessages || [])
+    .filter((message) => names.has(message.from) && names.has(message.to) && message.from !== message.to)
+    .slice(-80);
+}
+
+function notifyUser(name, payload) {
+  for (const client of clients.values()) {
+    if (client.authName === name) sendWs(client, payload);
+  }
 }
 
 
@@ -371,7 +389,9 @@ function applySpecialEntitlements(profile, name) {
     profile.name = "Ekmekstr";
     profile.role = "player";
     profile.isAdmin = false;
-    profile.coins = Math.max(Number(profile.coins) || 0, 25000);
+    profile.coins = Math.max(Number(profile.coins) || 0, 50000);
+    profile.ownedSkins = defaultSkins.slice();
+    profile.avatar = "crown";
     profile.unlockedTitles = playerTitles.filter((title) => title !== "admin");
     profile.title = profile.unlockedTitles.includes(profile.title) && profile.title !== "admin" ? profile.title : "ekmekstr";
     profile.specialMusic = "ekmekstr";
@@ -717,6 +737,50 @@ const server = http.createServer(async (req, res) => {
   }
 
 
+  if (url.pathname === "/api/friends/messages" && req.method === "GET") {
+    const name = sessionName(url.searchParams.get("token"));
+    const friendKey = findProfileKey(url.searchParams.get("friend"));
+    if (!name || !friendKey) {
+      sendJson(res, 401, { error: "auth_required" });
+      return;
+    }
+    const profile = getProfile(name);
+    if (!profile.friends.includes(friendKey)) {
+      sendJson(res, 403, { error: "not_friends" });
+      return;
+    }
+    sendJson(res, 200, { friend: friendKey, messages: conversationMessages(name, friendKey) });
+    return;
+  }
+
+  if (url.pathname === "/api/friends/messages" && req.method === "POST") {
+    const body = await readBody(req);
+    const name = sessionName(body.token);
+    const friendKey = findProfileKey(body.friend);
+    const message = sanitizeChatMessage(body.message);
+    if (!name || !friendKey) {
+      sendJson(res, 401, { error: "auth_required" });
+      return;
+    }
+    const profile = getProfile(name);
+    if (!profile.friends.includes(friendKey)) {
+      sendJson(res, 403, { error: "not_friends" });
+      return;
+    }
+    if (!message) {
+      sendJson(res, 400, { error: "empty_message" });
+      return;
+    }
+    const item = { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), from: name, to: friendKey, message, createdAt: Date.now() };
+    data.friendMessages ||= [];
+    data.friendMessages.push(item);
+    if (data.friendMessages.length > 3000) data.friendMessages = data.friendMessages.slice(-3000);
+    saveData();
+    notifyUser(friendKey, { type: "friend-message", message: item });
+    sendJson(res, 200, { message: item });
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/friends/invite") {
     const body = await readBody(req);
     const name = sessionName(body.token);
@@ -799,7 +863,7 @@ function roomMembers(room) {
 
 function roomState(room) {
   const clean = sanitizeRoom(room);
-  if (!rooms.has(clean)) rooms.set(clean, { hostId: "", started: false, botCount: 0 });
+  if (!rooms.has(clean)) rooms.set(clean, { hostId: "", started: false, botCount: 0, messages: [] });
   return rooms.get(clean);
 }
 
@@ -876,7 +940,8 @@ function handleMessage(client, message) {
       return;
     }
     if (client.room && client.room !== nextRoom) leaveRoom(client);
-    client.name = profile?.name || sanitizeName(message.name, "Guest");
+    client.authName = profile?.name || "";
+    client.name = client.authName || sanitizeName(message.name, "Guest");
     client.isAdmin = Boolean(profile?.isAdmin);
     client.skin = sanitizeSkin(message.skin);
     client.room = nextRoom;
@@ -885,6 +950,7 @@ function handleMessage(client, message) {
     if (!state.hostId || !members.some((item) => item.id === state.hostId)) state.hostId = client.id;
     if (message.host && members.length === 1) state.hostId = client.id;
     sendWs(client, { type: "room", room: client.room });
+    sendWs(client, { type: "room-chat-history", messages: (state.messages || []).slice(-50) });
     sendWs(client, {
       type: "players",
       players: [...clients.values()]
@@ -893,6 +959,22 @@ function handleMessage(client, message) {
     });
     broadcastLobby(client.room);
     broadcastOnline();
+    return;
+  }
+
+  if (message.type === "room-chat") {
+    if (!client.room) return;
+    const now = Date.now();
+    if (now - Number(client.lastChatAt || 0) < 650) return;
+    const content = sanitizeChatMessage(message.message);
+    if (!content) return;
+    client.lastChatAt = now;
+    const state = roomState(client.room);
+    state.messages ||= [];
+    const item = { id: crypto.randomUUID ? crypto.randomUUID() : String(now), from: client.name, message: content, createdAt: now };
+    state.messages.push(item);
+    state.messages = state.messages.slice(-50);
+    broadcastToRoom({ type: "room-chat", message: item }, client.room);
     return;
   }
 
