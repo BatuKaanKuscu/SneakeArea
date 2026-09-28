@@ -90,6 +90,7 @@ const friendList = document.getElementById("friendList");
 const serverStatus = document.getElementById("serverStatus");
 const botCountInput = document.getElementById("botCount");
 const botCountValue = document.getElementById("botCountValue");
+const botCountField = document.getElementById("botCountField");
 const playerTwoName = document.getElementById("playerTwoName");
 const p2Field = document.getElementById("p2Field");
 const roomPanel = document.getElementById("roomPanel");
@@ -1833,6 +1834,7 @@ function handleShopClick(skinId) {
 function updateModeButtons() {
   document.querySelectorAll(".mode-button").forEach((button) => button.classList.toggle("is-active", button.dataset.mode === gameMode));
   if (p2Field) p2Field.classList.toggle("is-visible", gameMode === "party");
+  if (botCountField) botCountField.classList.toggle("is-hidden", gameMode !== "room-create");
   roomPanel.classList.toggle("is-hidden", !gameMode.startsWith("room"));
   if (gameMode === "room-create") {
     if (!currentRoom || currentRoom === ROOM_PREFIX) currentRoom = generateRoomCode();
