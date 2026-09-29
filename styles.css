@@ -2697,3 +2697,34 @@ body.is-playing .palette-swatch::after {
   opacity: 0;
   pointer-events: none;
 }
+.room-chat > header {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.room-chat.is-dragging > header { cursor: grabbing; }
+
+.room-chat.is-collapsed {
+  width: fit-content;
+  min-width: 0;
+  grid-template-rows: auto;
+}
+
+.room-chat.is-collapsed > header {
+  gap: 12px;
+  padding: 8px 10px 8px 12px;
+}
+
+.room-chat.is-collapsed > header small { display: none; }
+.room-chat.is-collapsed > header strong { white-space: nowrap; }
+.room-chat.is-collapsed .room-chat-actions { display: flex; }
+.room-chat.is-collapsed .chat-messages,
+.room-chat.is-collapsed .chat-compose { display: none; }
+
+@media (max-width: 760px) {
+  .room-chat.is-collapsed {
+    width: fit-content;
+    max-width: calc(100vw - 16px);
+  }
+}

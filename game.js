@@ -64,6 +64,7 @@ const voiceChatButton = document.getElementById("voiceChatButton");
 const roomChatMessages = document.getElementById("roomChatMessages");
 const roomChatForm = document.getElementById("roomChatForm");
 const roomChatInput = document.getElementById("roomChatInput");
+const roomChatHeader = roomChat?.querySelector(":scope > header");
 const profileName = document.getElementById("profileName");
 const guestMode = document.getElementById("guestMode");
 const profileAvatar = document.getElementById("profileAvatar");
@@ -345,6 +346,8 @@ const pendingVoiceIce = new Map();
 let lastNetworkSend = 0;
 let lastRemoteCleanup = 0;
 const droppedOnlineCorpses = new Set();
+const ROOM_CHAT_POSITION_KEY = "snakeAreaRoomChatPosition";
+let roomChatDrag = null;
 let serverAvailable = false;
 let listeningKeybind = "";
 let settingsMessage = "";
@@ -1637,7 +1640,70 @@ function renderRoomChat() {
 function setRoomChatVisible(visible) {
   if (!roomChat) return;
   roomChat.classList.toggle("is-hidden", !visible);
-  if (visible) renderRoomChat();
+  if (visible) {
+    renderRoomChat();
+    requestAnimationFrame(restoreRoomChatPosition);
+  }
+}
+
+function clampRoomChatPosition(left, top) {
+  if (!roomChat) return { left: 0, top: 0 };
+  const margin = 8;
+  const maxLeft = Math.max(margin, window.innerWidth - roomChat.offsetWidth - margin);
+  const maxTop = Math.max(58, window.innerHeight - roomChat.offsetHeight - margin);
+  return {
+    left: clamp(Number(left) || margin, margin, maxLeft),
+    top: clamp(Number(top) || 58, 58, maxTop),
+  };
+}
+
+function setRoomChatPosition(left, top, save = false) {
+  if (!roomChat) return;
+  const position = clampRoomChatPosition(left, top);
+  roomChat.style.left = position.left + "px";
+  roomChat.style.top = position.top + "px";
+  roomChat.style.right = "auto";
+  roomChat.style.bottom = "auto";
+  roomChat.dataset.positioned = "true";
+  if (save) localStorage.setItem(ROOM_CHAT_POSITION_KEY, JSON.stringify(position));
+}
+
+function restoreRoomChatPosition() {
+  if (!roomChat) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem(ROOM_CHAT_POSITION_KEY) || "null");
+    if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) setRoomChatPosition(saved.left, saved.top);
+  } catch {}
+}
+
+function startRoomChatDrag(event) {
+  if (!roomChat || !roomChatHeader || event.button !== 0 || event.target.closest("button, input")) return;
+  const rect = roomChat.getBoundingClientRect();
+  roomChatDrag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+  roomChatHeader.setPointerCapture?.(event.pointerId);
+  roomChat.classList.add("is-dragging");
+  event.preventDefault();
+}
+
+function moveRoomChat(event) {
+  if (!roomChatDrag || event.pointerId !== roomChatDrag.pointerId) return;
+  setRoomChatPosition(event.clientX - roomChatDrag.offsetX, event.clientY - roomChatDrag.offsetY);
+  event.preventDefault();
+}
+
+function endRoomChatDrag(event) {
+  if (!roomChatDrag || event.pointerId !== roomChatDrag.pointerId) return;
+  roomChatHeader?.releasePointerCapture?.(event.pointerId);
+  roomChatDrag = null;
+  roomChat?.classList.remove("is-dragging");
+  const rect = roomChat?.getBoundingClientRect();
+  if (rect) setRoomChatPosition(rect.left, rect.top, true);
+}
+
+function reclampRoomChat() {
+  if (!roomChat?.dataset.positioned) return;
+  const rect = roomChat.getBoundingClientRect();
+  setRoomChatPosition(rect.left, rect.top, true);
 }
 
 function updateVoiceButton() {
@@ -3799,10 +3865,19 @@ function bindControls() {
   if (startRoomButton) startRoomButton.addEventListener("click", startRoomFromLobby);
   if (roomChatForm) roomChatForm.addEventListener("submit", sendRoomChat);
   if (voiceChatButton) voiceChatButton.addEventListener("click", toggleVoiceChat);
+  if (roomChatHeader) {
+    roomChatHeader.addEventListener("pointerdown", startRoomChatDrag);
+    roomChatHeader.addEventListener("pointermove", moveRoomChat);
+    roomChatHeader.addEventListener("pointerup", endRoomChatDrag);
+    roomChatHeader.addEventListener("pointercancel", endRoomChatDrag);
+  }
+  window.addEventListener("resize", reclampRoomChat);
+  restoreRoomChatPosition();
   updateVoiceButton();
   if (roomChatToggle) roomChatToggle.addEventListener("click", () => {
     roomChat?.classList.toggle("is-collapsed");
     roomChatToggle.textContent = roomChat?.classList.contains("is-collapsed") ? "+" : "−";
+    requestAnimationFrame(reclampRoomChat);
   });
   if (exitGameButton) exitGameButton.addEventListener("click", exitToMenu);
   if (tutorialBackButton) tutorialBackButton.addEventListener("click", exitToMenu);
