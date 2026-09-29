@@ -3878,9 +3878,9 @@ function bindControls() {
   if (voiceChatButton) voiceChatButton.addEventListener("click", toggleVoiceChat);
   if (roomChatHeader) {
     roomChatHeader.addEventListener("pointerdown", startRoomChatDrag);
-    roomChatHeader.addEventListener("pointermove", moveRoomChat);
-    roomChatHeader.addEventListener("pointerup", endRoomChatDrag);
-    roomChatHeader.addEventListener("pointercancel", endRoomChatDrag);
+    window.addEventListener("pointermove", moveRoomChat, { passive: false });
+    window.addEventListener("pointerup", endRoomChatDrag);
+    window.addEventListener("pointercancel", endRoomChatDrag);
   }
   window.addEventListener("resize", reclampRoomChat);
   restoreRoomChatPosition();
