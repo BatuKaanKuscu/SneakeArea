@@ -2578,6 +2578,34 @@ function handleOnlineMessage(message) {
   }
 }
 
+function rebuildRemoteBody(points, targetLength, reusable = []) {
+  if (!points.length) return [];
+  const desired = Math.max(8, Math.min(240, Math.floor(targetLength)));
+  const result = reusable;
+  result.length = desired;
+  if (points.length === 1) {
+    for (let i = 0; i < desired; i++) {
+      const segment = result[i] || (result[i] = { x: 0, y: 0 });
+      segment.x = points[0].x;
+      segment.y = points[0].y;
+    }
+    return result;
+  }
+  const sourceMax = points.length - 1;
+  for (let i = 0; i < desired; i++) {
+    const sourcePosition = (i / Math.max(1, desired - 1)) * sourceMax;
+    const leftIndex = Math.floor(sourcePosition);
+    const rightIndex = Math.min(sourceMax, leftIndex + 1);
+    const mix = sourcePosition - leftIndex;
+    const left = points[leftIndex];
+    const right = points[rightIndex];
+    const segment = result[i] || (result[i] = { x: 0, y: 0 });
+    segment.x = left.x + (right.x - left.x) * mix;
+    segment.y = left.y + (right.y - left.y) * mix;
+  }
+  return result;
+}
+
 function upsertRemoteSnake(remote) {
   if (!remote || remote.id === wsId) return;
   const skin = getSkin(remote.skin);
@@ -2614,7 +2642,7 @@ function upsertRemoteSnake(remote) {
     const sy = Number(incoming[i]?.y);
     if (Number.isFinite(sx) && Number.isFinite(sy)) targets.push({ x: sx, y: sy });
   }
-  if (targets.length) snake.netSegments = targets;
+  if (targets.length) snake.netSegments = rebuildRemoteBody(targets, snake.targetLength, snake.netSegments);
   const stamp = performance.now();
   snake.powerActiveUntil = remote.powerActive ? stamp + 240 : 0;
   snake.dashFlashUntil = remote.dashActive ? stamp + 240 : snake.dashFlashUntil || 0;
@@ -2634,7 +2662,10 @@ function updateRemoteSnakes(dt, now) {
     snake.angle = angleLerp(snake.angle, snake.netAngle ?? snake.angle, blend);
     const targets = snake.netSegments || [];
     if (targets.length) {
-      while (snake.segments.length < targets.length) snake.segments.push({ ...snake.segments[snake.segments.length - 1] || snake });
+      while (snake.segments.length < targets.length) {
+        const tail = snake.segments[snake.segments.length - 1] || snake;
+        snake.segments.push({ x: tail.x, y: tail.y });
+      }
       if (snake.segments.length > targets.length) snake.segments.length = targets.length;
       for (let i = 0; i < targets.length; i++) {
         snake.segments[i].x += (targets[i].x - snake.segments[i].x) * blend;
@@ -3092,7 +3123,7 @@ function resolveCollisions() {
       if (other.type === "remote" && snake.type !== "human") continue;
       const snakePowered = isPowerActive(snake, now) || isShieldActive(snake, now) || isShieldGrace(snake, now);
       const otherPowered = isPowerActive(other, now) || isShieldActive(other, now) || isShieldGrace(other, now);
-      const headLimit = snake.radius + other.radius - 5;
+      const headLimit = snake.radius + other.radius - 2;
       const headDx = snake.x - other.x;
       const headDy = snake.y - other.y;
       if (headDx * headDx + headDy * headDy < headLimit * headLimit) {
@@ -3104,10 +3135,10 @@ function resolveCollisions() {
       }
       const detailed = snake.isPlayer || other.isPlayer || snake.type === "human" || other.type === "human" || other.type === "remote";
       if (!detailed) continue;
-      const hitLimit = snake.radius + 3;
+      const hitLimit = other.type === "remote" ? snake.radius + Math.max(6, other.radius * 0.72) : snake.radius + 3;
       if (other.bounds && (snake.x < other.bounds.left - hitLimit || snake.x > other.bounds.right + hitLimit || snake.y < other.bounds.top - hitLimit || snake.y > other.bounds.bottom + hitLimit)) continue;
       const hitLimitSq = hitLimit * hitLimit;
-      const stride = other.type === "remote" ? 1 : snake.isPlayer || other.isPlayer ? 2 : 4;
+      const stride = other.type === "remote" ? (other.segments.length > 150 ? 3 : 2) : snake.isPlayer || other.isPlayer ? 2 : 4;
       for (let i = other.type === "remote" ? 3 : 7; i < other.segments.length; i += stride) {
         const seg = other.segments[i];
         const dx = snake.x - seg.x;
