@@ -338,6 +338,7 @@ let onlineNames = [];
 let ws = null;
 let wsId = null;
 let lastNetworkSend = 0;
+let lastRemoteCleanup = 0;
 let serverAvailable = false;
 let listeningKeybind = "";
 let settingsMessage = "";
@@ -2565,61 +2566,110 @@ function handleOnlineMessage(message) {
   if (message.type === "players") (message.players || []).forEach(upsertRemoteSnake);
   if (message.type === "player") upsertRemoteSnake(message.player);
   if (message.type === "left") snakes = snakes.filter((snake) => snake.id !== message.id);
+  if (message.type === "player-defeated") {
+    if (message.id === wsId && player?.alive) {
+      const killer = snakes.find((snake) => snake.id === message.killerId);
+      killSnake(player, killer);
+      sendOnlineState(performance.now() + 1000);
+    } else {
+      const defeated = snakes.find((snake) => snake.id === message.id);
+      if (defeated) defeated.alive = false;
+    }
+  }
 }
 
 function upsertRemoteSnake(remote) {
   if (!remote || remote.id === wsId) return;
   const skin = getSkin(remote.skin);
   let snake = snakes.find((item) => item.id === remote.id);
+  const x = Number(remote.x);
+  const y = Number(remote.y);
+  const safeX = Number.isFinite(x) ? clamp(x, 18, WORLD - 18) : WORLD / 2;
+  const safeY = Number.isFinite(y) ? clamp(y, 18, WORLD - 18) : WORLD / 2;
   if (!snake) {
-    snake = makeSnake(remote.name || "Online", skin.id, { type: "remote", id: remote.id, title: remote.title || "", x: Number(remote.x), y: Number(remote.y), length: Number(remote.targetLength) || 18 });
+    snake = makeSnake(remote.name || "Online", skin.id, { type: "remote", id: remote.id, title: remote.title || "", x: safeX, y: safeY, length: Number(remote.targetLength) || 18 });
+    snake.netX = safeX;
+    snake.netY = safeY;
     matchHadOpponents = true;
     snakes.push(snake);
   }
-  const x = Number(remote.x);
-  const y = Number(remote.y);
   snake.name = remote.name || snake.name;
   snake.title = remote.title || snake.title || "";
   snake.skin = skin.id;
   snake.colors = skin.colors;
   snake.type = "remote";
   snake.isPlayer = false;
-  snake.alive = true;
-  snake.x = Number.isFinite(x) ? clamp(x, 18, WORLD - 18) : snake.x;
-  snake.y = Number.isFinite(y) ? clamp(y, 18, WORLD - 18) : snake.y;
-  snake.angle = Number.isFinite(remote.angle) ? remote.angle : snake.angle;
+  snake.alive = remote.alive !== false;
+  snake.netX = safeX;
+  snake.netY = safeY;
+  snake.netAngle = Number.isFinite(remote.angle) ? remote.angle : snake.angle;
   snake.score = Number(remote.score) || 0;
   snake.targetLength = Math.max(8, Number(remote.targetLength) || 18);
   snake.radius = snakeRadiusForLength(snake.targetLength, false);
-  const remoteSegments = Array.isArray(remote.segments)
-    ? remote.segments
-        .slice(0, Math.max(8, Math.min(120, Math.ceil(snake.targetLength))))
-        .map((segment) => ({ x: Number(segment?.x), y: Number(segment?.y) }))
-        .filter((segment) => Number.isFinite(segment.x) && Number.isFinite(segment.y))
-    : [];
-  if (remoteSegments.length) {
-    const head = remoteSegments[0];
-    if ((head.x - snake.x) ** 2 + (head.y - snake.y) ** 2 > (snake.radius * 2.5) ** 2) remoteSegments.unshift({ x: snake.x, y: snake.y });
-    snake.segments = remoteSegments;
-  } else {
-    snake.segments = [{ x: snake.x, y: snake.y }, ...snake.segments.slice(0, Math.max(7, Math.floor(snake.targetLength) - 1))];
+  snake.lastSeenAt = performance.now();
+  const incoming = Array.isArray(remote.segments) ? remote.segments : [];
+  const targets = [];
+  for (let i = 0; i < incoming.length && targets.length < 36; i++) {
+    const sx = Number(incoming[i]?.x);
+    const sy = Number(incoming[i]?.y);
+    if (Number.isFinite(sx) && Number.isFinite(sy)) targets.push({ x: sx, y: sy });
   }
-  refreshSnakeBounds(snake);
-  snake.boundsRefreshAt = performance.now() + 220;
-  snake.powerActiveUntil = remote.powerActive ? performance.now() + 180 : 0;
-  snake.dashFlashUntil = remote.dashActive ? performance.now() + 180 : snake.dashFlashUntil || 0;
-  snake.twinActiveUntil = remote.twinActive ? performance.now() + 220 : snake.twinActiveUntil || 0;
-  snake.goldActiveUntil = remote.goldActive ? performance.now() + 220 : 0;
-  snake.shieldActiveUntil = remote.shieldActive ? performance.now() + 220 : 0;
-  snake.slowUntil = remote.slowed ? performance.now() + 220 : 0;
-  snake.powerLockUntil = remote.powerLocked ? performance.now() + 220 : 0;
+  if (targets.length) snake.netSegments = targets;
+  const stamp = performance.now();
+  snake.powerActiveUntil = remote.powerActive ? stamp + 240 : 0;
+  snake.dashFlashUntil = remote.dashActive ? stamp + 240 : snake.dashFlashUntil || 0;
+  snake.twinActiveUntil = remote.twinActive ? stamp + 260 : snake.twinActiveUntil || 0;
+  snake.goldActiveUntil = remote.goldActive ? stamp + 260 : 0;
+  snake.shieldActiveUntil = remote.shieldActive ? stamp + 260 : 0;
+  snake.slowUntil = remote.slowed ? stamp + 260 : 0;
+  snake.powerLockUntil = remote.powerLocked ? stamp + 260 : 0;
+}
+
+function updateRemoteSnakes(dt, now) {
+  const blend = 1 - Math.pow(0.72, Math.max(0.25, dt));
+  for (const snake of snakes) {
+    if (snake.type !== "remote" || !snake.alive) continue;
+    snake.x += ((snake.netX ?? snake.x) - snake.x) * blend;
+    snake.y += ((snake.netY ?? snake.y) - snake.y) * blend;
+    snake.angle = angleLerp(snake.angle, snake.netAngle ?? snake.angle, blend);
+    const targets = snake.netSegments || [];
+    if (targets.length) {
+      while (snake.segments.length < targets.length) snake.segments.push({ ...snake.segments[snake.segments.length - 1] || snake });
+      if (snake.segments.length > targets.length) snake.segments.length = targets.length;
+      for (let i = 0; i < targets.length; i++) {
+        snake.segments[i].x += (targets[i].x - snake.segments[i].x) * blend;
+        snake.segments[i].y += (targets[i].y - snake.segments[i].y) * blend;
+      }
+    }
+    if (now > (snake.boundsRefreshAt || 0)) {
+      refreshSnakeBounds(snake);
+      snake.boundsRefreshAt = now + 260;
+    }
+  }
+  if (now - lastRemoteCleanup > 2000) {
+    snakes = snakes.filter((snake) => snake.type !== "remote" || now - (snake.lastSeenAt || now) < 6000);
+    lastRemoteCleanup = now;
+  }
+}
+
+function sampledNetworkSegments(snake) {
+  const source = snake.segments;
+  if (!source?.length) return [];
+  const count = Math.min(28, source.length);
+  const step = Math.max(1, (source.length - 1) / Math.max(1, count - 1));
+  const sampled = [];
+  for (let i = 0; i < count; i++) {
+    const segment = source[Math.min(source.length - 1, Math.round(i * step))];
+    sampled.push({ x: Math.round(segment.x), y: Math.round(segment.y) });
+  }
+  return sampled;
 }
 
 function sendOnlineState(now) {
-  if (!gameMode.startsWith("room") || !ws || ws.readyState !== WebSocket.OPEN || !player || !player.alive) return;
-  if (now - lastNetworkSend < 70) return;
+  if (!gameMode.startsWith("room") || !ws || ws.readyState !== WebSocket.OPEN || !player) return;
+  if (now - lastNetworkSend < 110 || ws.bufferedAmount > 65536) return;
   lastNetworkSend = now;
-  ws.send(JSON.stringify({ type: "state", skin: selectedSkin, title: player.title || currentProfileTitle(), powerActive: isPowerActive(player, now), dashActive: isDashActive(player, now), twinActive: isTwinActive(player, now), goldActive: isGoldActive(player, now), shieldActive: isShieldActive(player, now), slowed: isSlowed(player, now), powerLocked: arePowersLocked(player, now), x: player.x, y: player.y, angle: player.angle, score: player.score, targetLength: player.targetLength, segments: player.segments.slice(0, 70) }));
+  ws.send(JSON.stringify({ type: "state", alive: player.alive, skin: selectedSkin, title: player.title || currentProfileTitle(), powerActive: isPowerActive(player, now), dashActive: isDashActive(player, now), twinActive: isTwinActive(player, now), goldActive: isGoldActive(player, now), shieldActive: isShieldActive(player, now), slowed: isSlowed(player, now), powerLocked: arePowersLocked(player, now), x: Math.round(player.x), y: Math.round(player.y), angle: Math.round(player.angle * 1000) / 1000, score: Math.round(player.score), targetLength: Math.round(player.targetLength * 10) / 10, segments: sampledNetworkSegments(player) }));
 }
 
 function screenToWorld(x, y) { return { x: camera.x + (x - width / 2) / scale, y: camera.y + (y - height / 2) / scale }; }
@@ -3019,35 +3069,55 @@ function finishMatch(options = {}) {
   deathPanel.classList.remove("is-hidden");
   renderProfile();
 }
+function defeatSnakeInCollision(victim, killer) {
+  if (victim.type !== "remote") {
+    killSnake(victim, killer);
+    return;
+  }
+  if (!victim.alive) return;
+  victim.alive = false;
+  if (ws && ws.readyState === WebSocket.OPEN && ws.bufferedAmount < 65536) {
+    ws.send(JSON.stringify({ type: "combat-hit", targetId: victim.id }));
+  }
+}
+
 function resolveCollisions() {
+  const now = performance.now();
   for (const snake of snakes) {
     if (!snake.alive || snake.type === "remote" || snake.type === "hologram") continue;
     if (snake.x < 18 || snake.x > WORLD - 18 || snake.y < 18 || snake.y > WORLD - 18) { killSnake(snake); continue; }
     for (const other of snakes) {
       if (!snake.alive) break;
-      if (!other.alive || other.type === "remote" || other.type === "hologram" || snake.id === other.id) continue;
-      const snakePowered = isPowerActive(snake) || isShieldActive(snake) || isShieldGrace(snake);
-      const otherPowered = isPowerActive(other) || isShieldActive(other) || isShieldGrace(other);
+      if (!other.alive || other.type === "hologram" || snake.id === other.id) continue;
+      if (other.type === "remote" && snake.type !== "human") continue;
+      const snakePowered = isPowerActive(snake, now) || isShieldActive(snake, now) || isShieldGrace(snake, now);
+      const otherPowered = isPowerActive(other, now) || isShieldActive(other, now) || isShieldGrace(other, now);
       const headLimit = snake.radius + other.radius - 5;
       const headDx = snake.x - other.x;
       const headDy = snake.y - other.y;
       if (headDx * headDx + headDy * headDy < headLimit * headLimit) {
-        if (snake.targetLength * (snakePowered ? 1.18 : 1) >= other.targetLength * (otherPowered ? 1.18 : 1)) killSnake(other, snake); else killSnake(snake, other);
+        const snakeStrength = snake.targetLength * (snakePowered ? 1.18 : 1);
+        const otherStrength = other.targetLength * (otherPowered ? 1.18 : 1);
+        if (snakeStrength >= otherStrength) defeatSnakeInCollision(other, snake);
+        else killSnake(snake, other);
         continue;
       }
-      const detailed = snake.isPlayer || other.isPlayer || snake.type === "human" || other.type === "human";
+      const detailed = snake.isPlayer || other.isPlayer || snake.type === "human" || other.type === "human" || other.type === "remote";
       if (!detailed) continue;
       const hitLimit = snake.radius + 3;
       if (other.bounds && (snake.x < other.bounds.left - hitLimit || snake.x > other.bounds.right + hitLimit || snake.y < other.bounds.top - hitLimit || snake.y > other.bounds.bottom + hitLimit)) continue;
       const hitLimitSq = hitLimit * hitLimit;
-      const stride = snake.isPlayer || other.isPlayer ? 2 : 4;
-      for (let i = 7; i < other.segments.length; i += stride) {
+      const stride = other.type === "remote" ? 1 : snake.isPlayer || other.isPlayer ? 2 : 4;
+      for (let i = other.type === "remote" ? 3 : 7; i < other.segments.length; i += stride) {
         const seg = other.segments[i];
         const dx = snake.x - seg.x;
         if (dx > hitLimit || dx < -hitLimit) continue;
         const dy = snake.y - seg.y;
         if (dy > hitLimit || dy < -hitLimit) continue;
-        if (dx * dx + dy * dy < hitLimitSq) { if (!snakePowered) killSnake(snake, other); break; }
+        if (dx * dx + dy * dy < hitLimitSq) {
+          if (!snakePowered) killSnake(snake, other);
+          break;
+        }
       }
     }
   }
@@ -3116,6 +3186,7 @@ function update(dt, now) {
   if (running) {
     for (const snake of snakes) { if (!snake.alive) continue; moveSnake(snake, dt, now); collectFood(snake, now); }
     syncTwinHolograms(now);
+    updateRemoteSnakes(dt, now);
     resolveCollisions();
     maybeFinishVictory();
     sendOnlineState(now);

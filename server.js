@@ -942,6 +942,7 @@ function handleMessage(client, message) {
     }
     if (client.room && client.room !== nextRoom) leaveRoom(client);
     client.authName = profile?.name || "";
+    client.defeated = false;
     client.name = client.authName || sanitizeName(message.name, "Guest");
     client.isAdmin = Boolean(profile?.isAdmin);
     client.skin = sanitizeSkin(message.skin);
@@ -984,6 +985,7 @@ function handleMessage(client, message) {
     const state = roomState(client.room);
     if (state.hostId !== client.id) return;
     state.started = true;
+    for (const member of roomMembers(client.room)) member.defeated = false;
     state.botCount = Math.max(0, Math.min(18, Math.round(Number(message.botCount) || 0)));
     broadcastToRoom({ type: "start", room: client.room, botCount: state.botCount }, client.room);
     broadcastLobby(client.room);
@@ -995,9 +997,23 @@ function handleMessage(client, message) {
     broadcastOnline();
     return;
   }
+  if (message.type === "combat-hit") {
+    if (!client.room || !client.lastState?.alive) return;
+    const now = Date.now();
+    if (now - Number(client.lastCombatAt || 0) < 350) return;
+    const target = clients.get(String(message.targetId || ""));
+    if (!target || target.room !== client.room || target.id === client.id || target.lastState?.alive === false) return;
+    client.lastCombatAt = now;
+    target.defeated = true;
+    if (target.lastState) target.lastState.alive = false;
+    broadcastToRoom({ type: "player-defeated", id: target.id, killerId: client.id }, client.room);
+    return;
+  }
+
   if (message.type === "state") {
     client.lastState = {
       type: "remote",
+      alive: !client.defeated && message.alive !== false,
       id: client.id,
       name: client.name,
       title: String(message.title || "").slice(0, 24),
@@ -1014,14 +1030,14 @@ function handleMessage(client, message) {
       angle: Number(message.angle) || 0,
       score: Number(message.score) || 0,
       targetLength: Number(message.targetLength) || 0,
-      segments: Array.isArray(message.segments) ? message.segments.slice(0, 80) : [],
+      segments: Array.isArray(message.segments) ? message.segments.slice(0, 36) : [],
     };
     if (client.room) broadcastToRoom({ type: "player", player: client.lastState }, client.room, client.id);
   }
 }
 
 function sendWs(client, object) {
-  if (client.socket.destroyed) return;
+  if (client.socket.destroyed || client.socket.writableLength > 262144) return;
   const payload = Buffer.from(JSON.stringify(object));
   let header;
   if (payload.length < 126) {
