@@ -2662,3 +2662,38 @@ body.is-playing .palette-swatch::after {
   .audio-control-row { grid-template-columns: 1fr 52px; }
   .audio-control-row span { grid-column: 1 / -1; }
 }
+.room-chat-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.room-chat > header .room-chat-actions button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+}
+
+.room-chat-actions svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#voiceChatButton.is-active {
+  background: #b8ff5d;
+  color: #07110f;
+  box-shadow: 0 0 0 3px rgba(184, 255, 93, 0.16);
+}
+
+.voice-peer-audio {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}

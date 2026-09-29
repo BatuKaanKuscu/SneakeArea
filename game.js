@@ -60,6 +60,7 @@ const startRoomButton = document.getElementById("startRoomButton");
 const roomChat = document.getElementById("roomChat");
 const roomChatCode = document.getElementById("roomChatCode");
 const roomChatToggle = document.getElementById("roomChatToggle");
+const voiceChatButton = document.getElementById("voiceChatButton");
 const roomChatMessages = document.getElementById("roomChatMessages");
 const roomChatForm = document.getElementById("roomChatForm");
 const roomChatInput = document.getElementById("roomChatInput");
@@ -337,8 +338,13 @@ if (!authToken) {
 let onlineNames = [];
 let ws = null;
 let wsId = null;
+let voiceStream = null;
+let voiceEnabled = false;
+const voicePeers = new Map();
+const pendingVoiceIce = new Map();
 let lastNetworkSend = 0;
 let lastRemoteCleanup = 0;
+const droppedOnlineCorpses = new Set();
 let serverAvailable = false;
 let listeningKeybind = "";
 let settingsMessage = "";
@@ -1634,6 +1640,129 @@ function setRoomChatVisible(visible) {
   if (visible) renderRoomChat();
 }
 
+function updateVoiceButton() {
+  if (!voiceChatButton) return;
+  voiceChatButton.classList.toggle("is-active", voiceEnabled);
+  voiceChatButton.setAttribute("aria-label", voiceEnabled ? "Sesli sohbeti kapat" : "Sesli sohbeti aç");
+  voiceChatButton.title = voiceEnabled ? "Mikrofon açık" : "Sesli sohbet";
+}
+
+function sendVoiceSignal(targetId, signal) {
+  if (!ws || ws.readyState !== WebSocket.OPEN || !targetId) return;
+  ws.send(JSON.stringify({ type: "voice-signal", targetId, signal }));
+}
+
+function closeVoicePeer(peerId) {
+  const entry = voicePeers.get(peerId);
+  if (!entry) return;
+  try { entry.pc.close(); } catch {}
+  entry.audio?.remove();
+  voicePeers.delete(peerId);
+  pendingVoiceIce.delete(peerId);
+}
+
+function closeVoiceChat() {
+  for (const peerId of [...voicePeers.keys()]) closeVoicePeer(peerId);
+  if (voiceStream) {
+    for (const track of voiceStream.getTracks()) track.stop();
+    voiceStream = null;
+  }
+  voiceEnabled = false;
+  updateVoiceButton();
+}
+
+function ensureVoicePeer(peerId, makeOffer = false) {
+  if (!voiceEnabled || !voiceStream || !peerId || peerId === wsId) return null;
+  if (voicePeers.has(peerId)) return voicePeers.get(peerId).pc;
+  const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+  const audio = document.createElement("audio");
+  audio.autoplay = true;
+  audio.playsInline = true;
+  audio.dataset.voicePeer = peerId;
+  audio.className = "voice-peer-audio";
+  document.body.appendChild(audio);
+  voicePeers.set(peerId, { pc, audio });
+  for (const track of voiceStream.getAudioTracks()) pc.addTrack(track, voiceStream);
+  pc.onicecandidate = (event) => {
+    if (event.candidate) sendVoiceSignal(peerId, { candidate: event.candidate });
+  };
+  pc.ontrack = (event) => {
+    audio.srcObject = event.streams[0];
+    audio.play().catch(() => {});
+  };
+  pc.onconnectionstatechange = () => {
+    if (["failed", "closed"].includes(pc.connectionState)) closeVoicePeer(peerId);
+  };
+  if (makeOffer) {
+    pc.createOffer()
+      .then((offer) => pc.setLocalDescription(offer))
+      .then(() => sendVoiceSignal(peerId, { description: pc.localDescription }))
+      .catch(() => closeVoicePeer(peerId));
+  }
+  return pc;
+}
+
+async function handleVoiceSignal(message) {
+  if (!voiceEnabled || !message.fromId || !message.signal) return;
+  const pc = ensureVoicePeer(message.fromId, false);
+  if (!pc) return;
+  try {
+    if (message.signal.description) {
+      await pc.setRemoteDescription(message.signal.description);
+      const queued = pendingVoiceIce.get(message.fromId) || [];
+      for (const candidate of queued) await pc.addIceCandidate(candidate);
+      pendingVoiceIce.delete(message.fromId);
+      if (message.signal.description.type === "offer") {
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        sendVoiceSignal(message.fromId, { description: pc.localDescription });
+      }
+    } else if (message.signal.candidate) {
+      if (pc.remoteDescription) await pc.addIceCandidate(message.signal.candidate);
+      else {
+        const queued = pendingVoiceIce.get(message.fromId) || [];
+        queued.push(message.signal.candidate);
+        pendingVoiceIce.set(message.fromId, queued.slice(-24));
+      }
+    } else if (message.signal.stop) {
+      closeVoicePeer(message.fromId);
+    }
+  } catch {
+    closeVoicePeer(message.fromId);
+  }
+}
+
+function connectVoiceToRoom() {
+  if (!voiceEnabled || !wsId) return;
+  for (const member of lobbyPlayers) {
+    if (member.id && member.id !== wsId && String(wsId).localeCompare(String(member.id)) < 0) ensureVoicePeer(member.id, true);
+  }
+  if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "voice-ready" }));
+}
+
+async function toggleVoiceChat() {
+  if (voiceEnabled) {
+    for (const peerId of voicePeers.keys()) sendVoiceSignal(peerId, { stop: true });
+    closeVoiceChat();
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") {
+    if (lobbyStatus) lobbyStatus.textContent = "Sesli sohbet bu tarayıcıda desteklenmiyor.";
+    return;
+  }
+  try {
+    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+    voiceEnabled = true;
+    updateVoiceButton();
+    connectVoiceToRoom();
+  } catch {
+    voiceStream = null;
+    voiceEnabled = false;
+    updateVoiceButton();
+    if (lobbyStatus) lobbyStatus.textContent = "Mikrofon izni verilmedi.";
+  }
+}
+
 function sendRoomChat(event) {
   event?.preventDefault();
   const message = String(roomChatInput?.value || "").trim().slice(0, 240);
@@ -2319,6 +2448,7 @@ function enterLobby() {
   }
   lobbyPlayers = [];
   lobbyHostId = "";
+  droppedOnlineCorpses.clear();
   roomCodeLabel.textContent = currentRoom;
   startPanel.classList.add("is-hidden");
   deathPanel.classList.add("is-hidden");
@@ -2353,6 +2483,7 @@ function copyRoomCode() {
 }
 
 function closeOnline() {
+  closeVoiceChat();
   if (ws && ws.readyState === WebSocket.OPEN) {
     try { ws.send(JSON.stringify({ type: "leave" })); } catch {}
     ws.close();
@@ -2363,6 +2494,7 @@ function closeOnline() {
   wsId = null;
   lobbyPlayers = [];
   lobbyHostId = "";
+  droppedOnlineCorpses.clear();
 }
 
 function exitToMenu() {
@@ -2513,7 +2645,7 @@ function connectOnline(fromLobby = false) {
     if (fromLobby) renderLobby();
   });
   ws.addEventListener("message", (event) => handleOnlineMessage(JSON.parse(event.data)));
-  ws.addEventListener("close", () => { if (serverStatus) serverStatus.textContent = "Koptu"; ws = null; });
+  ws.addEventListener("close", () => { if (serverStatus) serverStatus.textContent = "Koptu"; closeVoiceChat(); ws = null; });
   ws.addEventListener("error", () => { if (serverStatus) serverStatus.textContent = "Hata"; });
 }
 
@@ -2530,6 +2662,8 @@ function handleOnlineMessage(message) {
     return;
   }
   if (message.type === "room") { currentRoom = normalizeRoomCode(message.room); syncRoomCodeInput(currentRoom, { caret: false }); renderProfile(); renderLobby(); renderRoomChat(); }
+  if (message.type === "voice-ready" && voiceEnabled && message.id && message.id !== wsId && String(wsId).localeCompare(String(message.id)) < 0) ensureVoicePeer(message.id, true);
+  if (message.type === "voice-signal") handleVoiceSignal(message);
   if (message.type === "room-chat-history") {
     roomChatHistory = Array.isArray(message.messages) ? message.messages.slice(-50) : [];
     renderRoomChat();
@@ -2549,6 +2683,7 @@ function handleOnlineMessage(message) {
     lobbyHostId = message.hostId || "";
     isRoomHost = Boolean(wsId && lobbyHostId === wsId);
     renderLobby();
+    if (voiceEnabled) connectVoiceToRoom();
     if (running && gameMode.startsWith("room")) seedRoomRemotePlayers();
   }
   if (message.type === "start") {
@@ -2565,11 +2700,12 @@ function handleOnlineMessage(message) {
   }
   if (message.type === "players") (message.players || []).forEach(upsertRemoteSnake);
   if (message.type === "player") upsertRemoteSnake(message.player);
-  if (message.type === "left") snakes = snakes.filter((snake) => snake.id !== message.id);
+  if (message.type === "left") { snakes = snakes.filter((snake) => snake.id !== message.id); closeVoicePeer(message.id); }
   if (message.type === "player-defeated") {
+    dropOnlineCorpse(message);
     if (message.id === wsId && player?.alive) {
       const killer = snakes.find((snake) => snake.id === message.killerId);
-      killSnake(player, killer);
+      killSnake(player, killer, { dropFood: false });
       sendOnlineState(performance.now() + 1000);
     } else {
       const defeated = snakes.find((snake) => snake.id === message.id);
@@ -2633,7 +2769,7 @@ function upsertRemoteSnake(remote) {
   snake.netAngle = Number.isFinite(remote.angle) ? remote.angle : snake.angle;
   snake.score = Number(remote.score) || 0;
   snake.targetLength = Math.max(8, Number(remote.targetLength) || 18);
-  snake.radius = snakeRadiusForLength(snake.targetLength, false);
+  snake.radius = snakeRadiusForLength(snake.targetLength, true);
   snake.lastSeenAt = performance.now();
   const incoming = Array.isArray(remote.segments) ? remote.segments : [];
   const targets = [];
@@ -3032,12 +3168,26 @@ function collectFood(snake, now = performance.now()) {
   if (foods.length < target) spawnFood(Math.min(5, target - foods.length));
 }
 
-function killSnake(snake, killer) {
+function dropOnlineCorpse(message) {
+  const corpseId = String(message.id || "");
+  if (!corpseId || droppedOnlineCorpses.has(corpseId)) return;
+  droppedOnlineCorpses.add(corpseId);
+  const remote = snakes.find((snake) => snake.id === corpseId);
+  const points = remote?.segments?.length ? remote.segments : Array.isArray(message.segments) ? rebuildRemoteBody(message.segments, message.targetLength || 18) : [];
+  if (!points.length && Number.isFinite(message.x) && Number.isFinite(message.y)) points.push({ x: message.x, y: message.y });
+  const step = Math.max(1, Math.ceil(points.length / 80));
+  for (let i = 0; i < points.length; i += step) spawnFood(1, points[i].x, points[i].y, 1.5);
+}
+
+function killSnake(snake, killer, options = {}) {
   if (!snake.alive || snake.type === "hologram") return;
   if (absorbShieldHit(snake)) return;
   snake.alive = false;
-  const corpseStep = Math.max(2, Math.ceil(snake.segments.length / 80));
-  for (let i = 0; i < snake.segments.length; i += corpseStep) spawnFood(1, snake.segments[i].x, snake.segments[i].y, 1.5);
+  if (options.dropFood !== false) {
+    const corpseStep = Math.max(2, Math.ceil(snake.segments.length / 80));
+    for (let i = 0; i < snake.segments.length; i += corpseStep) spawnFood(1, snake.segments[i].x, snake.segments[i].y, 1.5);
+    if (gameMode.startsWith("room") && snake.type === "human" && wsId) droppedOnlineCorpses.add(wsId);
+  }
   if (killer && killer !== snake) killer.score += snake.isPlayer ? 0 : Math.round(snake.score * 0.16 + 60);
   if (snake.type === "bot") return;
   if (snake.type === "human") {
@@ -3648,6 +3798,8 @@ function bindControls() {
   if (copyRoomButton) copyRoomButton.addEventListener("click", copyRoomCode);
   if (startRoomButton) startRoomButton.addEventListener("click", startRoomFromLobby);
   if (roomChatForm) roomChatForm.addEventListener("submit", sendRoomChat);
+  if (voiceChatButton) voiceChatButton.addEventListener("click", toggleVoiceChat);
+  updateVoiceButton();
   if (roomChatToggle) roomChatToggle.addEventListener("click", () => {
     roomChat?.classList.toggle("is-collapsed");
     roomChatToggle.textContent = roomChat?.classList.contains("is-collapsed") ? "+" : "−";

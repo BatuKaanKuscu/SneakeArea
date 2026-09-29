@@ -931,6 +931,70 @@ function handleFrame(client, buffer) {
   }
 }
 
+function serverSnakeRadius(length) {
+  return 12.5 + Math.min(13, Math.max(0, Number(length || 18) - 18) * 0.055);
+}
+
+function pointSegmentDistanceSq(px, py, ax, ay, bx, by) {
+  const vx = bx - ax;
+  const vy = by - ay;
+  const lengthSq = vx * vx + vy * vy;
+  if (lengthSq <= 0.001) return (px - ax) ** 2 + (py - ay) ** 2;
+  const t = Math.max(0, Math.min(1, ((px - ax) * vx + (py - ay) * vy) / lengthSq));
+  const dx = px - (ax + vx * t);
+  const dy = py - (ay + vy * t);
+  return dx * dx + dy * dy;
+}
+
+function defeatClient(victim, killer) {
+  if (!victim || victim.defeated || victim.lastState?.alive === false) return false;
+  victim.defeated = true;
+  if (victim.lastState) victim.lastState.alive = false;
+  broadcastToRoom({
+    type: "player-defeated",
+    id: victim.id,
+    killerId: killer?.id || "",
+    x: victim.lastState?.x || 0,
+    y: victim.lastState?.y || 0,
+    targetLength: victim.lastState?.targetLength || 18,
+    segments: victim.lastState?.segments || [],
+  }, victim.room);
+  return true;
+}
+
+function resolveServerPlayerCollision(client) {
+  const state = client.lastState;
+  const room = rooms.get(client.room);
+  if (!room?.started || !state?.alive || client.defeated) return;
+  const ownRadius = serverSnakeRadius(state.targetLength);
+  for (const other of roomMembers(client.room)) {
+    if (other.id === client.id || other.defeated || !other.lastState?.alive) continue;
+    const target = other.lastState;
+    const otherRadius = serverSnakeRadius(target.targetLength);
+    const headDx = state.x - target.x;
+    const headDy = state.y - target.y;
+    const headLimit = ownRadius + otherRadius - 2;
+    if (headDx * headDx + headDy * headDy <= headLimit * headLimit) {
+      const ownStrength = state.targetLength * (state.powerActive || state.shieldActive ? 1.18 : 1);
+      const otherStrength = target.targetLength * (target.powerActive || target.shieldActive ? 1.18 : 1);
+      if (ownStrength >= otherStrength) defeatClient(other, client);
+      else defeatClient(client, other);
+      return;
+    }
+    const body = Array.isArray(target.segments) ? target.segments : [];
+    const bodyLimit = ownRadius + Math.max(6, otherRadius * 0.72);
+    const bodyLimitSq = bodyLimit * bodyLimit;
+    for (let i = 3; i < body.length; i++) {
+      const a = body[i - 1];
+      const b = body[i];
+      if (pointSegmentDistanceSq(state.x, state.y, Number(a.x) || 0, Number(a.y) || 0, Number(b.x) || 0, Number(b.y) || 0) <= bodyLimitSq) {
+        if (!state.powerActive && !state.shieldActive) defeatClient(client, other);
+        return;
+      }
+    }
+  }
+}
+
 function handleMessage(client, message) {
   if (message.type === "join") {
     const nextRoom = sanitizeRoom(message.room);
@@ -961,6 +1025,20 @@ function handleMessage(client, message) {
     });
     broadcastLobby(client.room);
     broadcastOnline();
+    return;
+  }
+
+  if (message.type === "voice-ready") {
+    if (!client.room) return;
+    broadcastToRoom({ type: "voice-ready", id: client.id }, client.room, client.id);
+    return;
+  }
+
+  if (message.type === "voice-signal") {
+    if (!client.room || !message.signal || JSON.stringify(message.signal).length > 12000) return;
+    const target = clients.get(String(message.targetId || ""));
+    if (!target || target.room !== client.room || target.id === client.id) return;
+    sendWs(target, { type: "voice-signal", fromId: client.id, signal: message.signal });
     return;
   }
 
@@ -1004,9 +1082,7 @@ function handleMessage(client, message) {
     const target = clients.get(String(message.targetId || ""));
     if (!target || target.room !== client.room || target.id === client.id || target.lastState?.alive === false) return;
     client.lastCombatAt = now;
-    target.defeated = true;
-    if (target.lastState) target.lastState.alive = false;
-    broadcastToRoom({ type: "player-defeated", id: target.id, killerId: client.id }, client.room);
+    defeatClient(target, client);
     return;
   }
 
@@ -1033,6 +1109,7 @@ function handleMessage(client, message) {
       segments: Array.isArray(message.segments) ? message.segments.slice(0, 36) : [],
     };
     if (client.room) broadcastToRoom({ type: "player", player: client.lastState }, client.room, client.id);
+    if (client.room) resolveServerPlayerCollision(client);
   }
 }
 
