@@ -39,6 +39,7 @@ const allowedAvatars = new Set(["near", "area", "bolt", "crown", "coin", "wave"]
 const allowedThemes = new Set(["aurora", "ember", "ice", "forest"]);
 const ROOM_PREFIX = "AREA";
 const ADMIN_ROOM_CODE = `${ROOM_PREFIX}51`;
+const WORLD_SIZE = 4300;
 let data = loadData();
 let clients = new Map();
 let rooms = new Map();
@@ -1063,9 +1064,24 @@ function handleMessage(client, message) {
     const state = roomState(client.room);
     if (state.hostId !== client.id) return;
     state.started = true;
-    for (const member of roomMembers(client.room)) member.defeated = false;
+    const members = roomMembers(client.room);
+    for (const member of members) member.defeated = false;
     state.botCount = Math.max(0, Math.min(18, Math.round(Number(message.botCount) || 0)));
-    broadcastToRoom({ type: "start", room: client.room, botCount: state.botCount }, client.room);
+    const center = WORLD_SIZE / 2;
+    const radius = members.length > 1 ? Math.min(1450, 620 + members.length * 70) : 0;
+    const rotation = Math.random() * Math.PI * 2;
+    members.forEach((member, index) => {
+      const angle = rotation + (index * Math.PI * 2) / Math.max(1, members.length);
+      sendWs(member, {
+        type: "start",
+        room: client.room,
+        botCount: state.botCount,
+        spawn: {
+          x: Math.round(center + Math.cos(angle) * radius),
+          y: Math.round(center + Math.sin(angle) * radius),
+        },
+      });
+    });
     broadcastLobby(client.room);
     return;
   }

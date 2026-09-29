@@ -339,6 +339,7 @@ if (!authToken) {
 let onlineNames = [];
 let ws = null;
 let wsId = null;
+let pendingRoomSpawn = null;
 let voiceStream = null;
 let voiceEnabled = false;
 const voicePeers = new Map();
@@ -2514,6 +2515,7 @@ function enterLobby() {
   }
   lobbyPlayers = [];
   lobbyHostId = "";
+  pendingRoomSpawn = null;
   droppedOnlineCorpses.clear();
   roomCodeLabel.textContent = currentRoom;
   startPanel.classList.add("is-hidden");
@@ -2560,6 +2562,7 @@ function closeOnline() {
   wsId = null;
   lobbyPlayers = [];
   lobbyHostId = "";
+  pendingRoomSpawn = null;
   droppedOnlineCorpses.clear();
 }
 
@@ -2570,6 +2573,7 @@ function exitToMenu() {
   localPlayers = [];
   player = null;
   focusPlayer = null;
+  pendingRoomSpawn = null;
   effects = [];
   floatingTexts = [];
   traps = [];
@@ -2638,7 +2642,11 @@ function resetGame() {
     profile.activeSkin = selectedSkin;
     saveProfile();
   }
-  player = makeSnake(p1Name, selectedSkin, { type: "human", control: "p1", title: currentProfileTitle(), x: WORLD / 2 - 70, y: WORLD / 2, length: isTutorial ? 26 : undefined });
+  const roomSpawn = gameMode.startsWith("room") ? pendingRoomSpawn : null;
+  const spawnX = Number.isFinite(roomSpawn?.x) ? clamp(roomSpawn.x, 120, WORLD - 120) : WORLD / 2 - 70;
+  const spawnY = Number.isFinite(roomSpawn?.y) ? clamp(roomSpawn.y, 120, WORLD - 120) : WORLD / 2;
+  pendingRoomSpawn = null;
+  player = makeSnake(p1Name, selectedSkin, { type: "human", control: "p1", title: currentProfileTitle(), x: spawnX, y: spawnY, length: isTutorial ? 26 : undefined });
   snakes.push(player);
   localPlayers.push(player);
   const botsToSpawn = isTutorial ? 4 : botCountSetting;
@@ -2758,6 +2766,9 @@ function handleOnlineMessage(message) {
       if (botCountInput) botCountInput.value = botCountSetting;
       if (botCountValue) botCountValue.textContent = botCountSetting.toString();
     }
+    pendingRoomSpawn = message.spawn && Number.isFinite(message.spawn.x) && Number.isFinite(message.spawn.y)
+      ? { x: message.spawn.x, y: message.spawn.y }
+      : null;
     beginRoomGame();
   }
   if (message.type === "online") {
