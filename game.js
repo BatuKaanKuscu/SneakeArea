@@ -126,7 +126,7 @@ const POWER_BINDING_DEFS = [
   { kind: "gold", label: "Alt\u0131n h\u0131zlan\u0131\u015f", desc: "K\u0131sa s\u00fcre \u00e7ok h\u0131zl\u0131 gider", defaultCode: "KeyT" },
   { kind: "trap", label: "Tuzak", desc: "Kuyru\u011fa g\u00fc\u00e7 kilidi b\u0131rak\u0131r", defaultCode: "KeyF" },
   { kind: "shield", label: "Faz Geçişi", desc: "Kısa süre gövdelerin içinden geçer", defaultCode: "KeyZ" },
-  { kind: "slow", label: "Kuyruk Atışı", desc: "Uzunluk feda edip kaçış hızı kazanır", defaultCode: "KeyC" },
+  { kind: "slow", label: "Yan Sıçrama", desc: "Hedef yönüne göre yana doğru kayar", defaultCode: "KeyC" },
   { kind: "bloom", label: "Yem Ya\u011fmuru", desc: "\u00d6ne yem patlamas\u0131 b\u0131rak\u0131r", defaultCode: "KeyV" },
 ];
 const POWER_BUTTONS = { area: powerButton, dash: dashButton, twin: twinButton, gold: goldButton, trap: trapButton, shield: shieldButton, slow: slowButton, bloom: bloomButton };
@@ -175,10 +175,9 @@ const SHIELD_DURATION_MS = 2500;
 const SHIELD_GRACE_MS = 0;
 const SHIELD_RECHARGE_RATE = 0.024;
 const SHIELD_PICKUP_BONUS = 0.9;
-const SLOW_DURATION_MS = 2400;
-const SLOW_SPEED_MULTIPLIER = 1.48;
-const SLOW_RECHARGE_RATE = 0.052;
-const SLOW_PICKUP_BONUS = 1.7;
+const SIDESTEP_DURATION_MS = 900;
+const SIDESTEP_RECHARGE_RATE = 0.048;
+const SIDESTEP_PICKUP_BONUS = 1.6;
 const BLOOM_RECHARGE_RATE = 0.07;
 const BLOOM_PICKUP_BONUS = 2.0;
 const BLOOM_FOOD_COUNT = 34;
@@ -214,7 +213,7 @@ const POWER_BUTTON_VISUALS = {
   gold: { short: "G", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6-4.4-4.2 6-.8L12 3Z"/></svg>' },
   trap: { short: "T", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><path d="m7 7 10 10M17 7 7 17"/><circle cx="12" cy="12" r="3"/></svg>' },
   shield: { short: "F", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/><path d="m7 7 10 10M17 7 7 17"/></svg>' },
-  slow: { short: "A", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6c6 0 7 3 11 3h5"/><path d="M4 12c7 0 8 3 12 3h4"/><path d="M4 18h10"/></svg>' },
+  slow: { short: "Y", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path d="m8 8-4 4 4 4M16 8l4 4-4 4"/></svg>' },
   bloom: { short: "B", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M5 10c4 0 7-3 7-7 0 4 3 7 7 7"/><path d="M5 16c4 0 7 2 7 5 0-3 3-5 7-5"/><circle cx="12" cy="12" r="2"/></svg>' },
 };
 const TUTORIAL_POWER_GUIDE = [
@@ -224,7 +223,7 @@ const TUTORIAL_POWER_GUIDE = [
   { kind: "gold", tip: "K\u0131sa s\u00fcre \u00e7ok h\u0131zl\u0131 gidersin.", practice: "A\u00e7\u0131k alanda kullan." },
   { kind: "trap", tip: "Kuyru\u011funun arkas\u0131na g\u00fc\u00e7 kilidi tuza\u011f\u0131 b\u0131rak\u0131r.", practice: "Pe\u015finden gelen botu tuza\u011fa \u00e7ek." },
   { kind: "shield", tip: "K\u0131sa s\u00fcre rakip g\u00f6vdelerinin i\u00e7inden ge\u00e7ersin; kafa \u00e7arp\u0131\u015fmalar\u0131 tehlikeli kal\u0131r.", practice: "Dar bir \u00e7emberden \u00e7\u0131kmak i\u00e7in do\u011fru anda a\u00e7." },
-  { kind: "slow", tip: "Kuyru\u011funun bir k\u0131sm\u0131n\u0131 yem olarak b\u0131rak\u0131r ve k\u0131sa s\u00fcre h\u0131z kazand\u0131r\u0131r.", practice: "Bedelini g\u00f6ze al\u0131p bask\u0131dan ka\u00e7mak i\u00e7in kullan." },
+  { kind: "slow", tip: "Hedef y\u00f6n\u00fcne g\u00f6re k\u0131sa s\u00fcre sa\u011fa veya sola kayars\u0131n.", practice: "Rakibin g\u00f6vdesinden ka\u00e7mak veya yolunu kesmek i\u00e7in kullan." },
   { kind: "bloom", tip: "\u00d6n\u00fcne yem ya\u011fmuru patlat\u0131r.", practice: "H\u0131zl\u0131 b\u00fcy\u00fcmek i\u00e7in yemlerin i\u00e7inden ge\u00e7." },
 ];
 
@@ -603,7 +602,7 @@ function isTwinActive(snake, now = performance.now()) { return Boolean(snake && 
 function isGoldActive(snake, now = performance.now()) { return Boolean(snake && (snake.goldActiveUntil || 0) > now); }
 function isShieldActive(snake, now = performance.now()) { return Boolean(snake && (snake.shieldActiveUntil || 0) > now); }
 function isShieldGrace(snake, now = performance.now()) { return Boolean(snake && (snake.shieldGraceUntil || 0) > now); }
-function isSlowed(snake, now = performance.now()) { return Boolean(snake && (snake.slowUntil || 0) > now); }
+function isSidestepActive(snake, now = performance.now()) { return Boolean(snake && (snake.slowUntil || 0) > now); }
 function arePowersLocked(snake, now = performance.now()) { return Boolean(snake && (snake.powerLockUntil || 0) > now); }
 function powerLockSeconds(snake, now = performance.now()) { return Math.max(0, Math.ceil(((snake?.powerLockUntil || 0) - now) / 1000)); }
 function canTriggerPower(snake, now = performance.now()) {
@@ -757,17 +756,14 @@ function activateShield(snake, now = performance.now()) {
 }
 
 function activateSlow(snake, now = performance.now()) {
-  if (!canTriggerPower(snake, now) || (snake.slowPower ?? 100) < 100 || snake.targetLength <= 16) return false;
+  if (!canTriggerPower(snake, now) || (snake.slowPower ?? 100) < 100 || isSidestepActive(snake, now)) return false;
+  let desired = snake.aiAngle ?? snake.angle;
+  if (snake.control === "p1" && pointer.active) desired = Math.atan2(pointer.y - height / 2, pointer.x - width / 2);
+  const delta = ((desired - snake.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+  snake.sidestepSide = Math.abs(delta) > 0.12 ? Math.sign(delta) : -(snake.sidestepSide || -1);
   snake.slowPower = 0;
-  snake.slowUntil = now + SLOW_DURATION_MS;
-  snake.boost = 100;
-  snake.boostRechargeLocked = false;
-  const sacrifice = Math.min(12, Math.max(2.5, snake.targetLength * 0.1));
-  snake.targetLength = Math.max(12, snake.targetLength - sacrifice);
-  const tail = snake.segments[snake.segments.length - 1] || snake;
-  spawnFood(Math.min(10, Math.ceil(sacrifice)), tail.x, tail.y, 0.8);
-  spawnEffectBurst(tail.x, tail.y, "#ffb347", 16);
-  spawnEffectBurst(snake.x, snake.y, "#4ff3ff", 10);
+  snake.slowUntil = now + SIDESTEP_DURATION_MS;
+  spawnEffectBurst(snake.x, snake.y, snake.sidestepSide > 0 ? "#ff5db8" : "#4ff3ff", 14);
   return true;
 }
 function activateBloom(snake, now = performance.now()) {
@@ -3168,7 +3164,7 @@ function sendOnlineState(now) {
   if (!gameMode.startsWith("room") || !ws || ws.readyState !== WebSocket.OPEN || !player) return;
   if (now - lastNetworkSend < 110 || ws.bufferedAmount > 65536) return;
   lastNetworkSend = now;
-  ws.send(JSON.stringify({ type: "state", alive: player.alive, skin: selectedSkin, title: player.title || currentProfileTitle(), powerActive: isPowerActive(player, now), dashActive: isDashActive(player, now), twinActive: isTwinActive(player, now), goldActive: isGoldActive(player, now), shieldActive: isShieldActive(player, now), slowed: isSlowed(player, now), powerLocked: arePowersLocked(player, now), x: Math.round(player.x), y: Math.round(player.y), angle: Math.round(player.angle * 1000) / 1000, score: Math.round(player.score), targetLength: Math.round(player.targetLength * 10) / 10, segments: sampledNetworkSegments(player) }));
+  ws.send(JSON.stringify({ type: "state", alive: player.alive, skin: selectedSkin, title: player.title || currentProfileTitle(), powerActive: isPowerActive(player, now), dashActive: isDashActive(player, now), twinActive: isTwinActive(player, now), goldActive: isGoldActive(player, now), shieldActive: isShieldActive(player, now), slowed: isSidestepActive(player, now), powerLocked: arePowersLocked(player, now), x: Math.round(player.x), y: Math.round(player.y), angle: Math.round(player.angle * 1000) / 1000, score: Math.round(player.score), targetLength: Math.round(player.targetLength * 10) / 10, segments: sampledNetworkSegments(player) }));
 }
 
 function screenToWorld(x, y) { return { x: camera.x + (x - width / 2) / scale, y: camera.y + (y - height / 2) / scale }; }
@@ -3399,9 +3395,9 @@ function moveSnake(snake, dt, now) {
   const powered = isPowerActive(snake, now);
   const golden = isGoldActive(snake, now);
   const shielded = isShieldActive(snake, now) || isShieldGrace(snake, now);
-  const slowed = isSlowed(snake, now);
+  const sidestepping = isSidestepActive(snake, now);
   const arenaSpeed = (snake.arenaSpeedUntil || 0) > now ? 1.42 : 1;
-  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.16 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * (shielded ? 1.08 : 1) * (slowed ? SLOW_SPEED_MULTIPLIER : 1) * arenaSpeed * dt;
+  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.16 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * (shielded ? 1.08 : 1) * (sidestepping ? 0.94 : 1) * arenaSpeed * dt;
   if (canBoost) {
     snake.boost = Math.max(0, snake.boost - 0.42 * dt);
     snake.targetLength = Math.max(12, snake.targetLength - 0.018 * dt);
@@ -3417,9 +3413,9 @@ function moveSnake(snake, dt, now) {
   if (!golden) snake.goldPower = Math.min(100, (snake.goldPower ?? 100) + GOLD_RECHARGE_RATE * dt);
   snake.trapPower = Math.min(100, (snake.trapPower ?? 100) + TRAP_RECHARGE_RATE * dt);
   if (!isShieldActive(snake, now)) snake.shieldPower = Math.min(100, (snake.shieldPower ?? 100) + SHIELD_RECHARGE_RATE * dt);
-  snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SLOW_RECHARGE_RATE * dt);
+  snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SIDESTEP_RECHARGE_RATE * dt);
   snake.bloomPower = Math.min(100, (snake.bloomPower ?? 100) + BLOOM_RECHARGE_RATE * dt);
-  if (slowed && effects.length < MAX_EFFECTS && Math.random() < 0.12) spawnEffectBurst(snake.x, snake.y, "#ffb347", 1);
+  if (sidestepping && effects.length < MAX_EFFECTS && Math.random() < 0.16) spawnEffectBurst(snake.x, snake.y, snake.sidestepSide > 0 ? "#ff5db8" : "#4ff3ff", 1);
   if (shielded && effects.length < MAX_EFFECTS && Math.random() < 0.1) spawnEffectBurst(snake.x, snake.y, "#4ff3ff", 1);
   if (powered && (snake.isPlayer || snake.type === "human") && now > (snake.nextFoodPullAt || 0)) {
     pullNearbyFood(snake, dt, now);
@@ -3432,8 +3428,9 @@ function moveSnake(snake, dt, now) {
   }
   if (snake.control !== "p1" || !joystick.active || joystick.strength <= BOOST_RECHARGE_INNER) snake.boostRechargeLocked = false;
   snake.radius = snakeRadiusForLength(snake.targetLength, snake.isPlayer || snake.type === "human");
-  snake.x += Math.cos(snake.angle) * speed;
-  snake.y += Math.sin(snake.angle) * speed;
+  const lateralSpeed = sidestepping ? 3.15 * (snake.sidestepSide || 1) * dt : 0;
+  snake.x += Math.cos(snake.angle) * speed + Math.cos(snake.angle + Math.PI / 2) * lateralSpeed;
+  snake.y += Math.sin(snake.angle) * speed + Math.sin(snake.angle + Math.PI / 2) * lateralSpeed;
   const maxSegments = Math.max(8, Math.floor(snake.targetLength));
   while (snake.segments.length > maxSegments) snake.segments.pop();
   const segment = snake.segments.length >= maxSegments ? snake.segments.pop() : { x: snake.x, y: snake.y };
@@ -3483,7 +3480,7 @@ function collectFood(snake, now = performance.now()) {
           snake.goldPower = Math.min(100, (snake.goldPower ?? 100) + GOLD_PICKUP_BONUS + bonusPower * 0.55);
           snake.trapPower = Math.min(100, (snake.trapPower ?? 100) + TRAP_PICKUP_BONUS + bonusPower * 0.35);
           snake.shieldPower = Math.min(100, (snake.shieldPower ?? 100) + SHIELD_PICKUP_BONUS + bonusPower * 0.2);
-          snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SLOW_PICKUP_BONUS + bonusPower * 0.35);
+          snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SIDESTEP_PICKUP_BONUS + bonusPower * 0.35);
           snake.bloomPower = Math.min(100, (snake.bloomPower ?? 100) + BLOOM_PICKUP_BONUS + bonusPower * 0.35);
           if (snake.isPlayer && collected <= 2) spawnEffectBurst(food.x, food.y, bonusFood ? food.aura || food.color : food.color, bonusFood ? 8 : 1);
           if (snake.isPlayer && (bonusFood || (snake.combo >= 3 && now - (snake.lastComboTextAt || 0) > 560))) {
@@ -3921,7 +3918,7 @@ function drawSnake(snake, now = performance.now()) {
   const dashing = isDashActive(snake, now);
   const golden = isGoldActive(snake, now);
   const shielded = isShieldActive(snake, now) || isShieldGrace(snake, now);
-  const slowed = isSlowed(snake, now);
+  const sidestepping = isSidestepActive(snake, now);
   const locked = arePowersLocked(snake, now);
   const hologram = snake.type === "hologram";
   const headVisible = snake.x > viewBounds.left - padding && snake.x < viewBounds.right + padding && snake.y > viewBounds.top - padding && snake.y < viewBounds.bottom + padding;
@@ -3942,12 +3939,12 @@ function drawSnake(snake, now = performance.now()) {
   }
   if (!drewAny || !headVisible) { ctx.globalAlpha = 1; return; }
   ctx.globalAlpha = 1;
-  if (powered || dashing || golden || shielded || slowed || locked || skin.aura) {
+  if (powered || dashing || golden || shielded || sidestepping || locked || skin.aura) {
     ctx.save();
-    ctx.globalAlpha = golden ? 0.46 : shielded ? 0.42 : slowed ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.38 : 0.18;
-    ctx.strokeStyle = golden ? "#ffd166" : shielded ? "#4ff3ff" : slowed ? "#ffb347" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
-    ctx.lineWidth = golden ? 6 : shielded ? 5 : slowed ? 4 : dashing ? 5 : locked ? 4 : powered ? 5 : 2;    ctx.beginPath();
-    ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : shielded ? 26 : slowed ? 22 : dashing ? 24 : locked ? 20 : powered ? 24 : 9), 0, Math.PI * 2);
+    ctx.globalAlpha = golden ? 0.46 : shielded ? 0.42 : sidestepping ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.38 : 0.18;
+    ctx.strokeStyle = golden ? "#ffd166" : shielded ? "#4ff3ff" : sidestepping ? "#ff5db8" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
+    ctx.lineWidth = golden ? 6 : shielded ? 5 : sidestepping ? 4 : dashing ? 5 : locked ? 4 : powered ? 5 : 2;    ctx.beginPath();
+    ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : shielded ? 26 : sidestepping ? 22 : dashing ? 24 : locked ? 20 : powered ? 24 : 9), 0, Math.PI * 2);
     ctx.stroke();    ctx.restore();
   }
   ctx.fillStyle = "#06110f";
