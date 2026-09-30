@@ -3697,7 +3697,7 @@ function resolveCollisions() {
         const dy = snake.y - seg.y;
         if (dy > hitLimit || dy < -hitLimit) continue;
         if (dx * dx + dy * dy < hitLimitSq) {
-          if (!snakePowered && !isShieldActive(snake, now)) killSnake(snake, other);
+          if (!isShieldActive(snake, now)) killSnake(snake, other);
           break;
         }
       }

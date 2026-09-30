@@ -1030,7 +1030,7 @@ function resolveServerPlayerCollision(client) {
       const a = body[i - 1];
       const b = body[i];
       if (pointSegmentDistanceSq(state.x, state.y, Number(a.x) || 0, Number(a.y) || 0, Number(b.x) || 0, Number(b.y) || 0) <= bodyLimitSq) {
-        if (!state.powerActive && !state.shieldActive) defeatClient(client, other);
+        if (!state.shieldActive) defeatClient(client, other);
         return;
       }
     }
