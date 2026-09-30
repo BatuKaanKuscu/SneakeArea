@@ -851,7 +851,7 @@ server.on("upgrade", (req, socket) => {
   ].join("\r\n"));
 
   const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-  const client = { id, socket, name: "Guest", room: null, lastState: null };
+  const client = { id, socket, name: "Guest", room: null, lastState: null, wsBuffer: Buffer.alloc(0), wsFragments: [] };
   clients.set(id, client);
   socket.on("data", (buffer) => handleFrame(client, buffer));
   socket.on("close", () => removeClient(id));
@@ -899,15 +899,19 @@ function removeClient(id) {
   broadcastOnline();
 }
 
-function handleFrame(client, buffer) {
+function handleFrame(client, chunk) {
+  client.wsBuffer = Buffer.concat([client.wsBuffer || Buffer.alloc(0), chunk]);
+  const buffer = client.wsBuffer;
   let offset = 0;
   while (offset + 2 <= buffer.length) {
+    const frameStart = offset;
     const byte1 = buffer[offset++];
     const byte2 = buffer[offset++];
+    const fin = (byte1 & 0x80) !== 0;
     const opcode = byte1 & 0x0f;
     let length = byte2 & 0x7f;
     if (length === 126) {
-      if (offset + 2 > buffer.length) return;
+      if (offset + 2 > buffer.length) { offset = frameStart; break; }
       length = buffer.readUInt16BE(offset);
       offset += 2;
     } else if (length === 127) {
@@ -915,7 +919,8 @@ function handleFrame(client, buffer) {
       return;
     }
     const masked = (byte2 & 0x80) !== 0;
-    if (!masked || offset + 4 + length > buffer.length) return;
+    if (!masked) { socketSafeClose(client.socket); return; }
+    if (offset + 4 + length > buffer.length) { offset = frameStart; break; }
     const mask = buffer.subarray(offset, offset + 4);
     offset += 4;
     const payload = Buffer.alloc(length);
@@ -926,12 +931,19 @@ function handleFrame(client, buffer) {
       socketSafeClose(client.socket);
       return;
     }
-    if (opcode !== 1) continue;
-    try { handleMessage(client, JSON.parse(payload.toString("utf8"))); }
+    if (opcode === 1) client.wsFragments = [payload];
+    else if (opcode === 0 && client.wsFragments.length) client.wsFragments.push(payload);
+    else continue;
+    const fragmentSize = client.wsFragments.reduce((total, part) => total + part.length, 0);
+    if (fragmentSize > 65536) { socketSafeClose(client.socket); return; }
+    if (!fin) continue;
+    const message = Buffer.concat(client.wsFragments);
+    client.wsFragments = [];
+    try { handleMessage(client, JSON.parse(message.toString("utf8"))); }
     catch {}
   }
+  client.wsBuffer = buffer.subarray(offset);
 }
-
 function serverSnakeRadius(length) {
   return 12.5 + Math.min(13, Math.max(0, Number(length || 18) - 18) * 0.055);
 }

@@ -2690,6 +2690,13 @@ body.is-playing .palette-swatch::after {
   box-shadow: 0 0 0 3px rgba(184, 255, 93, 0.16);
 }
 
+#voiceChatButton.is-connecting { animation: voice-pulse 1.15s ease-in-out infinite; }
+#voiceChatButton.is-loading { opacity: 0.65; pointer-events: none; }
+#voiceChatButton.is-error { background: #dc2626; color: #fff; }
+
+@keyframes voice-pulse {
+  50% { box-shadow: 0 0 0 5px rgba(184, 255, 93, 0.22); }
+}
 .voice-peer-audio {
   position: fixed;
   width: 1px;

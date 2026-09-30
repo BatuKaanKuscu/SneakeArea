@@ -342,6 +342,9 @@ let wsId = null;
 let pendingRoomSpawn = null;
 let voiceStream = null;
 let voiceEnabled = false;
+let voiceStarting = false;
+let voiceError = "";
+const VOICE_ICE_SERVERS = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun.cloudflare.com:3478"] }];
 const voicePeers = new Map();
 const pendingVoiceIce = new Map();
 let lastNetworkSend = 0;
@@ -1709,11 +1712,23 @@ function reclampRoomChat() {
 
 function updateVoiceButton() {
   if (!voiceChatButton) return;
+  const connectedPeers = [...voicePeers.values()].filter(({ pc }) => pc.connectionState === "connected").length;
   voiceChatButton.classList.toggle("is-active", voiceEnabled);
-  voiceChatButton.setAttribute("aria-label", voiceEnabled ? "Sesli sohbeti kapat" : "Sesli sohbeti aç");
-  voiceChatButton.title = voiceEnabled ? "Mikrofon açık" : "Sesli sohbet";
+  voiceChatButton.classList.toggle("is-connecting", voiceEnabled && connectedPeers === 0 && !voiceError);
+  voiceChatButton.classList.toggle("is-loading", voiceStarting);
+  voiceChatButton.classList.toggle("is-error", Boolean(voiceError));
+  const status = voiceStarting
+    ? "Mikrofon izni bekleniyor"
+    : voiceError
+      ? voiceError
+      : connectedPeers
+        ? `Sesli sohbet: ${connectedPeers} kişi bağlı`
+        : voiceEnabled
+          ? "Sesli sohbet açık, oyuncu bağlantısı bekleniyor"
+          : "Sesli sohbeti aç";
+  voiceChatButton.setAttribute("aria-label", status);
+  voiceChatButton.title = status;
 }
-
 function sendVoiceSignal(targetId, signal) {
   if (!ws || ws.readyState !== WebSocket.OPEN || !targetId) return;
   ws.send(JSON.stringify({ type: "voice-signal", targetId, signal }));
@@ -1726,6 +1741,7 @@ function closeVoicePeer(peerId) {
   entry.audio?.remove();
   voicePeers.delete(peerId);
   pendingVoiceIce.delete(peerId);
+  updateVoiceButton();
 }
 
 function closeVoiceChat() {
@@ -1735,13 +1751,15 @@ function closeVoiceChat() {
     voiceStream = null;
   }
   voiceEnabled = false;
+  voiceStarting = false;
+  voiceError = "";
   updateVoiceButton();
 }
 
 function ensureVoicePeer(peerId, makeOffer = false) {
   if (!voiceEnabled || !voiceStream || !peerId || peerId === wsId) return null;
   if (voicePeers.has(peerId)) return voicePeers.get(peerId).pc;
-  const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+  const pc = new RTCPeerConnection({ iceServers: VOICE_ICE_SERVERS, iceCandidatePoolSize: 4 });
   const audio = document.createElement("audio");
   audio.autoplay = true;
   audio.playsInline = true;
@@ -1758,7 +1776,19 @@ function ensureVoicePeer(peerId, makeOffer = false) {
     audio.play().catch(() => {});
   };
   pc.onconnectionstatechange = () => {
-    if (["failed", "closed"].includes(pc.connectionState)) closeVoicePeer(peerId);
+    updateVoiceButton();
+    if (pc.connectionState === "failed") {
+      sendVoiceSignal(peerId, { reset: true });
+      closeVoicePeer(peerId);
+      setTimeout(() => ensureVoicePeer(peerId, String(wsId).localeCompare(String(peerId)) < 0), 700);
+    } else if (pc.connectionState === "disconnected") {
+      setTimeout(() => {
+        if (voicePeers.get(peerId)?.pc !== pc || pc.connectionState !== "disconnected") return;
+        sendVoiceSignal(peerId, { reset: true });
+        closeVoicePeer(peerId);
+        setTimeout(() => ensureVoicePeer(peerId, String(wsId).localeCompare(String(peerId)) < 0), 700);
+      }, 4000);
+    } else if (pc.connectionState === "closed") closeVoicePeer(peerId);
   };
   if (makeOffer) {
     pc.createOffer()
@@ -1793,6 +1823,9 @@ async function handleVoiceSignal(message) {
       }
     } else if (message.signal.stop) {
       closeVoicePeer(message.fromId);
+    } else if (message.signal.reset) {
+      closeVoicePeer(message.fromId);
+      setTimeout(() => ensureVoicePeer(message.fromId, String(wsId).localeCompare(String(message.fromId)) < 0), 700);
     }
   } catch {
     closeVoicePeer(message.fromId);
@@ -1813,18 +1846,25 @@ async function toggleVoiceChat() {
     closeVoiceChat();
     return;
   }
+  if (voiceStarting) return;
   if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") {
     if (lobbyStatus) lobbyStatus.textContent = "Sesli sohbet bu tarayıcıda desteklenmiyor.";
     return;
   }
   try {
+    voiceStarting = true;
+    voiceError = "";
+    updateVoiceButton();
     voiceStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
     voiceEnabled = true;
+    voiceStarting = false;
     updateVoiceButton();
     connectVoiceToRoom();
-  } catch {
+  } catch (error) {
     voiceStream = null;
     voiceEnabled = false;
+    voiceStarting = false;
+    voiceError = error?.name === "NotAllowedError" ? "Mikrofon izni reddedildi" : "Sesli sohbet başlatılamadı";
     updateVoiceButton();
     if (lobbyStatus) lobbyStatus.textContent = "Mikrofon izni verilmedi.";
   }
