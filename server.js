@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { Pool } = require("pg");
 
 const PORT = Number(process.env.PORT || 8765);
 const ROOT = __dirname;
@@ -43,15 +44,22 @@ const WORLD_SIZE = 4300;
 let data = loadData();
 let clients = new Map();
 let rooms = new Map();
+let databasePool = null;
+let databaseWriteQueue = Promise.resolve();
+
+function normalizeData(loaded) {
+  loaded ||= {};
+  loaded.profiles ||= {};
+  loaded.sessions ||= {};
+  loaded.friendMessages = Array.isArray(loaded.friendMessages) ? loaded.friendMessages : [];
+  return loaded;
+}
 
 function loadData() {
   try {
     ensureDataFile();
     const loaded = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-    loaded.profiles ||= {};
-    loaded.sessions ||= {};
-    loaded.friendMessages = Array.isArray(loaded.friendMessages) ? loaded.friendMessages : [];
-    return loaded;
+    return normalizeData(loaded);
   } catch {
     return { profiles: {}, sessions: {}, friendMessages: [] };
   }
@@ -89,6 +97,15 @@ function ensureDataFile() {
 function saveData() {
   data.sessions ||= {};
   const payload = JSON.stringify(data, null, 2);
+  if (databasePool) {
+    databaseWriteQueue = databaseWriteQueue
+      .catch(() => {})
+      .then(() => databasePool.query(
+        "INSERT INTO snake_area_state (id, payload, updated_at) VALUES (1, $1::jsonb, NOW()) ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()",
+        [payload],
+      ))
+      .catch((error) => console.error(`[database] save failed: ${error.message}`));
+  }
   let lastError;
   for (const file of uniqueDataFileCandidates()) {
     try {
@@ -103,9 +120,21 @@ function saveData() {
       console.warn(`[data] ${file} could not be saved: ${error.message}`);
     }
   }
-  throw lastError;
+  if (!databasePool) throw lastError;
 }
 
+async function initializePersistentData() {
+  if (!process.env.DATABASE_URL) return;
+  databasePool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
+  await databasePool.query("CREATE TABLE IF NOT EXISTS snake_area_state (id INTEGER PRIMARY KEY, payload JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+  const result = await databasePool.query("SELECT payload FROM snake_area_state WHERE id = 1");
+  if (result.rows[0]?.payload) {
+    data = normalizeData(result.rows[0].payload);
+  } else {
+    await databasePool.query("INSERT INTO snake_area_state (id, payload) VALUES (1, $1::jsonb)", [JSON.stringify(data)]);
+  }
+  console.log("[database] persistent state ready");
+}
 function sanitizeName(name, fallback = "Guest") {
   return String(name || "").trim().replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 14) || fallback;
 }
@@ -1177,6 +1206,11 @@ function socketSafeClose(socket) {
   try { socket.end(); } catch {}
 }
 
-server.listen(PORT, () => {
-  console.log(`Snake Area server: http://localhost:${PORT}`);
-});
+initializePersistentData()
+  .then(() => server.listen(PORT, () => {
+    console.log(`Snake Area server: http://localhost:${PORT}`);
+  }))
+  .catch((error) => {
+    console.error(`[database] startup failed: ${error.message}`);
+    process.exitCode = 1;
+  });

@@ -7,10 +7,14 @@ services:
     startCommand: npm start
     healthCheckPath: /
     envVars:
-      - key: DATA_DIR
-        value: /opt/render/project/src/storage
-    disk:
-      name: snake-area-data
-      mountPath: /opt/render/project/src/storage
-      sizeGB: 1
+      - key: DATABASE_URL
+        fromDatabase:
+          name: snake-area-db
+          property: connectionString
     autoDeployTrigger: commit
+
+databases:
+  - name: snake-area-db
+    plan: free
+    databaseName: snake_area
+    user: snake_area

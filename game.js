@@ -189,6 +189,7 @@ const LEGACY_PROFILE_KEY = "snakeAeaProfile";
 const LEGACY_SESSION_KEY = "snakeAeaSession";
 const PROFILE_KEY = "snakeAreaProfile";
 const SESSION_KEY = "snakeAreaSession";
+const ACTIVE_ROOM_KEY = "snakeAreaActiveRoom";
 const KEYBINDS_KEY = "snakeAreaKeybinds";
 const TOUCH_CONTROLS_KEY = "snakeAreaTouchControls";
 const TOUCH_CONTROL_DEFAULTS = { stickX: 22, stickY: 76, stickSize: 152, powerX: 86, powerY: 72, powerSize: 58 };
@@ -1090,15 +1091,19 @@ async function loadServerProfile() {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
     serverAvailable = true;
     if (serverStatus) serverStatus.textContent = "Online";
-  } catch {
-    authToken = "";
-    profile = playerProfile();
-    localStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem(LEGACY_SESSION_KEY);
-    localStorage.removeItem(PROFILE_KEY);
-    localStorage.removeItem(LEGACY_PROFILE_KEY);
+  } catch (error) {
     serverAvailable = false;
-    if (serverStatus) serverStatus.textContent = "Yerel";
+    if (error?.status === 401) {
+      authToken = "";
+      profile = playerProfile();
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(LEGACY_SESSION_KEY);
+      localStorage.removeItem(PROFILE_KEY);
+      localStorage.removeItem(LEGACY_PROFILE_KEY);
+      if (serverStatus) serverStatus.textContent = "Yerel";
+    } else if (serverStatus) {
+      serverStatus.textContent = "Yeniden bağlanıyor";
+    }
   }
   renderProfile();
 }
@@ -2528,6 +2533,35 @@ function seedRoomRemotePlayers() {
     matchHadOpponents = true;
   }
 }
+function rememberActiveRoom(playing = false) {
+  if (!currentRoom || !gameMode.startsWith("room")) return;
+  localStorage.setItem(ACTIVE_ROOM_KEY, JSON.stringify({
+    room: normalizeRoomCode(currentRoom),
+    mode: gameMode,
+    host: isRoomHost,
+    playing: Boolean(playing),
+  }));
+}
+
+function clearActiveRoom() {
+  localStorage.removeItem(ACTIVE_ROOM_KEY);
+}
+
+function restoreActiveRoom() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(ACTIVE_ROOM_KEY) || "null"); } catch { clearActiveRoom(); return; }
+  const room = normalizeRoomCode(saved?.room || "");
+  if (!roomCodeSuffix(room) || (isAdminRoomCode(room) && !isAdminUser())) {
+    clearActiveRoom();
+    return;
+  }
+  gameMode = saved?.mode === "room-create" ? "room-create" : "room-join";
+  currentRoom = room;
+  isRoomHost = Boolean(saved?.host && gameMode === "room-create");
+  syncRoomCodeInput(room, { caret: false });
+  updateModeButtons();
+  enterLobby();
+}
 function enterLobby() {
   if (gameMode === "room-create") {
     if (!currentRoom || currentRoom === ROOM_PREFIX) currentRoom = generateRoomCode();
@@ -2558,6 +2592,7 @@ function enterLobby() {
   pendingRoomSpawn = null;
   droppedOnlineCorpses.clear();
   roomCodeLabel.textContent = currentRoom;
+  rememberActiveRoom(false);
   startPanel.classList.add("is-hidden");
   deathPanel.classList.add("is-hidden");
   lobbyPanel.classList.remove("is-hidden");
@@ -2570,6 +2605,7 @@ function enterLobby() {
 }
 
 function beginRoomGame() {
+  rememberActiveRoom(true);
   if (lobbyPanel) lobbyPanel.classList.add("is-hidden");
   setRoomChatVisible(true);
   resetGame();
@@ -2607,6 +2643,7 @@ function closeOnline() {
 }
 
 function exitToMenu() {
+  clearActiveRoom();
   running = false;
   matchFinalized = true;
   snakes = [];
@@ -2796,6 +2833,7 @@ function handleOnlineMessage(message) {
     lobbyPlayers = message.players || [];
     lobbyHostId = message.hostId || "";
     isRoomHost = Boolean(wsId && lobbyHostId === wsId);
+    rememberActiveRoom(running);
     renderLobby();
     if (voiceEnabled) connectVoiceToRoom();
     if (running && gameMode.startsWith("room")) seedRoomRemotePlayers();
@@ -3935,6 +3973,10 @@ function bindControls() {
   if (tutorialPracticeButton) tutorialPracticeButton.addEventListener("click", startTutorialPractice);
 }
 
+async function initializeSession() {
+  await loadServerProfile();
+  restoreActiveRoom();
+}
 resize();
 bindControls();
 renderProfile();
@@ -3943,7 +3985,7 @@ updatePowerKeyLabels();
 applyTouchControls();
 updateModeButtons();
 botCountValue.textContent = botCountSetting.toString();
-loadServerProfile();
+initializeSession();
 setGameHudVisible(false);
 startPanel.classList.remove("is-hidden");
 if (radarWrap) radarWrap.classList.add("is-hidden");
