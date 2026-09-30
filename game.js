@@ -126,7 +126,7 @@ const POWER_BINDING_DEFS = [
   { kind: "gold", label: "Alt\u0131n h\u0131zlan\u0131\u015f", desc: "K\u0131sa s\u00fcre \u00e7ok h\u0131zl\u0131 gider", defaultCode: "KeyT" },
   { kind: "trap", label: "Tuzak", desc: "Kuyru\u011fa g\u00fc\u00e7 kilidi b\u0131rak\u0131r", defaultCode: "KeyF" },
   { kind: "shield", label: "Faz Geçişi", desc: "Kısa süre gövdelerin içinden geçer", defaultCode: "KeyZ" },
-  { kind: "slow", label: "Yan Sıçrama", desc: "Hedef yönüne göre yana doğru kayar", defaultCode: "KeyC" },
+  { kind: "slow", label: "Parçalanma", desc: "Rotayı gerçek ve sahte iki kola ayırır", defaultCode: "KeyC" },
   { kind: "bloom", label: "Yem Ya\u011fmuru", desc: "\u00d6ne yem patlamas\u0131 b\u0131rak\u0131r", defaultCode: "KeyV" },
 ];
 const POWER_BUTTONS = { area: powerButton, dash: dashButton, twin: twinButton, gold: goldButton, trap: trapButton, shield: shieldButton, slow: slowButton, bloom: bloomButton };
@@ -175,9 +175,9 @@ const SHIELD_DURATION_MS = 2500;
 const SHIELD_GRACE_MS = 0;
 const SHIELD_RECHARGE_RATE = 0.024;
 const SHIELD_PICKUP_BONUS = 0.9;
-const SIDESTEP_DURATION_MS = 900;
-const SIDESTEP_RECHARGE_RATE = 0.048;
-const SIDESTEP_PICKUP_BONUS = 1.6;
+const SPLIT_DURATION_MS = 5600;
+const SPLIT_RECHARGE_RATE = 0.026;
+const SPLIT_PICKUP_BONUS = 1.25;
 const BLOOM_RECHARGE_RATE = 0.07;
 const BLOOM_PICKUP_BONUS = 2.0;
 const BLOOM_FOOD_COUNT = 34;
@@ -213,7 +213,7 @@ const POWER_BUTTON_VISUALS = {
   gold: { short: "G", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6-4.4-4.2 6-.8L12 3Z"/></svg>' },
   trap: { short: "T", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><path d="m7 7 10 10M17 7 7 17"/><circle cx="12" cy="12" r="3"/></svg>' },
   shield: { short: "F", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/><path d="m7 7 10 10M17 7 7 17"/></svg>' },
-  slow: { short: "Y", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path d="m8 8-4 4 4 4M16 8l4 4-4 4"/></svg>' },
+  slow: { short: "P", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v5"/><path d="M12 9 5 16v4M12 9l7 7v4"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>' },
   bloom: { short: "B", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M5 10c4 0 7-3 7-7 0 4 3 7 7 7"/><path d="M5 16c4 0 7 2 7 5 0-3 3-5 7-5"/><circle cx="12" cy="12" r="2"/></svg>' },
 };
 const TUTORIAL_POWER_GUIDE = [
@@ -223,7 +223,7 @@ const TUTORIAL_POWER_GUIDE = [
   { kind: "gold", tip: "K\u0131sa s\u00fcre \u00e7ok h\u0131zl\u0131 gidersin.", practice: "A\u00e7\u0131k alanda kullan." },
   { kind: "trap", tip: "Kuyru\u011funun arkas\u0131na g\u00fc\u00e7 kilidi tuza\u011f\u0131 b\u0131rak\u0131r.", practice: "Pe\u015finden gelen botu tuza\u011fa \u00e7ek." },
   { kind: "shield", tip: "K\u0131sa s\u00fcre rakip g\u00f6vdelerinin i\u00e7inden ge\u00e7ersin; kafa \u00e7arp\u0131\u015fmalar\u0131 tehlikeli kal\u0131r.", practice: "Dar bir \u00e7emberden \u00e7\u0131kmak i\u00e7in do\u011fru anda a\u00e7." },
-  { kind: "slow", tip: "Hedef y\u00f6n\u00fcne g\u00f6re k\u0131sa s\u00fcre sa\u011fa veya sola kayars\u0131n.", practice: "Rakibin g\u00f6vdesinden ka\u00e7mak veya yolunu kesmek i\u00e7in kullan." },
+  { kind: "slow", tip: "Y\u0131lan iki kola ayr\u0131l\u0131r; biri ger\u00e7ek, di\u011feri \u00e7arp\u0131\u015fmas\u0131z sahtedir.", practice: "Rakibe hangi kolu takip edece\u011fini \u015fa\u015f\u0131rtmak i\u00e7in kullan." },
   { kind: "bloom", tip: "\u00d6n\u00fcne yem ya\u011fmuru patlat\u0131r.", practice: "H\u0131zl\u0131 b\u00fcy\u00fcmek i\u00e7in yemlerin i\u00e7inden ge\u00e7." },
 ];
 
@@ -602,7 +602,7 @@ function isTwinActive(snake, now = performance.now()) { return Boolean(snake && 
 function isGoldActive(snake, now = performance.now()) { return Boolean(snake && (snake.goldActiveUntil || 0) > now); }
 function isShieldActive(snake, now = performance.now()) { return Boolean(snake && (snake.shieldActiveUntil || 0) > now); }
 function isShieldGrace(snake, now = performance.now()) { return Boolean(snake && (snake.shieldGraceUntil || 0) > now); }
-function isSidestepActive(snake, now = performance.now()) { return Boolean(snake && (snake.slowUntil || 0) > now); }
+function isSplitActive(snake, now = performance.now()) { return Boolean(snake && (snake.slowUntil || 0) > now); }
 function arePowersLocked(snake, now = performance.now()) { return Boolean(snake && (snake.powerLockUntil || 0) > now); }
 function powerLockSeconds(snake, now = performance.now()) { return Math.max(0, Math.ceil(((snake?.powerLockUntil || 0) - now) / 1000)); }
 function canTriggerPower(snake, now = performance.now()) {
@@ -756,14 +756,17 @@ function activateShield(snake, now = performance.now()) {
 }
 
 function activateSlow(snake, now = performance.now()) {
-  if (!canTriggerPower(snake, now) || (snake.slowPower ?? 100) < 100 || isSidestepActive(snake, now)) return false;
-  let desired = snake.aiAngle ?? snake.angle;
-  if (snake.control === "p1" && pointer.active) desired = Math.atan2(pointer.y - height / 2, pointer.x - width / 2);
-  const delta = ((desired - snake.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-  snake.sidestepSide = Math.abs(delta) > 0.12 ? Math.sign(delta) : -(snake.sidestepSide || -1);
+  if (!canTriggerPower(snake, now) || (snake.slowPower ?? 100) < 100 || isSplitActive(snake, now)) return false;
   snake.slowPower = 0;
-  snake.slowUntil = now + SIDESTEP_DURATION_MS;
-  spawnEffectBurst(snake.x, snake.y, snake.sidestepSide > 0 ? "#ff5db8" : "#4ff3ff", 14);
+  snake.slowUntil = now + SPLIT_DURATION_MS;
+  snake.splitOriginX = snake.x;
+  snake.splitOriginY = snake.y;
+  snake.splitAxis = snake.angle;
+  snake.splitSide = Math.random() < 0.5 ? -1 : 1;
+  snake.angle += snake.splitSide * 0.22;
+  snake.aiAngle = snake.angle;
+  syncSplitDecoy(snake, now);
+  spawnEffectBurst(snake.x, snake.y, "#ff5db8", 18);
   return true;
 }
 function activateBloom(snake, now = performance.now()) {
@@ -888,7 +891,72 @@ function syncTwinHolograms(now = performance.now()) {
     activeOwners.add(source.id);
     syncTwinHologram(source, now);
   }
-  if (hasHologram) snakes = snakes.filter((item) => item.type !== "hologram" || activeOwners.has(item.ownerId));
+  if (hasHologram) snakes = snakes.filter((item) => !String(item.id).startsWith("holo-") || activeOwners.has(item.ownerId));
+}
+function reflectSplitPoint(source, point) {
+  const ox = Number(source.splitOriginX) || source.x;
+  const oy = Number(source.splitOriginY) || source.y;
+  const axis = Number(source.splitAxis) || 0;
+  const ux = Math.cos(axis);
+  const uy = Math.sin(axis);
+  const vx = point.x - ox;
+  const vy = point.y - oy;
+  const projection = vx * ux + vy * uy;
+  return {
+    x: clamp(ox + 2 * projection * ux - vx, 36, WORLD - 36),
+    y: clamp(oy + 2 * projection * uy - vy, 36, WORLD - 36),
+  };
+}
+
+function syncSplitDecoy(source, now = performance.now()) {
+  if (!source?.alive || source.type === "hologram" || !isSplitActive(source, now)) return null;
+  const head = reflectSplitPoint(source, source);
+  const id = `split-${source.id}`;
+  let decoy = snakes.find((item) => item.id === id);
+  if (!decoy) {
+    decoy = makeSnake(source.name, source.skin, { type: "hologram", id, title: source.title || "", x: head.x, y: head.y, length: Math.min(TWIN_SEGMENT_LIMIT, source.segments.length || 18), ownerId: source.id });
+    decoy.splitDecoy = true;
+    snakes.push(decoy);
+  }
+  decoy.alive = true;
+  decoy.ownerId = source.id;
+  decoy.splitDecoy = true;
+  decoy.name = source.name;
+  decoy.title = source.title || "";
+  decoy.skin = source.skin;
+  decoy.colors = source.colors;
+  decoy.x = head.x;
+  decoy.y = head.y;
+  decoy.angle = 2 * (source.splitAxis || 0) - source.angle;
+  decoy.targetLength = source.targetLength;
+  decoy.score = source.score;
+  decoy.radius = source.radius;
+  decoy.powerActiveUntil = source.powerActiveUntil;
+  decoy.goldActiveUntil = source.goldActiveUntil;
+  decoy.shieldActiveUntil = source.shieldActiveUntil;
+  decoy.slowUntil = source.slowUntil;
+  const limit = Math.min(TWIN_SEGMENT_LIMIT, source.segments.length);
+  decoy.segments.length = limit;
+  for (let i = 0; i < limit; i++) {
+    const reflected = reflectSplitPoint(source, source.segments[i] || source);
+    const segment = decoy.segments[i] || { x: 0, y: 0 };
+    segment.x = reflected.x;
+    segment.y = reflected.y;
+    decoy.segments[i] = segment;
+  }
+  refreshSnakeBounds(decoy);
+  decoy.boundsRefreshAt = now + 180;
+  return decoy;
+}
+
+function syncSplitDecoys(now = performance.now()) {
+  const activeOwners = new Set();
+  for (const source of snakes) {
+    if (source.type === "hologram" || !source.alive || !isSplitActive(source, now)) continue;
+    activeOwners.add(source.id);
+    syncSplitDecoy(source, now);
+  }
+  snakes = snakes.filter((item) => !String(item.id).startsWith("split-") || activeOwners.has(item.ownerId));
 }
 function currentPowerTarget() {
   const target = focusPlayer && focusPlayer.alive && focusPlayer.type !== "hologram" ? focusPlayer : player;
@@ -3114,6 +3182,10 @@ function upsertRemoteSnake(remote) {
   snake.goldActiveUntil = remote.goldActive ? stamp + 260 : 0;
   snake.shieldActiveUntil = remote.shieldActive ? stamp + 260 : 0;
   snake.slowUntil = remote.slowed ? stamp + 260 : 0;
+  snake.splitOriginX = Number.isFinite(remote.splitOriginX) ? remote.splitOriginX : snake.splitOriginX;
+  snake.splitOriginY = Number.isFinite(remote.splitOriginY) ? remote.splitOriginY : snake.splitOriginY;
+  snake.splitAxis = Number.isFinite(remote.splitAxis) ? remote.splitAxis : snake.splitAxis;
+  snake.splitSide = Number(remote.splitSide) || snake.splitSide || 1;
   snake.powerLockUntil = remote.powerLocked ? stamp + 260 : 0;
 }
 
@@ -3164,7 +3236,7 @@ function sendOnlineState(now) {
   if (!gameMode.startsWith("room") || !ws || ws.readyState !== WebSocket.OPEN || !player) return;
   if (now - lastNetworkSend < 110 || ws.bufferedAmount > 65536) return;
   lastNetworkSend = now;
-  ws.send(JSON.stringify({ type: "state", alive: player.alive, skin: selectedSkin, title: player.title || currentProfileTitle(), powerActive: isPowerActive(player, now), dashActive: isDashActive(player, now), twinActive: isTwinActive(player, now), goldActive: isGoldActive(player, now), shieldActive: isShieldActive(player, now), slowed: isSidestepActive(player, now), powerLocked: arePowersLocked(player, now), x: Math.round(player.x), y: Math.round(player.y), angle: Math.round(player.angle * 1000) / 1000, score: Math.round(player.score), targetLength: Math.round(player.targetLength * 10) / 10, segments: sampledNetworkSegments(player) }));
+  ws.send(JSON.stringify({ type: "state", alive: player.alive, skin: selectedSkin, title: player.title || currentProfileTitle(), powerActive: isPowerActive(player, now), dashActive: isDashActive(player, now), twinActive: isTwinActive(player, now), goldActive: isGoldActive(player, now), shieldActive: isShieldActive(player, now), slowed: isSplitActive(player, now), powerLocked: arePowersLocked(player, now), splitOriginX: player.splitOriginX, splitOriginY: player.splitOriginY, splitAxis: player.splitAxis, splitSide: player.splitSide, x: Math.round(player.x), y: Math.round(player.y), angle: Math.round(player.angle * 1000) / 1000, score: Math.round(player.score), targetLength: Math.round(player.targetLength * 10) / 10, segments: sampledNetworkSegments(player) }));
 }
 
 function screenToWorld(x, y) { return { x: camera.x + (x - width / 2) / scale, y: camera.y + (y - height / 2) / scale }; }
@@ -3395,9 +3467,9 @@ function moveSnake(snake, dt, now) {
   const powered = isPowerActive(snake, now);
   const golden = isGoldActive(snake, now);
   const shielded = isShieldActive(snake, now) || isShieldGrace(snake, now);
-  const sidestepping = isSidestepActive(snake, now);
+  const splitting = isSplitActive(snake, now);
   const arenaSpeed = (snake.arenaSpeedUntil || 0) > now ? 1.42 : 1;
-  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.16 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * (shielded ? 1.08 : 1) * (sidestepping ? 0.94 : 1) * arenaSpeed * dt;
+  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.16 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * (shielded ? 1.08 : 1) * arenaSpeed * dt;
   if (canBoost) {
     snake.boost = Math.max(0, snake.boost - 0.42 * dt);
     snake.targetLength = Math.max(12, snake.targetLength - 0.018 * dt);
@@ -3413,9 +3485,9 @@ function moveSnake(snake, dt, now) {
   if (!golden) snake.goldPower = Math.min(100, (snake.goldPower ?? 100) + GOLD_RECHARGE_RATE * dt);
   snake.trapPower = Math.min(100, (snake.trapPower ?? 100) + TRAP_RECHARGE_RATE * dt);
   if (!isShieldActive(snake, now)) snake.shieldPower = Math.min(100, (snake.shieldPower ?? 100) + SHIELD_RECHARGE_RATE * dt);
-  snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SIDESTEP_RECHARGE_RATE * dt);
+  snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SPLIT_RECHARGE_RATE * dt);
   snake.bloomPower = Math.min(100, (snake.bloomPower ?? 100) + BLOOM_RECHARGE_RATE * dt);
-  if (sidestepping && effects.length < MAX_EFFECTS && Math.random() < 0.16) spawnEffectBurst(snake.x, snake.y, snake.sidestepSide > 0 ? "#ff5db8" : "#4ff3ff", 1);
+  if (splitting && effects.length < MAX_EFFECTS && Math.random() < 0.1) spawnEffectBurst(snake.x, snake.y, "#ff5db8", 1);
   if (shielded && effects.length < MAX_EFFECTS && Math.random() < 0.1) spawnEffectBurst(snake.x, snake.y, "#4ff3ff", 1);
   if (powered && (snake.isPlayer || snake.type === "human") && now > (snake.nextFoodPullAt || 0)) {
     pullNearbyFood(snake, dt, now);
@@ -3428,9 +3500,8 @@ function moveSnake(snake, dt, now) {
   }
   if (snake.control !== "p1" || !joystick.active || joystick.strength <= BOOST_RECHARGE_INNER) snake.boostRechargeLocked = false;
   snake.radius = snakeRadiusForLength(snake.targetLength, snake.isPlayer || snake.type === "human");
-  const lateralSpeed = sidestepping ? 3.15 * (snake.sidestepSide || 1) * dt : 0;
-  snake.x += Math.cos(snake.angle) * speed + Math.cos(snake.angle + Math.PI / 2) * lateralSpeed;
-  snake.y += Math.sin(snake.angle) * speed + Math.sin(snake.angle + Math.PI / 2) * lateralSpeed;
+  snake.x += Math.cos(snake.angle) * speed;
+  snake.y += Math.sin(snake.angle) * speed;
   const maxSegments = Math.max(8, Math.floor(snake.targetLength));
   while (snake.segments.length > maxSegments) snake.segments.pop();
   const segment = snake.segments.length >= maxSegments ? snake.segments.pop() : { x: snake.x, y: snake.y };
@@ -3480,7 +3551,7 @@ function collectFood(snake, now = performance.now()) {
           snake.goldPower = Math.min(100, (snake.goldPower ?? 100) + GOLD_PICKUP_BONUS + bonusPower * 0.55);
           snake.trapPower = Math.min(100, (snake.trapPower ?? 100) + TRAP_PICKUP_BONUS + bonusPower * 0.35);
           snake.shieldPower = Math.min(100, (snake.shieldPower ?? 100) + SHIELD_PICKUP_BONUS + bonusPower * 0.2);
-          snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SIDESTEP_PICKUP_BONUS + bonusPower * 0.35);
+          snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SPLIT_PICKUP_BONUS + bonusPower * 0.35);
           snake.bloomPower = Math.min(100, (snake.bloomPower ?? 100) + BLOOM_PICKUP_BONUS + bonusPower * 0.35);
           if (snake.isPlayer && collected <= 2) spawnEffectBurst(food.x, food.y, bonusFood ? food.aura || food.color : food.color, bonusFood ? 8 : 1);
           if (snake.isPlayer && (bonusFood || (snake.combo >= 3 && now - (snake.lastComboTextAt || 0) > 560))) {
@@ -3697,6 +3768,7 @@ function update(dt, now) {
   if (running) {
     for (const snake of snakes) { if (!snake.alive) continue; moveSnake(snake, dt, now); collectFood(snake, now); }
     syncTwinHolograms(now);
+    syncSplitDecoys(now);
     updateRemoteSnakes(dt, now);
     updateArenaAddons(now);
     resolveCollisions();
@@ -3918,7 +3990,7 @@ function drawSnake(snake, now = performance.now()) {
   const dashing = isDashActive(snake, now);
   const golden = isGoldActive(snake, now);
   const shielded = isShieldActive(snake, now) || isShieldGrace(snake, now);
-  const sidestepping = isSidestepActive(snake, now);
+  const splitting = isSplitActive(snake, now);
   const locked = arePowersLocked(snake, now);
   const hologram = snake.type === "hologram";
   const headVisible = snake.x > viewBounds.left - padding && snake.x < viewBounds.right + padding && snake.y > viewBounds.top - padding && snake.y < viewBounds.bottom + padding;
@@ -3939,12 +4011,12 @@ function drawSnake(snake, now = performance.now()) {
   }
   if (!drewAny || !headVisible) { ctx.globalAlpha = 1; return; }
   ctx.globalAlpha = 1;
-  if (powered || dashing || golden || shielded || sidestepping || locked || skin.aura) {
+  if (powered || dashing || golden || shielded || splitting || locked || skin.aura) {
     ctx.save();
-    ctx.globalAlpha = golden ? 0.46 : shielded ? 0.42 : sidestepping ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.38 : 0.18;
-    ctx.strokeStyle = golden ? "#ffd166" : shielded ? "#4ff3ff" : sidestepping ? "#ff5db8" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
-    ctx.lineWidth = golden ? 6 : shielded ? 5 : sidestepping ? 4 : dashing ? 5 : locked ? 4 : powered ? 5 : 2;    ctx.beginPath();
-    ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : shielded ? 26 : sidestepping ? 22 : dashing ? 24 : locked ? 20 : powered ? 24 : 9), 0, Math.PI * 2);
+    ctx.globalAlpha = golden ? 0.46 : shielded ? 0.42 : splitting ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.38 : 0.18;
+    ctx.strokeStyle = golden ? "#ffd166" : shielded ? "#4ff3ff" : splitting ? "#ff5db8" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
+    ctx.lineWidth = golden ? 6 : shielded ? 5 : splitting ? 4 : dashing ? 5 : locked ? 4 : powered ? 5 : 2;    ctx.beginPath();
+    ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : shielded ? 26 : splitting ? 22 : dashing ? 24 : locked ? 20 : powered ? 24 : 9), 0, Math.PI * 2);
     ctx.stroke();    ctx.restore();
   }
   ctx.fillStyle = "#06110f";
