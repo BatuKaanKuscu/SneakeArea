@@ -2742,3 +2742,52 @@ body.is-playing .palette-swatch::after {
     max-width: calc(100vw - 16px);
   }
 }
+.room-setup-panel {
+  position: absolute;
+  z-index: 7;
+  inset: 64px 0 0;
+  display: grid;
+  grid-template-columns: minmax(0, 620px);
+  align-content: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 28px max(18px, env(safe-area-inset-right)) 34px max(18px, env(safe-area-inset-left));
+  overflow: auto;
+  background: rgba(4, 22, 19, 0.94);
+  color: #fff;
+  backdrop-filter: blur(14px);
+}
+
+.room-setup-panel > * { width: 100%; }
+.room-setup-head { display: grid; gap: 6px; }
+.room-setup-head span { color: #b8ff5d; font-size: 0.72rem; font-weight: 1000; }
+.room-setup-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.7rem); }
+.room-setup-head p { margin: 0; color: #bad0ca; }
+.room-setup-panel .back-button { width: fit-content; margin: 0 0 4px; color: #d8f3ff; }
+.room-setup-code,
+.room-setup-panel .range-field,
+.arena-addon {
+  border: 1px solid rgba(216, 243, 255, 0.17);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.room-setup-code { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; padding: 14px 16px; }
+.room-setup-code span { color: #9fc2ba; font-size: 0.68rem; font-weight: 1000; }
+.room-setup-code strong { grid-row: span 2; align-self: center; color: #b8ff5d; font-size: 1.35rem; }
+.room-setup-code small { color: #d8f3ff; }
+.room-setup-panel .range-field { padding: 14px 16px; }
+.arena-addon-list { display: grid; gap: 9px; }
+.arena-addon { display: grid; grid-template-columns: minmax(0, 1fr) 48px; align-items: center; gap: 14px; min-height: 66px; padding: 10px 12px 10px 16px; cursor: pointer; }
+.arena-addon span { display: grid; gap: 3px; }
+.arena-addon b { font-size: 0.88rem; }
+.arena-addon small { color: #a9c3bd; font-size: 0.72rem; }
+.arena-addon input { position: absolute; opacity: 0; pointer-events: none; }
+.arena-addon i { position: relative; width: 46px; height: 26px; border: 1px solid rgba(255,255,255,.25); border-radius: 13px; background: #263d38; transition: background .18s ease; }
+.arena-addon i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .18s ease; }
+.arena-addon input:checked + i { background: #74bd35; }
+.arena-addon input:checked + i::after { transform: translateX(20px); }
+
+@media (max-width: 620px) {
+  .room-setup-panel { inset-block-start: 56px; align-content: start; padding-top: 24px; }
+  .room-setup-head h2 { font-size: 1.8rem; }
+}

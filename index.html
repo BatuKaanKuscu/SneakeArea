@@ -129,11 +129,6 @@
               </label>
               <div class="room-code"><span id="roomCodeHintText">Oda kodu</span> <strong id="roomCodeLabel">-</strong></div>
             </div>
-            <label class="range-field is-hidden" id="botCountField">
-              <span>Bot sayısı</span>
-              <strong id="botCountValue">9</strong>
-              <input id="botCount" type="range" min="0" max="18" value="9" />
-            </label>
           </div>
 
           <button class="primary-action" id="playButton"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7-11-7Z"/></svg><span id="playButtonText">OYUNA GİR</span></button>
@@ -142,6 +137,26 @@
 
 
 
+      <section class="room-setup-panel is-hidden" id="roomSetupPanel" aria-label="Oda kurulumu">
+        <button class="back-button" id="roomSetupBack" type="button">&#8592; ANA SAYFAYA DON</button>
+        <header class="room-setup-head">
+          <span>OZEL ODA</span>
+          <h2>Oyun alanini kur</h2>
+          <p>Oyuncu sayisini ve arenada bulunacak eklentileri sec.</p>
+        </header>
+        <div class="room-setup-code"><span>ODA KODU</span><strong id="setupRoomCode">-</strong><small>Sistem tarafindan olusturulur</small></div>
+        <label class="range-field" id="botCountField">
+          <span>Bot sayisi</span>
+          <strong id="botCountValue">9</strong>
+          <input id="botCount" type="range" min="0" max="18" value="9" />
+        </label>
+        <div class="arena-addon-list">
+          <label class="arena-addon"><span><b>Super Yem</b><small>Tum gucleri ve boostu aninda doldurur.</small></span><input id="addonSuperFood" type="checkbox" /><i></i></label>
+          <label class="arena-addon"><span><b>Enerji Istasyonlari</b><small>Haritadaki istasyonlar gucleri zamanla yeniler.</small></span><input id="addonEnergyStations" type="checkbox" /><i></i></label>
+          <label class="arena-addon"><span><b>Hiz Kapilari</b><small>Kapidan gecen yilana kisa sure hiz verir.</small></span><input id="addonSpeedGates" type="checkbox" /><i></i></label>
+        </div>
+        <button class="primary-action" id="confirmRoomSetup" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4V5Z"/><path d="M12 9v6M9 12h6"/></svg><span>ODAYI OLUSTUR</span></button>
+      </section>
       <section class="tutorial-panel is-hidden" id="tutorialPanel" aria-label="Tutorial">
         <button class="back-button" id="tutorialBackButton" aria-label="Tutorialdan çık">← ANA SAYFAYA DÖN</button>
         <div class="tutorial-hero">
@@ -192,8 +207,8 @@
         <button id="twinButton" type="button" aria-label="İkili Takım"><span>R</span></button>
         <button id="goldButton" type="button" aria-label="Altın Hızlanış"><span>T</span></button>
         <button id="trapButton" type="button" aria-label="Tuzak"><span>F</span></button>
-        <button id="shieldButton" type="button" aria-label="Kalkan"><span>Z</span></button>
-        <button id="slowButton" type="button" aria-label="Yavaş Dalga"><span>C</span></button>
+        <button id="shieldButton" type="button" aria-label="Faz Gecisi"><span>Z</span></button>
+        <button id="slowButton" type="button" aria-label="Kuyruk Atisi"><span>C</span></button>
         <button id="bloomButton" type="button" aria-label="Yem Yağmuru"><span>V</span></button>
       </div>
       <button class="boost-button" id="boostButton" aria-label="Boost">BOOST</button>

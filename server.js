@@ -894,7 +894,7 @@ function roomMembers(room) {
 
 function roomState(room) {
   const clean = sanitizeRoom(room);
-  if (!rooms.has(clean)) rooms.set(clean, { hostId: "", started: false, botCount: 0, messages: [] });
+  if (!rooms.has(clean)) rooms.set(clean, { hostId: "", started: false, botCount: 0, addons: { superFood: false, energyStations: false, speedGates: false }, messages: [] });
   return rooms.get(clean);
 }
 
@@ -902,7 +902,7 @@ function broadcastLobby(room) {
   const state = rooms.get(room);
   if (!state) return;
   const players = roomMembers(room).map((client) => ({ id: client.id, name: client.name, skin: sanitizeSkin(client.skin || "cyan"), host: client.id === state.hostId }));
-  broadcastToRoom({ type: "lobby", room, hostId: state.hostId, started: state.started, botCount: state.botCount || 0, players }, room);
+  broadcastToRoom({ type: "lobby", room, hostId: state.hostId, started: state.started, botCount: state.botCount || 0, addons: state.addons || { superFood: false, energyStations: false, speedGates: false }, players }, room);
 }
 
 function leaveRoom(client) {
@@ -1017,8 +1017,8 @@ function resolveServerPlayerCollision(client) {
     const headDy = state.y - target.y;
     const headLimit = ownRadius + otherRadius - 2;
     if (headDx * headDx + headDy * headDy <= headLimit * headLimit) {
-      const ownStrength = state.targetLength * (state.powerActive || state.shieldActive ? 1.18 : 1);
-      const otherStrength = target.targetLength * (target.powerActive || target.shieldActive ? 1.18 : 1);
+      const ownStrength = state.targetLength * (state.powerActive ? 1.18 : 1);
+      const otherStrength = target.targetLength * (target.powerActive ? 1.18 : 1);
       if (ownStrength >= otherStrength) defeatClient(other, client);
       else defeatClient(client, other);
       return;
@@ -1057,6 +1057,14 @@ function handleMessage(client, message) {
     const members = roomMembers(client.room);
     if (!state.hostId || !members.some((item) => item.id === state.hostId)) state.hostId = client.id;
     if (message.host && members.length === 1) state.hostId = client.id;
+    if (state.hostId === client.id) {
+      state.botCount = Math.max(0, Math.min(18, Math.round(Number(message.botCount) || 0)));
+      state.addons = {
+        superFood: message.addons?.superFood === true,
+        energyStations: message.addons?.energyStations === true,
+        speedGates: message.addons?.speedGates === true,
+      };
+    }
     sendWs(client, { type: "room", room: client.room });
     sendWs(client, { type: "room-chat-history", messages: (state.messages || []).slice(-50) });
     sendWs(client, {
@@ -1108,6 +1116,11 @@ function handleMessage(client, message) {
     const members = roomMembers(client.room);
     for (const member of members) member.defeated = false;
     state.botCount = Math.max(0, Math.min(18, Math.round(Number(message.botCount) || 0)));
+    state.addons = {
+      superFood: message.addons?.superFood === true,
+      energyStations: message.addons?.energyStations === true,
+      speedGates: message.addons?.speedGates === true,
+    };
     const center = WORLD_SIZE / 2;
     const radius = members.length > 1 ? Math.min(1450, 620 + members.length * 70) : 0;
     const rotation = Math.random() * Math.PI * 2;
@@ -1117,6 +1130,7 @@ function handleMessage(client, message) {
         type: "start",
         room: client.room,
         botCount: state.botCount,
+        addons: state.addons,
         spawn: {
           x: Math.round(center + Math.cos(angle) * radius),
           y: Math.round(center + Math.sin(angle) * radius),

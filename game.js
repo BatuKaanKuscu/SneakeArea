@@ -51,6 +51,13 @@ const tutorialPowerGrid = document.getElementById("tutorialPowerGrid");
 const tutorialPracticeButton = document.getElementById("tutorialPracticeButton");
 const tutorialBackButton = document.getElementById("tutorialBackButton");
 const lobbyPanel = document.getElementById("lobbyPanel");
+const roomSetupPanel = document.getElementById("roomSetupPanel");
+const roomSetupBack = document.getElementById("roomSetupBack");
+const confirmRoomSetup = document.getElementById("confirmRoomSetup");
+const setupRoomCode = document.getElementById("setupRoomCode");
+const addonSuperFood = document.getElementById("addonSuperFood");
+const addonEnergyStations = document.getElementById("addonEnergyStations");
+const addonSpeedGates = document.getElementById("addonSpeedGates");
 const lobbyCode = document.getElementById("lobbyCode");
 const lobbyStatus = document.getElementById("lobbyStatus");
 const lobbyPlayersEl = document.getElementById("lobbyPlayers");
@@ -118,8 +125,8 @@ const POWER_BINDING_DEFS = [
   { kind: "twin", label: "Hologram", desc: "\u0130kili tak\u0131m ve yer de\u011fi\u015ftirme", defaultCode: "KeyR" },
   { kind: "gold", label: "Alt\u0131n h\u0131zlan\u0131\u015f", desc: "K\u0131sa s\u00fcre \u00e7ok h\u0131zl\u0131 gider", defaultCode: "KeyT" },
   { kind: "trap", label: "Tuzak", desc: "Kuyru\u011fa g\u00fc\u00e7 kilidi b\u0131rak\u0131r", defaultCode: "KeyF" },
-  { kind: "shield", label: "Kalkan", desc: "Bir \u00e7arp\u0131\u015fmay\u0131 emer", defaultCode: "KeyZ" },
-  { kind: "slow", label: "Yava\u015f Dalga", desc: "Yak\u0131ndaki rakipleri yava\u015flat\u0131r", defaultCode: "KeyC" },
+  { kind: "shield", label: "Faz Geçişi", desc: "Kısa süre gövdelerin içinden geçer", defaultCode: "KeyZ" },
+  { kind: "slow", label: "Kuyruk Atışı", desc: "Uzunluk feda edip kaçış hızı kazanır", defaultCode: "KeyC" },
   { kind: "bloom", label: "Yem Ya\u011fmuru", desc: "\u00d6ne yem patlamas\u0131 b\u0131rak\u0131r", defaultCode: "KeyV" },
 ];
 const POWER_BUTTONS = { area: powerButton, dash: dashButton, twin: twinButton, gold: goldButton, trap: trapButton, shield: shieldButton, slow: slowButton, bloom: bloomButton };
@@ -130,9 +137,9 @@ const FOOD_COUNT = 540;
 const FOOD_CELL = 220;
 const FOOD_EXTRA_LIMIT = 180;
 const MAX_EFFECTS = 54;
-const HUD_INTERVAL = 90;
-const LEADERBOARD_INTERVAL = 260;
-const RADAR_INTERVAL = 140;
+const HUD_INTERVAL = 110;
+const LEADERBOARD_INTERVAL = 420;
+const RADAR_INTERVAL = 240;
 const SEGMENT_GAP = 10;
 const BASE_SPEED = 2.45;
 const BOOST_SPEED = 4.35;
@@ -164,13 +171,12 @@ const TRAP_RECHARGE_RATE = 0.074;
 const TRAP_PICKUP_BONUS = 2.4;
 const TRAP_DURATION_MS = 18000;
 const TRAP_LOCK_MS = 16000;
-const SHIELD_DURATION_MS = 3400;
-const SHIELD_GRACE_MS = 700;
+const SHIELD_DURATION_MS = 2500;
+const SHIELD_GRACE_MS = 0;
 const SHIELD_RECHARGE_RATE = 0.024;
 const SHIELD_PICKUP_BONUS = 0.9;
-const SLOW_RADIUS = 650;
-const SLOW_DURATION_MS = 5400;
-const SLOW_SPEED_MULTIPLIER = 0.48;
+const SLOW_DURATION_MS = 2400;
+const SLOW_SPEED_MULTIPLIER = 1.48;
 const SLOW_RECHARGE_RATE = 0.052;
 const SLOW_PICKUP_BONUS = 1.7;
 const BLOOM_RECHARGE_RATE = 0.07;
@@ -207,8 +213,8 @@ const POWER_BUTTON_VISUALS = {
   twin: { short: "H", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7c4-3 9-2 10 2 1 3-1 6-5 6H6"/><path d="M17 17c-4 3-9 2-10-2-1-3 1-6 5-6h6"/><circle cx="8" cy="15" r="1"/><circle cx="16" cy="9" r="1"/></svg>' },
   gold: { short: "G", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6-4.4-4.2 6-.8L12 3Z"/></svg>' },
   trap: { short: "T", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><path d="m7 7 10 10M17 7 7 17"/><circle cx="12" cy="12" r="3"/></svg>' },
-  shield: { short: "K", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 2.8 8.4 7 10 4.2-1.6 7-5.5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-5"/></svg>' },
-  slow: { short: "Y", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/><path d="M4 4l3 3M20 4l-3 3"/></svg>' },
+  shield: { short: "F", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/><path d="m7 7 10 10M17 7 7 17"/></svg>' },
+  slow: { short: "A", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6c6 0 7 3 11 3h5"/><path d="M4 12c7 0 8 3 12 3h4"/><path d="M4 18h10"/></svg>' },
   bloom: { short: "B", icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M5 10c4 0 7-3 7-7 0 4 3 7 7 7"/><path d="M5 16c4 0 7 2 7 5 0-3 3-5 7-5"/><circle cx="12" cy="12" r="2"/></svg>' },
 };
 const TUTORIAL_POWER_GUIDE = [
@@ -217,8 +223,8 @@ const TUTORIAL_POWER_GUIDE = [
   { kind: "twin", tip: "Etraf\u0131ndaki hedefe g\u00f6re hologram\u0131n\u0131 simetrik oynat\u0131r.", practice: "\u0130kinci bas\u0131\u015fta yer de\u011fi\u015ftirme sayac\u0131 ba\u015flar." },
   { kind: "gold", tip: "K\u0131sa s\u00fcre \u00e7ok h\u0131zl\u0131 gidersin.", practice: "A\u00e7\u0131k alanda kullan." },
   { kind: "trap", tip: "Kuyru\u011funun arkas\u0131na g\u00fc\u00e7 kilidi tuza\u011f\u0131 b\u0131rak\u0131r.", practice: "Pe\u015finden gelen botu tuza\u011fa \u00e7ek." },
-  { kind: "shield", tip: "Bir \u00e7arp\u0131\u015fmay\u0131 emer ve k\u0131sa dokunulmazl\u0131k verir.", practice: "Riskli kafa kafaya yakla\u015fmadan \u00f6nce a\u00e7." },
-  { kind: "slow", tip: "Yak\u0131ndaki botlar\u0131 birka\u00e7 saniyeli\u011fine yava\u015flat\u0131r.", practice: "Rakibi sarmadan \u00f6nce bas." },
+  { kind: "shield", tip: "K\u0131sa s\u00fcre rakip g\u00f6vdelerinin i\u00e7inden ge\u00e7ersin; kafa \u00e7arp\u0131\u015fmalar\u0131 tehlikeli kal\u0131r.", practice: "Dar bir \u00e7emberden \u00e7\u0131kmak i\u00e7in do\u011fru anda a\u00e7." },
+  { kind: "slow", tip: "Kuyru\u011funun bir k\u0131sm\u0131n\u0131 yem olarak b\u0131rak\u0131r ve k\u0131sa s\u00fcre h\u0131z kazand\u0131r\u0131r.", practice: "Bedelini g\u00f6ze al\u0131p bask\u0131dan ka\u00e7mak i\u00e7in kullan." },
   { kind: "bloom", tip: "\u00d6n\u00fcne yem ya\u011fmuru patlat\u0131r.", practice: "H\u0131zl\u0131 b\u00fcy\u00fcmek i\u00e7in yemlerin i\u00e7inden ge\u00e7." },
 ];
 
@@ -298,6 +304,7 @@ let foodBuckets = new Map();
 let effects = [];
 let floatingTexts = [];
 let traps = [];
+let arenaObjects = [];
 let snakes = [];
 let player = null;
 let localPlayers = [];
@@ -314,6 +321,7 @@ let friendChatHistory = [];
 const ROOM_PREFIX = "AREA";
 const ADMIN_ROOM_CODE = `${ROOM_PREFIX}51`;
 let botCountSetting = 9;
+let arenaAddons = { superFood: false, energyStations: false, speedGates: false };
 let matchFinalized = false;
 let matchHadOpponents = false;
 let lastTime = performance.now();
@@ -644,8 +652,35 @@ function activateTwin(snake, now = performance.now()) {
   if (twin) spawnEffectBurst(twin.x, twin.y, "#4ff3ff", 12);
   return true;
 }
+function isSnakeEncircled(snake) {
+  if (!snake) return false;
+  const sectors = new Uint8Array(12);
+  let occupied = 0;
+  const minSq = 48 * 48;
+  const maxSq = 330 * 330;
+  for (const other of snakes) {
+    if (!other.alive || other.type === "hologram") continue;
+    const start = other.id === snake.id ? 18 : 0;
+    const stride = other.segments.length > 140 ? 7 : 4;
+    for (let i = start; i < other.segments.length; i += stride) {
+      const point = other.segments[i];
+      const dx = point.x - snake.x;
+      const dy = point.y - snake.y;
+      const distSq = dx * dx + dy * dy;
+      if (distSq < minSq || distSq > maxSq) continue;
+      const sector = Math.floor((((Math.atan2(dy, dx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2)) * sectors.length);
+      if (!sectors[sector]) { sectors[sector] = 1; occupied++; }
+      if (occupied >= 8) return true;
+    }
+  }
+  return false;
+}
 function beginTwinSwap(snake, now = performance.now()) {
   if (!snake || !isTwinActive(snake, now) || snake.twinSwapAt || snake.twinSwapUsed) return false;
+  if (isSnakeEncircled(snake)) {
+    if (snake.isPlayer || snake.control === "p1") spawnFloatingText(snake.x, snake.y - 34, "KU\u015eATILDIN", "#ff5d7a", 18);
+    return false;
+  }
   const twin = syncTwinHologram(snake, now);
   if (!twin) return false;
   snake.twinSwapAt = now + TWIN_SWAP_DELAY_MS;
@@ -658,6 +693,13 @@ function beginTwinSwap(snake, now = performance.now()) {
 }
 function finishTwinSwap(snake, now = performance.now()) {
   if (!snake || !snake.twinSwapAt || snake.twinSwapAt > now) return false;
+  if (isSnakeEncircled(snake)) {
+    snake.twinActiveUntil = now;
+    snake.twinSwapAt = 0;
+    snake.twinSwapStartedAt = 0;
+    if (snake.isPlayer || snake.control === "p1") spawnFloatingText(snake.x, snake.y - 34, "GE\u00c7\u0130\u015e \u0130PTAL", "#ff5d7a", 18);
+    return false;
+  }
   const twin = snakes.find((item) => item.id === `holo-${snake.id}` && item.alive);
   if (twin) {
     const fromX = snake.x;
@@ -709,28 +751,25 @@ function activateShield(snake, now = performance.now()) {
   if (!canTriggerPower(snake, now) || (snake.shieldPower ?? 100) < 100 || isShieldActive(snake, now)) return false;
   snake.shieldPower = 0;
   snake.shieldActiveUntil = now + SHIELD_DURATION_MS;
-  snake.shieldGraceUntil = Math.max(snake.shieldGraceUntil || 0, now + 220);
-  spawnEffectBurst(snake.x, snake.y, "#d8f3ff", 16);
+  snake.shieldGraceUntil = 0;
+  spawnEffectBurst(snake.x, snake.y, "#4ff3ff", 14);
   return true;
 }
 
 function activateSlow(snake, now = performance.now()) {
-  if (!canTriggerPower(snake, now) || (snake.slowPower ?? 100) < 100) return false;
+  if (!canTriggerPower(snake, now) || (snake.slowPower ?? 100) < 100 || snake.targetLength <= 16) return false;
   snake.slowPower = 0;
-  let hits = 0;
-  const radiusSq = SLOW_RADIUS * SLOW_RADIUS;
-  for (const target of snakes) {
-    if (!target.alive || target.id === snake.id || target.type === "hologram" || target.ownerId === snake.id) continue;
-    const dx = target.x - snake.x;
-    const dy = target.y - snake.y;
-    if (dx * dx + dy * dy > radiusSq) continue;
-    target.slowUntil = Math.max(target.slowUntil || 0, now + SLOW_DURATION_MS);
-    hits++;
-  }
-  spawnEffectBurst(snake.x, snake.y, hits ? "#a78bfa" : "#8feeff", hits ? 18 : 9);
+  snake.slowUntil = now + SLOW_DURATION_MS;
+  snake.boost = 100;
+  snake.boostRechargeLocked = false;
+  const sacrifice = Math.min(12, Math.max(2.5, snake.targetLength * 0.1));
+  snake.targetLength = Math.max(12, snake.targetLength - sacrifice);
+  const tail = snake.segments[snake.segments.length - 1] || snake;
+  spawnFood(Math.min(10, Math.ceil(sacrifice)), tail.x, tail.y, 0.8);
+  spawnEffectBurst(tail.x, tail.y, "#ffb347", 16);
+  spawnEffectBurst(snake.x, snake.y, "#4ff3ff", 10);
   return true;
 }
-
 function activateBloom(snake, now = performance.now()) {
   if (!canTriggerPower(snake, now) || (snake.bloomPower ?? 100) < 100) return false;
   snake.bloomPower = 0;
@@ -742,18 +781,6 @@ function activateBloom(snake, now = performance.now()) {
 }
 
 
-function absorbShieldHit(snake, now = performance.now()) {
-  if (!snake || !snake.alive || snake.type === "hologram") return false;
-  if (!isShieldActive(snake, now) && !isShieldGrace(snake, now)) return false;
-  const broke = isShieldActive(snake, now);
-  snake.shieldActiveUntil = 0;
-  snake.shieldGraceUntil = now + SHIELD_GRACE_MS;
-  snake.x = clamp(snake.x, 36, WORLD - 36);
-  snake.y = clamp(snake.y, 36, WORLD - 36);
-  snake.boost = Math.max(snake.boost, 20);
-  spawnEffectBurst(snake.x, snake.y, broke ? "#d8f3ff" : "#8feeff", broke ? 18 : 6);
-  return true;
-}
 function nearestTwinTarget(source) {
   const maxDist = TWIN_MIRROR_TARGET_RANGE * TWIN_MIRROR_TARGET_RANGE;
   if (source.twinMirrorTargetId) {
@@ -2186,18 +2213,60 @@ function handleShopClick(skinId) {
   renderProfile();
 }
 
+function selectedArenaAddons() {
+  return {
+    superFood: Boolean(addonSuperFood?.checked),
+    energyStations: Boolean(addonEnergyStations?.checked),
+    speedGates: Boolean(addonSpeedGates?.checked),
+  };
+}
+
+function showRoomSetup() {
+  gameMode = "room-create";
+  currentRoom = generateRoomCode();
+  isRoomHost = true;
+  arenaAddons = { superFood: false, energyStations: false, speedGates: false };
+  if (addonSuperFood) addonSuperFood.checked = false;
+  if (addonEnergyStations) addonEnergyStations.checked = false;
+  if (addonSpeedGates) addonSpeedGates.checked = false;
+  if (setupRoomCode) setupRoomCode.textContent = currentRoom;
+  syncRoomCodeInput(currentRoom, { caret: false });
+  startPanel.classList.add("is-hidden");
+  roomSetupPanel?.classList.remove("is-hidden");
+  updateModeButtons();
+}
+
+function closeRoomSetup() {
+  roomSetupPanel?.classList.add("is-hidden");
+  startPanel.classList.remove("is-hidden");
+  gameMode = "solo";
+  updateModeButtons();
+}
+
+function confirmRoomCreation() {
+  arenaAddons = selectedArenaAddons();
+  roomSetupPanel?.classList.add("is-hidden");
+  enterLobby();
+}
+
+function selectGameMode(mode) {
+  if (mode === "room-create") {
+    showRoomSetup();
+    return;
+  }
+  gameMode = mode;
+  updateModeButtons();
+}
+
 function updateModeButtons() {
   document.querySelectorAll(".mode-button").forEach((button) => button.classList.toggle("is-active", button.dataset.mode === gameMode));
   if (p2Field) p2Field.classList.toggle("is-visible", gameMode === "party");
-  if (botCountField) botCountField.classList.toggle("is-hidden", gameMode !== "room-create");
-  roomPanel.classList.toggle("is-hidden", !gameMode.startsWith("room"));
+  if (botCountField) botCountField.classList.remove("is-hidden");
+  roomPanel.classList.toggle("is-hidden", gameMode !== "room-join");
   if (gameMode === "room-create") {
     if (!currentRoom || currentRoom === ROOM_PREFIX) currentRoom = generateRoomCode();
     syncRoomCodeInput(currentRoom, { caret: false });
-    roomCodeInput.placeholder = "Otomatik oda kodu";
-    roomCodeInput.readOnly = true;
-    roomCodeInput.classList.add("system-code");
-    if (roomCodeHintText) roomCodeHintText.textContent = "Oda kodun:";
+    if (setupRoomCode) setupRoomCode.textContent = currentRoom;
   } else if (gameMode === "room-join") {
     roomCodeInput.readOnly = false;
     roomCodeInput.placeholder = "AREA51 veya AREA1234";
@@ -2211,10 +2280,9 @@ function updateModeButtons() {
     if (roomCodeHintText) roomCodeHintText.textContent = "Oda kodu:";
     roomCodeLabel.textContent = "-";
   }
-  roomCodeLabel.textContent = gameMode.startsWith("room") ? (normalizeRoomCode(roomCodeInput.value || currentRoom || ROOM_PREFIX)) : "-";
-  if (playButtonText) playButtonText.textContent = gameMode === "tutorial" ? "TUTORIALI AÇ" : gameMode.startsWith("room") ? "LOBİYE GİR" : "OYUNA GİR";
-}
-function resize() {
+  roomCodeLabel.textContent = gameMode.startsWith("room") ? normalizeRoomCode(roomCodeInput.value || currentRoom || ROOM_PREFIX) : "-";
+  if (playButtonText) playButtonText.textContent = gameMode === "tutorial" ? "TUTORIALI AÇ" : gameMode === "room-join" ? "LOBİYE KATIL" : "OYUNA GİR";
+}function resize() {
   width = window.innerWidth;
   height = window.innerHeight;
   const dpr = 1;
@@ -2230,7 +2298,7 @@ function resize() {
 }
 
 function targetFoodCount() {
-  if (width < 720) return 340;
+  if (width < 720) return 280;
   if (width < 1100) return 450;
   return FOOD_COUNT;
 }
@@ -2335,6 +2403,93 @@ function pullNearbyFood(snake, dt = 1, now = performance.now()) {
   }
 }
 
+function arenaSeed(index) {
+  let seed = 2166136261;
+  const text = `${currentRoom || "SOLO"}-${index}`;
+  for (let i = 0; i < text.length; i++) seed = Math.imul(seed ^ text.charCodeAt(i), 16777619);
+  const x = 420 + ((seed >>> 0) % (WORLD - 840));
+  seed = Math.imul(seed ^ 0x9e3779b9, 16777619);
+  const y = 420 + ((seed >>> 0) % (WORLD - 840));
+  return { x, y };
+}
+
+function fillSnakePowers(snake) {
+  snake.boost = 100;
+  snake.boostRechargeLocked = false;
+  snake.power = 100;
+  snake.dashPower = 100;
+  snake.twinPower = 100;
+  snake.goldPower = 100;
+  snake.trapPower = 100;
+  snake.shieldPower = 100;
+  snake.slowPower = 100;
+  snake.bloomPower = 100;
+}
+
+function spawnArenaAddons() {
+  arenaObjects = [];
+  if (arenaAddons.superFood) {
+    for (let i = 0; i < 2; i++) {
+      const point = arenaSeed(10 + i);
+      addFood({ x: point.x, y: point.y, r: 13, value: 5, color: "#ffffff", aura: "#b8ff5d", kind: "superCore", label: "SUPER YEM", bonusScore: 120, bonusBoost: 100, bonusPower: 100, bonusLength: 2.4, pulse: i * 1.7 });
+    }
+  }
+  if (arenaAddons.energyStations) {
+    for (let i = 0; i < 3; i++) arenaObjects.push({ ...arenaSeed(30 + i), type: "energy", r: 74, pulse: i * 2.1 });
+  }
+  if (arenaAddons.speedGates) {
+    for (let i = 0; i < 4; i++) arenaObjects.push({ ...arenaSeed(50 + i), type: "gate", r: 52, angle: (i % 2 ? Math.PI / 2 : 0), pulse: i * 1.3 });
+  }
+}
+
+function updateArenaAddons(now) {
+  if (!arenaObjects.length) return;
+  for (const snake of snakes) {
+    if (!snake.alive || snake.type === "remote" || snake.type === "hologram") continue;
+    for (const object of arenaObjects) {
+      const dx = snake.x - object.x;
+      const dy = snake.y - object.y;
+      if (dx * dx + dy * dy > object.r * object.r) continue;
+      if (object.type === "gate") {
+        snake.arenaSpeedUntil = Math.max(snake.arenaSpeedUntil || 0, now + 1300);
+      } else if (object.type === "energy" && now > (snake.nextStationChargeAt || 0)) {
+        snake.nextStationChargeAt = now + 180;
+        snake.boost = Math.min(100, snake.boost + 5);
+        snake.power = Math.min(100, snake.power + 4);
+        snake.dashPower = Math.min(100, snake.dashPower + 3);
+        snake.twinPower = Math.min(100, snake.twinPower + 2);
+        snake.goldPower = Math.min(100, snake.goldPower + 2);
+        snake.trapPower = Math.min(100, snake.trapPower + 3);
+        snake.shieldPower = Math.min(100, snake.shieldPower + 3);
+        snake.slowPower = Math.min(100, snake.slowPower + 3);
+        snake.bloomPower = Math.min(100, snake.bloomPower + 3);
+      }
+    }
+  }
+}
+
+function drawArenaAddons(now) {
+  if (!arenaObjects.length) return;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (const object of arenaObjects) {
+    if (object.x < viewBounds.left - 120 || object.x > viewBounds.right + 120 || object.y < viewBounds.top - 120 || object.y > viewBounds.bottom + 120) continue;
+    const pulse = 1 + Math.sin(now * 0.004 + object.pulse) * 0.08;
+    ctx.save();
+    ctx.translate(object.x, object.y);
+    ctx.rotate(object.angle || 0);
+    ctx.strokeStyle = object.type === "gate" ? "#4ff3ff" : "#b8ff5d";
+    ctx.fillStyle = object.type === "gate" ? "rgba(79,243,255,.12)" : "rgba(184,255,93,.1)";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    if (object.type === "gate") ctx.roundRect(-14, -object.r * pulse, 28, object.r * 2 * pulse, 12);
+    else ctx.arc(0, 0, object.r * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
 function clearFoods() {
   foods = [];
   foodBuckets.clear();
@@ -2540,6 +2695,8 @@ function rememberActiveRoom(playing = false) {
     mode: gameMode,
     host: isRoomHost,
     playing: Boolean(playing),
+    botCount: botCountSetting,
+    addons: arenaAddons,
   }));
 }
 
@@ -2558,6 +2715,14 @@ function restoreActiveRoom() {
   gameMode = saved?.mode === "room-create" ? "room-create" : "room-join";
   currentRoom = room;
   isRoomHost = Boolean(saved?.host && gameMode === "room-create");
+  botCountSetting = clamp(Math.round(Number(saved?.botCount) || 0), 0, 18);
+  arenaAddons = {
+    superFood: Boolean(saved?.addons?.superFood),
+    energyStations: Boolean(saved?.addons?.energyStations),
+    speedGates: Boolean(saved?.addons?.speedGates),
+  };
+  if (botCountInput) botCountInput.value = botCountSetting;
+  if (botCountValue) botCountValue.textContent = botCountSetting.toString();
   syncRoomCodeInput(room, { caret: false });
   updateModeButtons();
   enterLobby();
@@ -2614,7 +2779,7 @@ function beginRoomGame() {
 function startRoomFromLobby() {
   if (!isRoomHost) return;
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "start", botCount: botCountSetting }));
+    ws.send(JSON.stringify({ type: "start", botCount: botCountSetting, addons: arenaAddons }));
   } else {
     beginRoomGame();
   }
@@ -2654,6 +2819,7 @@ function exitToMenu() {
   effects = [];
   floatingTexts = [];
   traps = [];
+  arenaObjects = [];
   clearFoods();
   closeOnline();
   setRoomChatVisible(false);
@@ -2759,6 +2925,7 @@ function resetGame() {
   }
   roomCodeLabel.textContent = currentRoom || "-";
   spawnFood(targetFoodCount());
+  spawnArenaAddons();
   if (isTutorial) spawnFood(90, player.x + 170, player.y, 0.9);
   focusPlayer = player;
   camera.x = focusPlayer.x;
@@ -2780,7 +2947,7 @@ function connectOnline(fromLobby = false) {
   if (!currentRoom) currentRoom = ROOM_PREFIX;
   currentRoom = normalizeRoomCode(currentRoom);
   roomCodeLabel.textContent = currentRoom;
-  const joinMessage = () => JSON.stringify({ type: "join", token: authToken || "", name: getCurrentPlayerName(), skin: getPlayableSkinId(selectedSkin), room: currentRoom, host: isRoomHost });
+  const joinMessage = () => JSON.stringify({ type: "join", token: authToken || "", name: getCurrentPlayerName(), skin: getPlayableSkinId(selectedSkin), room: currentRoom, host: isRoomHost, botCount: botCountSetting, addons: arenaAddons });
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(joinMessage());
     if (fromLobby) renderLobby();
@@ -2833,6 +3000,11 @@ function handleOnlineMessage(message) {
     lobbyPlayers = message.players || [];
     lobbyHostId = message.hostId || "";
     isRoomHost = Boolean(wsId && lobbyHostId === wsId);
+    if (message.addons) arenaAddons = {
+      superFood: Boolean(message.addons.superFood),
+      energyStations: Boolean(message.addons.energyStations),
+      speedGates: Boolean(message.addons.speedGates),
+    };
     rememberActiveRoom(running);
     renderLobby();
     if (voiceEnabled) connectVoiceToRoom();
@@ -2847,6 +3019,11 @@ function handleOnlineMessage(message) {
     pendingRoomSpawn = message.spawn && Number.isFinite(message.spawn.x) && Number.isFinite(message.spawn.y)
       ? { x: message.spawn.x, y: message.spawn.y }
       : null;
+    arenaAddons = {
+      superFood: Boolean(message.addons?.superFood),
+      energyStations: Boolean(message.addons?.energyStations),
+      speedGates: Boolean(message.addons?.speedGates),
+    };
     beginRoomGame();
   }
   if (message.type === "online") {
@@ -3223,7 +3400,8 @@ function moveSnake(snake, dt, now) {
   const golden = isGoldActive(snake, now);
   const shielded = isShieldActive(snake, now) || isShieldGrace(snake, now);
   const slowed = isSlowed(snake, now);
-  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.16 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * (shielded ? 0.94 : 1) * (slowed ? SLOW_SPEED_MULTIPLIER : 1) * dt;
+  const arenaSpeed = (snake.arenaSpeedUntil || 0) > now ? 1.42 : 1;
+  const speed = (canBoost ? BOOST_SPEED : BASE_SPEED) * (powered ? 1.16 : 1) * (golden ? GOLD_SPEED_MULTIPLIER : 1) * (shielded ? 1.08 : 1) * (slowed ? SLOW_SPEED_MULTIPLIER : 1) * arenaSpeed * dt;
   if (canBoost) {
     snake.boost = Math.max(0, snake.boost - 0.42 * dt);
     snake.targetLength = Math.max(12, snake.targetLength - 0.018 * dt);
@@ -3241,8 +3419,8 @@ function moveSnake(snake, dt, now) {
   if (!isShieldActive(snake, now)) snake.shieldPower = Math.min(100, (snake.shieldPower ?? 100) + SHIELD_RECHARGE_RATE * dt);
   snake.slowPower = Math.min(100, (snake.slowPower ?? 100) + SLOW_RECHARGE_RATE * dt);
   snake.bloomPower = Math.min(100, (snake.bloomPower ?? 100) + BLOOM_RECHARGE_RATE * dt);
-  if (slowed && effects.length < MAX_EFFECTS && Math.random() < 0.1) spawnEffectBurst(snake.x, snake.y, "#a78bfa", 1);
-  if (shielded && effects.length < MAX_EFFECTS && Math.random() < 0.12) spawnEffectBurst(snake.x, snake.y, "#d8f3ff", 1);
+  if (slowed && effects.length < MAX_EFFECTS && Math.random() < 0.12) spawnEffectBurst(snake.x, snake.y, "#ffb347", 1);
+  if (shielded && effects.length < MAX_EFFECTS && Math.random() < 0.1) spawnEffectBurst(snake.x, snake.y, "#4ff3ff", 1);
   if (powered && (snake.isPlayer || snake.type === "human") && now > (snake.nextFoodPullAt || 0)) {
     pullNearbyFood(snake, dt, now);
     snake.nextFoodPullAt = now + 28;
@@ -3298,6 +3476,7 @@ function collectFood(snake, now = performance.now()) {
           snake.score += Math.round(baseScore * (bonusFood ? multiplier + 0.18 : multiplier));
           if (!snake.boostRechargeLocked) snake.boost = Math.min(100, snake.boost + 2.2 + (food.bonusBoost || 0));
           const bonusPower = food.bonusPower || 0;
+          if (food.kind === "superCore") fillSnakePowers(snake);
           if (!powered) snake.power = Math.min(100, snake.power + 3.5 + bonusPower);
           snake.dashPower = Math.min(100, (snake.dashPower ?? 100) + DASH_PICKUP_BONUS + bonusPower * 0.55);
           snake.twinPower = Math.min(100, (snake.twinPower ?? 100) + TWIN_PICKUP_BONUS + bonusPower * 0.45);
@@ -3336,7 +3515,6 @@ function dropOnlineCorpse(message) {
 
 function killSnake(snake, killer, options = {}) {
   if (!snake.alive || snake.type === "hologram") return;
-  if (absorbShieldHit(snake)) return;
   snake.alive = false;
   if (options.dropFood !== false) {
     const corpseStep = Math.max(2, Math.ceil(snake.segments.length / 80));
@@ -3426,8 +3604,8 @@ function resolveCollisions() {
       if (!snake.alive) break;
       if (!other.alive || other.type === "hologram" || snake.id === other.id) continue;
       if (other.type === "remote" && snake.type !== "human") continue;
-      const snakePowered = isPowerActive(snake, now) || isShieldActive(snake, now) || isShieldGrace(snake, now);
-      const otherPowered = isPowerActive(other, now) || isShieldActive(other, now) || isShieldGrace(other, now);
+      const snakePowered = isPowerActive(snake, now);
+      const otherPowered = isPowerActive(other, now);
       const headLimit = snake.radius + other.radius - 2;
       const headDx = snake.x - other.x;
       const headDy = snake.y - other.y;
@@ -3451,7 +3629,7 @@ function resolveCollisions() {
         const dy = snake.y - seg.y;
         if (dy > hitLimit || dy < -hitLimit) continue;
         if (dx * dx + dy * dy < hitLimitSq) {
-          if (!snakePowered) killSnake(snake, other);
+          if (!snakePowered && !isShieldActive(snake, now)) killSnake(snake, other);
           break;
         }
       }
@@ -3523,6 +3701,7 @@ function update(dt, now) {
     for (const snake of snakes) { if (!snake.alive) continue; moveSnake(snake, dt, now); collectFood(snake, now); }
     syncTwinHolograms(now);
     updateRemoteSnakes(dt, now);
+    updateArenaAddons(now);
     resolveCollisions();
     maybeFinishVictory();
     sendOnlineState(now);
@@ -3766,7 +3945,7 @@ function drawSnake(snake, now = performance.now()) {
   if (powered || dashing || golden || shielded || slowed || locked || skin.aura) {
     ctx.save();
     ctx.globalAlpha = golden ? 0.46 : shielded ? 0.42 : slowed ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.38 : 0.18;
-    ctx.strokeStyle = golden ? "#ffd166" : shielded ? "#d8f3ff" : slowed ? "#a78bfa" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
+    ctx.strokeStyle = golden ? "#ffd166" : shielded ? "#4ff3ff" : slowed ? "#ffb347" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
     ctx.lineWidth = golden ? 6 : shielded ? 5 : slowed ? 4 : dashing ? 5 : locked ? 4 : powered ? 5 : 2;    ctx.beginPath();
     ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : shielded ? 26 : slowed ? 22 : dashing ? 24 : locked ? 20 : powered ? 24 : 9), 0, Math.PI * 2);
     ctx.stroke();    ctx.restore();
@@ -3807,11 +3986,17 @@ function render(now) {
   ctx.scale(scale, scale);
   ctx.translate(-camera.x, -camera.y);
   drawGrid();
+  drawArenaAddons(now);
   drawFood(now);
   drawTraps(now);
   drawEffects();
   drawFloatingTexts();
-  for (const snake of snakes) drawSnake(snake, now);
+  for (const snake of snakes) {
+    if (!snake.alive) continue;
+    const bounds = snake.bounds;
+    if (bounds && (bounds.right < viewBounds.left - 100 || bounds.left > viewBounds.right + 100 || bounds.bottom < viewBounds.top - 100 || bounds.top > viewBounds.bottom + 100)) continue;
+    drawSnake(snake, now);
+  }
   ctx.restore();
   drawVignette();
   drawRadar(now);
@@ -3927,7 +4112,9 @@ function bindControls() {
   if (settingsButton) settingsButton.addEventListener("click", () => showQuickPanel("settings"));
   translateButton.addEventListener("click", toggleLanguage);
   closeQuickPanel.addEventListener("click", hideQuickPanel);
-  document.querySelectorAll(".mode-button").forEach((button) => button.addEventListener("click", () => { gameMode = button.dataset.mode; updateModeButtons(); }));
+  document.querySelectorAll(".mode-button").forEach((button) => button.addEventListener("click", () => selectGameMode(button.dataset.mode)));
+  roomSetupBack?.addEventListener("click", closeRoomSetup);
+  confirmRoomSetup?.addEventListener("click", confirmRoomCreation);
   if (roomCodeInput) {
     roomCodeInput.addEventListener("keydown", protectRoomPrefix);
     roomCodeInput.addEventListener("input", handleRoomCodeInput);
