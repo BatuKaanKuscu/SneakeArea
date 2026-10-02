@@ -2070,7 +2070,12 @@ body.palette-forest .game-shell {
 
 @media (hover: none), (pointer: coarse), (max-width: 760px) {
   body.is-playing .touch-stick { display: block; }
-  body.is-playing .power-buttons { display: grid; }
+  body.is-playing .power-buttons {
+    display: grid;
+    opacity: 0.24;
+    transition: opacity 140ms ease;
+  }
+  body.is-playing .power-buttons:active { opacity: 0.68; }
   body.is-playing .boost-button { display: none; }
 }
 
