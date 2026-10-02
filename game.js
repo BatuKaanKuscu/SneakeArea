@@ -228,19 +228,21 @@ const TUTORIAL_POWER_GUIDE = [
 ];
 
 const SKINS = [
-  { id: "cyan", name: "Area Basic", price: 0, colors: ["#4ff3ff", "#b8ff5d"] },
-  { id: "lime", name: "Lime Rush", price: 120, colors: ["#b8ff5d", "#31e7a5"] },
-  { id: "pink", name: "Pink Strike", price: 180, colors: ["#ff5db8", "#ffb347"] },
-  { id: "amber", name: "Amber Coil", price: 240, colors: ["#ffb347", "#fff06a"] },
-  { id: "violet", name: "Violet Edge", price: 320, colors: ["#a78bfa", "#4ff3ff"] },
-  { id: "ruby", name: "Ruby Fang", price: 420, colors: ["#ff3d6e", "#ffd166"] },
-  { id: "ice", name: "Ice Wave", price: 520, colors: ["#d8f3ff", "#5ee7ff"] },
-  { id: "royal", name: "Royal Split", price: 700, colors: ["#8fd14f", "#f7f06d"] },
-  { id: EPIC_SKIN_ID, name: "Epic Cowboy", price: 0, rarity: "epic", unlockMatches: 5, note: "Şapka + sakal", colors: ["#7c4a26", "#f4c86b"], hat: true, hand: true, beard: true },
-  { id: "storm", name: "Epic Storm", price: 0, rarity: "epic", unlockMatches: 7, note: "Elektrik izli", colors: ["#e0f2fe", "#38bdf8"], aura: "storm" },
-  { id: "nebula", name: "Epic Nebula", price: 0, rarity: "epic", unlockMatches: 10, note: "Galaksi parıltısı", colors: ["#c084fc", "#22d3ee"], aura: "nebula" },
-  { id: "phantom", name: "Epic Phantom", price: 0, rarity: "epic", unlockMatches: 14, note: "Koyu enerji", colors: ["#111827", "#2dd4bf"], aura: "phantom" },
-  { id: "solar", name: "Epic Solar", price: 0, rarity: "epic", unlockMatches: 18, note: "Güneş parıltısı", colors: ["#fff06a", "#ff7a1a"], aura: "solar" },
+  { id: "cyan", name: "Area Basic", price: 0, note: "Radar çizgili", colors: ["#4ff3ff", "#b8ff5d"], motif: "rings", accessory: "antenna" },
+  { id: "lime", name: "Lime Rush", price: 120, note: "Yaprak yüzgeçli", colors: ["#b8ff5d", "#31e7a5"], motif: "chevron", accessory: "leaf" },
+  { id: "pink", name: "Pink Strike", price: 180, note: "Kalp ibikli", colors: ["#ff5db8", "#ffb347"], motif: "spots", accessory: "heart" },
+  { id: "amber", name: "Amber Coil", price: 240, note: "Zırhlı halkalar", colors: ["#ffb347", "#fff06a"], motif: "bands", accessory: "crest" },
+  { id: "violet", name: "Violet Edge", price: 320, note: "Kristal sırtlı", colors: ["#a78bfa", "#4ff3ff"], motif: "diamonds", accessory: "crystal" },
+  { id: "ruby", name: "Ruby Fang", price: 420, note: "Çift dişli", colors: ["#ff3d6e", "#ffd166"], motif: "fangs", accessory: "fangs" },
+  { id: "ice", name: "Ice Wave", price: 520, note: "Buz tacı", colors: ["#d8f3ff", "#5ee7ff"], motif: "shards", accessory: "ice" },
+  { id: "royal", name: "Royal Split", price: 700, note: "Kraliyet tacı", colors: ["#8fd14f", "#f7f06d"], motif: "royal", accessory: "crown" },
+  { id: EPIC_SKIN_ID, name: "Epic Cowboy", price: 0, rarity: "epic", unlockMatches: 5, note: "Şapka, sakal ve mekanik el", colors: ["#7c4a26", "#f4c86b"], motif: "western", accessory: "cowboy", hat: true, hand: true, beard: true },
+  { id: "storm", name: "Epic Storm", price: 0, rarity: "epic", unlockMatches: 7, note: "Şimşek boynuzları", colors: ["#e0f2fe", "#38bdf8"], motif: "lightning", accessory: "storm", aura: "storm" },
+  { id: "nebula", name: "Epic Nebula", price: 0, rarity: "epic", unlockMatches: 10, note: "Yörünge halkası", colors: ["#c084fc", "#22d3ee"], motif: "stars", accessory: "orbit", aura: "nebula" },
+  { id: "phantom", name: "Epic Phantom", price: 0, rarity: "epic", unlockMatches: 14, note: "Hayalet maskesi", colors: ["#111827", "#2dd4bf"], motif: "runes", accessory: "mask", aura: "phantom" },
+  { id: "solar", name: "Epic Solar", price: 0, rarity: "epic", unlockMatches: 18, note: "Güneş halesi", colors: ["#fff06a", "#ff7a1a"], motif: "sun", accessory: "sun", aura: "solar" },
+  { id: "admin_regalia", name: "Area Sovereign", price: 0, rarity: "admin", adminOnly: true, note: "Admin tacı ve yıldız muhafızları", colors: ["#f8fafc", "#a3ff4f"], motif: "command", accessory: "admin", aura: "admin", stars: true },
+  { id: "ekmek_legend", name: "Ekmekstr Legend", price: 0, rarity: "special", ownerOnly: "ekmekstr", note: "Altın dilimler ve nota halesi", colors: ["#f6c453", "#8b4513"], motif: "crumbs", accessory: "bread", aura: "bread" },
 ];
 const BOT_NAMES = ["Byte", "Nova", "Orbit", "Kobra", "Pulse", "Vega", "Pixel", "Rift", "Glitch", "Turbo", "Echo", "Mango", "Quartz", "Laser", "Drift", "Iris", "Flux", "Comet"];
 
@@ -280,10 +282,12 @@ const QUESTS = [
 ];
 
 const PALETTES = [
-  { id: "aurora", name: "Aurora", a: "#4ff3ff", b: "#b8ff5d" },
-  { id: "ember", name: "Ember", a: "#ffb347", b: "#ff3d6e" },
-  { id: "ice", name: "Ice", a: "#d8f3ff", b: "#5ee7ff" },
-  { id: "forest", name: "Forest", a: "#b8ff5d", b: "#31e7a5" },
+  { id: "aurora", name: "Aurora", desc: "Camgöbeği ve canlı yeşil", a: "#4ff3ff", b: "#b8ff5d" },
+  { id: "ember", name: "Ember", desc: "Mercan ve sıcak kehribar", a: "#ffb347", b: "#ff3d6e" },
+  { id: "ice", name: "Ice", desc: "Buz mavisi ve beyaz", a: "#d8f3ff", b: "#5ee7ff" },
+  { id: "forest", name: "Forest", desc: "Orman yeşili ve limon", a: "#b8ff5d", b: "#31e7a5" },
+  { id: "ocean", name: "Ocean", desc: "Okyanus ve köpük", a: "#38bdf8", b: "#67e8f9" },
+  { id: "graphite", name: "Graphite", desc: "Gümüş ve elektrik sarısı", a: "#cbd5e1", b: "#facc15" },
 ];
 const COMBO_WINDOW_MS = 2300;
 const COMBO_MAX = 8;
@@ -317,6 +321,7 @@ let currentRoom = "";
 let roomChatHistory = [];
 let selectedFriendChat = "";
 let friendChatHistory = [];
+let pendingInviteFriend = "";
 const ROOM_PREFIX = "AREA";
 const ADMIN_ROOM_CODE = `${ROOM_PREFIX}51`;
 let botCountSetting = 9;
@@ -378,7 +383,12 @@ function isAdminUser() { return Boolean(authToken) && !(guestMode && guestMode.c
 function isEpicSkin(skin) { return skin.rarity === "epic"; }
 function epicUnlockMatches(skin) { return Number(skin.unlockMatches || EPIC_UNLOCK_MATCHES); }
 function isEpicSkinUnlocked(skin) { return !isEpicSkin(skin) || isAdminUser() || profile.matches >= epicUnlockMatches(skin) || (profile.ownedSkins || []).includes(skin.id); }
-function canUseSkin(skin) { return skin.adminOnly ? isAdminUser() : !isEpicSkin(skin) || isEpicSkinUnlocked(skin); }
+function isEkmekstrUser() { return Boolean(authToken) && !(guestMode && guestMode.checked) && String(profile.name || "").toLowerCase() === "ekmekstr"; }
+function canUseSkin(skin) {
+  if (skin.adminOnly) return isAdminUser();
+  if (skin.ownerOnly) return String(profile.name || "").toLowerCase() === skin.ownerOnly && Boolean(authToken) && !(guestMode && guestMode.checked);
+  return !isEpicSkin(skin) || isEpicSkinUnlocked(skin);
+}
 function getPlayableSkinId(skinId) {
   const skin = getSkin(skinId);
   return profile.ownedSkins.includes(skin.id) && canUseSkin(skin) ? skin.id : "cyan";
@@ -1030,7 +1040,11 @@ function normalizeProfile(raw) {
   }
   merged.title = merged.isAdmin ? "admin" : (merged.unlockedTitles.includes(merged.title) ? merged.title : merged.unlockedTitles[0]);
   const validSkinIds = new Set(SKINS.map((skin) => skin.id));
-  merged.ownedSkins = merged.isAdmin ? SKINS.map((skin) => skin.id) : Array.from(new Set(["cyan", ...(merged.ownedSkins || [])])).filter((id) => validSkinIds.has(id));
+  merged.ownedSkins = merged.isAdmin
+    ? SKINS.filter((skin) => !skin.ownerOnly || skin.ownerOnly === String(merged.name || "").toLowerCase()).map((skin) => skin.id)
+    : Array.from(new Set(["cyan", ...(merged.ownedSkins || [])])).filter((id) => validSkinIds.has(id));
+  if (isEkmekstrAccount && !merged.ownedSkins.includes("ekmek_legend")) merged.ownedSkins.push("ekmek_legend");
+  if (!isEkmekstrAccount) merged.ownedSkins = merged.ownedSkins.filter((id) => id !== "ekmek_legend");
   if (!merged.isAdmin) {
     for (const skin of SKINS.filter(isEpicSkin)) {
       if ((Number(merged.matches) || 0) >= epicUnlockMatches(skin) && !merged.ownedSkins.includes(skin.id)) merged.ownedSkins.push(skin.id);
@@ -1548,26 +1562,43 @@ async function removeFriend(friend) {
   }
 }
 async function inviteFriend(friend) {
-  if (!authToken) return;
-  if (!currentRoom) {
-    gameMode = "room-create";
-    currentRoom = generateRoomCode();
-    updateModeButtons();
+  if (!authToken || !friend) return;
+  if (!currentRoom || !gameMode.startsWith("room")) {
+    pendingInviteFriend = friend;
+    hideQuickPanel();
+    showRoomSetup();
+    setAuthStatus(`${friend} için oda ayarlarını tamamla`);
+    return;
   }
   try {
-    await api("/api/friends/invite", { method: "POST", body: JSON.stringify({ token: authToken, friend, room: currentRoom }) });
-    setAuthStatus(`${friend} oda daveti aldı: ${currentRoom}`);
+    const result = await api("/api/friends/invite", { method: "POST", body: JSON.stringify({ token: authToken, friend, room: currentRoom }) });
+    setAuthStatus(`${friend} davet edildi · ${result.invite?.room || currentRoom}`);
+    renderFriends();
+  } catch (error) {
+    setAuthStatus(error?.message === "not_friends" ? "Yalnızca arkadaşlarını davet edebilirsin" : "Oda daveti gönderilemedi");
+  }
+}
+
+async function respondRoomInvite(from, room, accept) {
+  if (!authToken) return;
+  try {
+    const result = await api("/api/friends/invite/respond", { method: "POST", body: JSON.stringify({ token: authToken, from, room, accept }) });
+    profile = normalizeProfile(result.profile);
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    if (accept) useRoomInvite(room);
+    else { setAuthStatus("Oda daveti reddedildi"); renderFriends(); }
   } catch {
-    setAuthStatus("Oda daveti gönderilemedi");
+    setAuthStatus("Davet güncellenemedi");
   }
 }
 
 function useRoomInvite(room) {
   gameMode = "room-join";
-  currentRoom = cleanName(room, "LOBBY").toUpperCase();
+  currentRoom = normalizeRoomCode(room);
   roomCodeInput.value = currentRoom;
   updateModeButtons();
   hideQuickPanel();
+  enterLobby();
 }
 function generateRoomCode() {
   return `${ROOM_PREFIX}${Math.floor(1000 + Math.random() * 9000)}`;
@@ -2045,13 +2076,13 @@ function renderFriends() {
     ? outgoing.map((name) => `<article class="friend-row muted"><div><b>${name}</b><small>Yanıt bekleniyor</small></div><span class="request-chip">Beklemede</span></article>`).join("")
     : `<article class="friend-row muted"><div><b>Giden istek yok</b><small>Aramadan yeni istek gönderebilirsin</small></div></article>`;
   const inviteHtml = invites.length
-    ? invites.map((invite) => `<article class="friend-row"><div><b>${invite.from}</b><small>${invite.room} odasına davet etti</small></div><button data-use-invite="${invite.room}">Lobiye gir</button></article>`).join("")
+    ? invites.map((invite) => `<article class="friend-row invite-row"><div><b>${invite.from}</b><small><span class="online-dot"></span>${invite.room} odasına davet etti</small></div><div class="friend-actions"><button data-accept-invite="${invite.room}" data-invite-from="${invite.from}">Katıl</button><button class="is-muted" data-reject-invite="${invite.room}" data-invite-from="${invite.from}">Reddet</button></div></article>`).join("")
     : `<article class="friend-row muted"><div><b>Oda daveti yok</b><small>Davetler burada görünür</small></div></article>`;
   const friendsHtml = friends.length
     ? friends.map((friend) => {
       const name = friendNameOf(friend);
       const online = friendOnline(friend);
-      return `<article class="friend-row"><div><b>${name}</b><small>${online ? "Çevrim içi" : "Çevrim dışı"}</small></div><div class="friend-actions"><button data-chat-friend="${name}">Sohbet</button><button data-invite-friend="${name}">Davet</button><button class="is-muted" data-remove-friend="${name}">Çıkar</button></div></article>`;
+      return `<article class="friend-row friend-person ${online ? "is-online" : ""}"><div class="friend-identity"><span class="friend-avatar">${name.charAt(0).toUpperCase()}</span><div><b>${name}</b><small><span class="online-dot"></span>${online ? "Çevrim içi" : "Çevrim dışı"}</small></div></div><div class="friend-actions"><button data-chat-friend="${name}">Sohbet</button><button class="invite-action" data-invite-friend="${name}">Odaya davet et</button><button class="icon-danger" data-remove-friend="${name}" title="Arkadaşlıktan çıkar" aria-label="${name} adlı kişiyi arkadaşlıktan çıkar">×</button></div></article>`;
     }).join("")
     : `<article class="friend-row muted"><div><b>Henüz arkadaş yok</b><small>Kullanıcı ara ve istek gönder</small></div></article>`;
   quickFriends.innerHTML = `
@@ -2089,33 +2120,31 @@ function renderFriends() {
   quickFriends.querySelectorAll("[data-reject-friend]").forEach((button) => button.addEventListener("click", () => respondFriendRequest(button.dataset.rejectFriend, false)));
   quickFriends.querySelectorAll("[data-invite-friend]").forEach((button) => button.addEventListener("click", () => inviteFriend(button.dataset.inviteFriend)));
   quickFriends.querySelectorAll("[data-remove-friend]").forEach((button) => button.addEventListener("click", () => removeFriend(button.dataset.removeFriend)));
-  quickFriends.querySelectorAll("[data-use-invite]").forEach((button) => button.addEventListener("click", () => useRoomInvite(button.dataset.useInvite)));
+  quickFriends.querySelectorAll("[data-accept-invite]").forEach((button) => button.addEventListener("click", () => respondRoomInvite(button.dataset.inviteFrom, button.dataset.acceptInvite, true)));
+  quickFriends.querySelectorAll("[data-reject-invite]").forEach((button) => button.addEventListener("click", () => respondRoomInvite(button.dataset.inviteFrom, button.dataset.rejectInvite, false)));
 }
 function renderShop() {
   const html = SKINS.map((skin) => {
-    const adminLocked = skin.adminOnly && !canUseSkin(skin);
+    const accountLocked = !canUseSkin(skin) && Boolean(skin.adminOnly || skin.ownerOnly);
     const epicLocked = isEpicSkin(skin) && !canUseSkin(skin);
-    const owned = profile.ownedSkins.includes(skin.id) || ((isEpicSkin(skin) || skin.adminOnly) && canUseSkin(skin));
+    const owned = profile.ownedSkins.includes(skin.id) || ((isEpicSkin(skin) || skin.adminOnly || skin.ownerOnly) && canUseSkin(skin));
     const unlockAt = epicUnlockMatches(skin);
     const selected = selectedSkin === skin.id;
     const lockedByGuest = (!authToken || guestMode.checked) && !owned;
     let label = selected ? "Seçili" : owned ? "Seç" : `${skin.price} coin`;
-    if (adminLocked) label = "Admin özel";
+    if (skin.adminOnly && accountLocked) label = "Admin özel";
+    if (skin.ownerOnly && accountLocked) label = "Ekmekstr özel";
     if (epicLocked) label = `${unlockAt} maç tamamla`;
     if (lockedByGuest) label = "Profil gerekli";
-    const skinNote = skin.note || "";
-    const detail = skinNote ? (epicLocked ? `${Math.max(0, unlockAt - (profile.matches || 0))} maç kaldı - ${skinNote}` : adminLocked ? `Sadece admin - ${skinNote}` : skinNote) : adminLocked ? "Sadece admin" : epicLocked ? `${Math.max(0, unlockAt - (profile.matches || 0))} maç kaldı` : owned ? (skin.rarity === "admin" ? "Admin özel" : skin.rarity === "epic" ? "Epic ödül" : "Açık") : `${skin.price} coin`;
-    const previewClass = skin.hat ? ` skin-preview-cowboy${skin.beard ? " skin-preview-beard" : ""}` : "";
-    const beardPreview = skin.beard ? "<strong></strong>" : "";
-    const handPreview = skin.hand ? "<em></em>" : "";
-    const starPreview = skin.stars ? "<u></u><u></u>" : "";
-    return `<article class="shop-card ${skin.rarity === "epic" ? "is-epic" : ""} ${skin.rarity === "admin" ? "is-admin-skin" : ""}"><div class="skin-preview${previewClass}" style="--skin-a:${skin.colors[0]};--skin-b:${skin.colors[1]}"><span></span><span></span><span></span><i></i>${handPreview}${beardPreview}${starPreview}</div><b>${skin.name}</b><small>${detail}</small><button class="${selected ? "is-selected" : ""}" data-shop-skin="${skin.id}" ${lockedByGuest || epicLocked || adminLocked ? "disabled" : ""}>${label}</button></article>`;
+    const remaining = Math.max(0, unlockAt - (profile.matches || 0));
+    const detail = epicLocked ? `${remaining} maç kaldı · ${skin.note}` : accountLocked ? `${skin.adminOnly ? "Sadece admin" : "Sadece Ekmekstr"} · ${skin.note}` : skin.note || (owned ? "Açık" : `${skin.price} coin`);
+    const rarity = skin.rarity || "standard";
+    return `<article class="shop-card is-${rarity}"><div class="skin-preview skin-preview-${skin.motif || "rings"}" style="--skin-a:${skin.colors[0]};--skin-b:${skin.colors[1]}"><span></span><span></span><span></span><i></i><em></em><strong></strong><u></u><u></u></div><div class="skin-card-copy"><b>${skin.name}</b><small>${detail}</small></div><button class="${selected ? "is-selected" : ""}" data-shop-skin="${skin.id}" ${lockedByGuest || epicLocked || accountLocked ? "disabled" : ""}>${label}</button></article>`;
   }).join("");
   if (shopGrid) shopGrid.innerHTML = html;
   quickShop.innerHTML = html;
   document.querySelectorAll("[data-shop-skin]").forEach((button) => button.addEventListener("click", () => handleShopClick(button.dataset.shopSkin)));
 }
-
 function renderSettings() {
   if (!quickSettings) return;
   const keyRows = POWER_BINDING_DEFS.map((item, index) => {
@@ -2198,7 +2227,10 @@ function renderQuests() {
 }
 
 function renderPalette() {
-  quickPalette.innerHTML = PALETTES.map((palette) => `<button class="palette-card" data-palette="${palette.id}"><span class="palette-swatch" style="--a:${palette.a};--b:${palette.b}"></span><strong>${palette.name}</strong></button>`).join("");
+  quickPalette.innerHTML = PALETTES.map((palette) => {
+    const selected = profile.theme === palette.id;
+    return `<button class="palette-card ${selected ? "is-selected" : ""}" data-palette="${palette.id}" aria-pressed="${selected}"><span class="palette-swatch" style="--a:${palette.a};--b:${palette.b}"><i></i><i></i><i></i></span><span><strong>${palette.name}</strong><small>${palette.desc}</small></span><b class="palette-check">${selected ? "✓" : ""}</b></button>`;
+  }).join("");
   document.querySelectorAll("[data-palette]").forEach((button) => button.addEventListener("click", () => setPalette(button.dataset.palette)));
 }
 
@@ -2270,7 +2302,7 @@ function handleShopClick(skinId) {
     profile.ownedSkins.push(skin.id);
   }
   if (skin.adminOnly && !canUseSkin(skin)) return;
-  if ((isEpicSkin(skin) || skin.adminOnly) && !profile.ownedSkins.includes(skin.id)) profile.ownedSkins.push(skin.id);
+  if ((isEpicSkin(skin) || skin.adminOnly || skin.ownerOnly) && !profile.ownedSkins.includes(skin.id)) profile.ownedSkins.push(skin.id);
   selectedSkin = skin.id;
   profile.activeSkin = skin.id;
   saveProfile();
@@ -2311,6 +2343,11 @@ function confirmRoomCreation() {
   arenaAddons = selectedArenaAddons();
   roomSetupPanel?.classList.add("is-hidden");
   enterLobby();
+  if (pendingInviteFriend) {
+    const friend = pendingInviteFriend;
+    pendingInviteFriend = "";
+    setTimeout(() => inviteFriend(friend), 180);
+  }
 }
 
 function selectGameMode(mode) {
@@ -3054,6 +3091,12 @@ function handleOnlineMessage(message) {
     roomChatHistory.push(message.message);
     roomChatHistory = roomChatHistory.slice(-50);
     renderRoomChat();
+  }
+  if (message.type === "room-invite" && message.invite) {
+    profile.roomInvites = [message.invite, ...(profile.roomInvites || []).filter((invite) => !(invite.from === message.invite.from && invite.room === message.invite.room))].slice(0, 8);
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    setAuthStatus(`${message.invite.from} seni ${message.invite.room} odasına davet etti`);
+    renderFriends();
   }
   if (message.type === "friend-message" && message.message && message.message.from === selectedFriendChat) {
     friendChatHistory.push(message.message);
@@ -3879,9 +3922,76 @@ function drawStar(cx, cy, outer, color) {
   ctx.fill();
 }
 
+function drawSkinMotif(skin, seg, radius, index) {
+  if (!skin.motif || index % 4 !== 0) return;
+  ctx.save();
+  ctx.translate(seg.x, seg.y);
+  ctx.globalAlpha *= 0.62;
+  ctx.strokeStyle = "rgba(255,255,255,0.78)";
+  ctx.fillStyle = skin.colors[1];
+  ctx.lineWidth = Math.max(1, radius * 0.13);
+  if (["bands", "western", "command"].includes(skin.motif)) {
+    ctx.beginPath(); ctx.arc(0, 0, radius * 0.7, -1.05, 1.05); ctx.stroke();
+  } else if (["spots", "crumbs", "stars"].includes(skin.motif)) {
+    ctx.beginPath(); ctx.arc(radius * 0.22, -radius * 0.18, Math.max(1.3, radius * 0.18), 0, Math.PI * 2); ctx.fill();
+  } else if (["diamonds", "shards", "royal", "sun"].includes(skin.motif)) {
+    ctx.rotate(Math.PI / 4); ctx.fillRect(-radius * 0.18, -radius * 0.18, radius * 0.36, radius * 0.36);
+  } else if (["lightning", "chevron", "fangs"].includes(skin.motif)) {
+    ctx.beginPath(); ctx.moveTo(-radius * 0.46, -radius * 0.24); ctx.lineTo(0, radius * 0.18); ctx.lineTo(radius * 0.46, -radius * 0.24); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.arc(0, 0, radius * 0.52, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawSkinAccessory(snake, skin, now) {
+  const size = snake.radius;
+  const accessory = skin.accessory;
+  if (!accessory || accessory === "cowboy") return;
+  ctx.save();
+  ctx.translate(snake.x, snake.y);
+  ctx.rotate(snake.angle);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = Math.max(1.4, size * 0.12);
+  ctx.strokeStyle = "rgba(6,17,15,0.78)";
+  ctx.fillStyle = skin.colors[1];
+  if (accessory === "antenna") {
+    ctx.beginPath(); ctx.moveTo(size * 0.25, -size * 0.55); ctx.lineTo(size * 0.7, -size * 1.15); ctx.moveTo(size * 0.25, size * 0.55); ctx.lineTo(size * 0.7, size * 1.15); ctx.stroke();
+    for (const y of [-1, 1]) { ctx.beginPath(); ctx.arc(size * 0.72, y * size * 1.18, size * 0.18, 0, Math.PI * 2); ctx.fill(); }
+  } else if (accessory === "leaf" || accessory === "heart") {
+    for (const y of [-1, 1]) { ctx.beginPath(); ctx.ellipse(-size * 0.08, y * size * 1.0, size * 0.62, size * 0.28, y * 0.42, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+  } else if (["crest", "crystal", "ice", "crown", "admin"].includes(accessory)) {
+    ctx.beginPath(); ctx.moveTo(-size * 0.45, -size * 0.72); ctx.lineTo(0, -size * 1.55); ctx.lineTo(size * 0.34, -size * 0.82); ctx.lineTo(size * 0.72, -size * 1.36); ctx.lineTo(size * 0.76, -size * 0.54); ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (accessory === "admin") { ctx.fillStyle = "#fff06a"; drawStar(size * 0.12, -size * 0.9, size * 0.2, "#fff06a"); }
+  } else if (accessory === "fangs") {
+    ctx.fillStyle = "#fff";
+    for (const y of [-1, 1]) { ctx.beginPath(); ctx.moveTo(size * 0.72, y * size * 0.45); ctx.lineTo(size * 1.45, y * size * 0.5); ctx.lineTo(size * 0.76, y * size * 0.72); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  } else if (accessory === "storm") {
+    ctx.strokeStyle = "#e0f2fe"; ctx.lineWidth = Math.max(2, size * 0.2);
+    for (const y of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-size * 0.15, y * size * 0.72); ctx.lineTo(size * 0.35, y * size * 1.15); ctx.lineTo(size * 0.18, y * size * 1.55); ctx.lineTo(size * 0.85, y * size * 1.22); ctx.stroke(); }
+  } else if (accessory === "orbit") {
+    ctx.strokeStyle = "#c084fc"; ctx.lineWidth = Math.max(2, size * 0.15); ctx.beginPath(); ctx.ellipse(0, 0, size * 1.55, size * 0.66, now * 0.001, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "#67e8f9"; ctx.beginPath(); ctx.arc(size * 1.35, 0, size * 0.2, 0, Math.PI * 2); ctx.fill();
+  } else if (accessory === "mask") {
+    ctx.fillStyle = "rgba(5,12,18,0.9)"; ctx.beginPath(); ctx.ellipse(size * 0.35, 0, size * 0.72, size * 0.92, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#2dd4bf"; for (const y of [-1, 1]) { ctx.beginPath(); ctx.arc(size * 0.58, y * size * 0.3, size * 0.12, 0, Math.PI * 2); ctx.fill(); }
+  } else if (accessory === "sun") {
+    ctx.strokeStyle = "#fff06a"; ctx.lineWidth = Math.max(2, size * 0.14); ctx.beginPath(); ctx.arc(0, 0, size * 1.45, 0, Math.PI * 2); ctx.stroke();
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.beginPath(); ctx.moveTo(Math.cos(a) * size * 1.55, Math.sin(a) * size * 1.55); ctx.lineTo(Math.cos(a) * size * 1.9, Math.sin(a) * size * 1.9); ctx.stroke(); }
+  } else if (accessory === "bread") {
+    ctx.fillStyle = "#f6c453"; ctx.beginPath(); ctx.ellipse(-size * 0.05, -size * 0.95, size * 0.7, size * 0.45, -0.12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = "#8b4513"; for (const x of [-0.25, 0.12, 0.45]) { ctx.beginPath(); ctx.moveTo(size * x, -size * 1.22); ctx.lineTo(size * (x + 0.08), -size * 0.78); ctx.stroke(); }
+    ctx.fillStyle = "#fff06a"; ctx.font = `900 ${Math.max(8, size * 0.72)}px sans-serif`; ctx.fillText("♪", -size * 1.4, size * 0.15); ctx.fillText("♫", size * 0.95, -size * 0.35);
+  }
+  ctx.restore();
+}
 function drawCowboyGear(snake, now = performance.now()) {
   const skin = getSkin(snake.skin);
-  if (!skin.hat) return;
+  if (!skin.hat) {
+    drawSkinAccessory(snake, skin, now);
+    return;
+  }
   const size = snake.radius;
   const forwardX = Math.cos(snake.angle);
   const forwardY = Math.sin(snake.angle);
@@ -4008,13 +4118,14 @@ function drawSnake(snake, now = performance.now()) {
     ctx.globalAlpha = snake.type === "remote" ? 0.78 : 1 - t * 0.12;
     ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2);
     ctx.fill();
+    drawSkinMotif(skin, seg, radius, i);
   }
   if (!drewAny || !headVisible) { ctx.globalAlpha = 1; return; }
   ctx.globalAlpha = 1;
   if (powered || dashing || golden || shielded || splitting || locked || skin.aura) {
     ctx.save();
     ctx.globalAlpha = golden ? 0.46 : shielded ? 0.42 : splitting ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.38 : 0.18;
-    ctx.strokeStyle = golden ? "#ffd166" : shielded ? "#4ff3ff" : splitting ? "#ff5db8" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : "#b8ff5d";
+    ctx.strokeStyle = golden ? "#ffd166" : shielded ? "#4ff3ff" : splitting ? "#ff5db8" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : skin.aura === "storm" ? "#38bdf8" : skin.aura === "admin" ? "#fff06a" : skin.aura === "bread" ? "#f6c453" : "#b8ff5d";
     ctx.lineWidth = golden ? 6 : shielded ? 5 : splitting ? 4 : dashing ? 5 : locked ? 4 : powered ? 5 : 2;    ctx.beginPath();
     ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : shielded ? 26 : splitting ? 22 : dashing ? 24 : locked ? 20 : powered ? 24 : 9), 0, Math.PI * 2);
     ctx.stroke();    ctx.restore();
