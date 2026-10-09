@@ -241,11 +241,17 @@ const SKINS = [
   { id: "ruby", name: "Ruby Fang", price: 420, note: "Çift dişli", colors: ["#ff3d6e", "#ffd166"], motif: "fangs", accessory: "fangs" },
   { id: "ice", name: "Ice Wave", price: 520, note: "Buz tacı", colors: ["#d8f3ff", "#5ee7ff"], motif: "shards", accessory: "ice" },
   { id: "royal", name: "Royal Split", price: 700, note: "Kraliyet tacı", colors: ["#8fd14f", "#f7f06d"], motif: "royal", accessory: "crown" },
+  { id: "circuit", name: "Circuit Gecko", price: 850, note: "Devre plakaları ve sensör gözler", colors: ["#00e5a8", "#172554"], motif: "circuit", accessory: "sensor" },
+  { id: "sakura", name: "Sakura Ronin", price: 1000, note: "Petal zırhı ve çift kılıç", colors: ["#fb7185", "#fce7f3"], motif: "petals", accessory: "ronin" },
+  { id: "toxic", name: "Toxic Mech", price: 1200, note: "Mekanik çene ve toksik tanklar", colors: ["#a3e635", "#24310f"], motif: "hazard", accessory: "mech" },
   { id: EPIC_SKIN_ID, name: "Epic Cowboy", price: 0, rarity: "epic", unlockMatches: 5, note: "Şapka, sakal ve mekanik el", colors: ["#7c4a26", "#f4c86b"], motif: "western", accessory: "cowboy", hat: true, hand: true, beard: true },
   { id: "storm", name: "Epic Storm", price: 0, rarity: "epic", unlockMatches: 7, note: "Şimşek boynuzları", colors: ["#e0f2fe", "#38bdf8"], motif: "lightning", accessory: "storm", aura: "storm" },
   { id: "nebula", name: "Epic Nebula", price: 0, rarity: "epic", unlockMatches: 10, note: "Yörünge halkası", colors: ["#c084fc", "#22d3ee"], motif: "stars", accessory: "orbit", aura: "nebula" },
   { id: "phantom", name: "Epic Phantom", price: 0, rarity: "epic", unlockMatches: 14, note: "Hayalet maskesi", colors: ["#111827", "#2dd4bf"], motif: "runes", accessory: "mask", aura: "phantom" },
   { id: "solar", name: "Epic Solar", price: 0, rarity: "epic", unlockMatches: 18, note: "Güneş halesi", colors: ["#fff06a", "#ff7a1a"], motif: "sun", accessory: "sun", aura: "solar" },
+  { id: "warden", name: "Epic Frost Warden", price: 0, rarity: "epic", unlockMatches: 22, note: "Buz miğferi ve omuz kristalleri", colors: ["#e0f2fe", "#2563eb"], motif: "frost", accessory: "warden", aura: "frost" },
+  { id: "dragon", name: "Epic Dragon Pulse", price: 0, rarity: "epic", unlockMatches: 28, note: "Ejderha boynuzları ve alev sırtı", colors: ["#ef4444", "#fbbf24"], motif: "scales", accessory: "dragon", aura: "dragon" },
+  { id: "cosmic_dj", name: "Epic Cosmic DJ", price: 0, rarity: "epic", unlockMatches: 35, note: "Kulaklık, ekolayzer ve ritim halkası", colors: ["#22d3ee", "#f472b6"], motif: "equalizer", accessory: "dj", aura: "dj" },
   { id: "admin_regalia", name: "Area Sovereign", price: 0, rarity: "admin", adminOnly: true, note: "Admin tacı ve yıldız muhafızları", colors: ["#f8fafc", "#a3ff4f"], motif: "command", accessory: "admin", aura: "admin", stars: true },
   { id: "ekmek_legend", name: "Ekmekstr Legend", price: 0, rarity: "special", ownerOnly: "ekmekstr", note: "Altın dilimler ve nota halesi", colors: ["#f6c453", "#8b4513"], motif: "crumbs", accessory: "bread", aura: "bread" },
 ];
@@ -287,6 +293,13 @@ const QUESTS = [
   { id: "reach_1500", name: "Şampiyon Yolu", desc: "1500 en iyi skora ulaş.", coin: 260, title: "champion", value: () => profile.bestScore, target: 1500, check: () => profile.bestScore >= 1500 },
   { id: "own_four", name: "Renk Ustası", desc: "4 kostüme sahip ol.", coin: 220, title: "collector", value: () => profile.ownedSkins.length, target: 4, check: () => profile.ownedSkins.length >= 4 },
   { id: "coin_1000", name: "Coin Kasası", desc: "1000 coin biriktir.", coin: 180, title: "speedster", value: () => profile.coins, target: 1000, check: () => profile.coins >= 1000 },
+  { id: "play_seven", name: "Haftalık Isınma", desc: "7 maç tamamla.", coin: 240, title: "survivor", value: () => profile.matches, target: 7, check: () => profile.matches >= 7 },
+  { id: "play_fifteen", name: "Arena Emektarı", desc: "15 maç tamamla.", coin: 420, title: "champion", value: () => profile.matches, target: 15, check: () => profile.matches >= 15 },
+  { id: "reach_3000", name: "Üç Binlik Hücum", desc: "3000 en iyi skora ulaş.", coin: 500, title: "hunter", value: () => profile.bestScore, target: 3000, check: () => profile.bestScore >= 3000 },
+  { id: "own_ten", name: "Büyük Gardırop", desc: "10 kostüme sahip ol.", coin: 460, title: "collector", value: () => profile.ownedSkins.length, target: 10, check: () => profile.ownedSkins.length >= 10 },
+  { id: "friend_three", name: "Takımını Kur", desc: "3 arkadaş ekle.", coin: 210, title: "survivor", value: () => profile.friends.length, target: 3, check: () => profile.friends.length >= 3 },
+  { id: "title_four", name: "Ünvan Avcısı", desc: "4 ünvan aç.", coin: 320, title: "collector", value: () => profile.unlockedTitles.length, target: 4, check: () => profile.unlockedTitles.length >= 4 },
+  { id: "coin_5000", name: "Arena Hazinesi", desc: "5000 coin biriktir.", coin: 650, title: "speedster", value: () => profile.coins, target: 5000, check: () => profile.coins >= 5000 },
 ];
 
 const PALETTES = [
@@ -3973,13 +3986,13 @@ function drawSkinMotif(skin, seg, radius, index) {
   ctx.strokeStyle = "rgba(255,255,255,0.78)";
   ctx.fillStyle = skin.colors[1];
   ctx.lineWidth = Math.max(1, radius * 0.13);
-  if (["bands", "western", "command"].includes(skin.motif)) {
+  if (["bands", "western", "command", "circuit", "equalizer"].includes(skin.motif)) {
     ctx.beginPath(); ctx.arc(0, 0, radius * 0.7, -1.05, 1.05); ctx.stroke();
-  } else if (["spots", "crumbs", "stars"].includes(skin.motif)) {
+  } else if (["spots", "crumbs", "stars", "petals", "scales"].includes(skin.motif)) {
     ctx.beginPath(); ctx.arc(radius * 0.22, -radius * 0.18, Math.max(1.3, radius * 0.18), 0, Math.PI * 2); ctx.fill();
-  } else if (["diamonds", "shards", "royal", "sun"].includes(skin.motif)) {
+  } else if (["diamonds", "shards", "royal", "sun", "frost"].includes(skin.motif)) {
     ctx.rotate(Math.PI / 4); ctx.fillRect(-radius * 0.18, -radius * 0.18, radius * 0.36, radius * 0.36);
-  } else if (["lightning", "chevron", "fangs"].includes(skin.motif)) {
+  } else if (["lightning", "chevron", "fangs", "hazard"].includes(skin.motif)) {
     ctx.beginPath(); ctx.moveTo(-radius * 0.46, -radius * 0.24); ctx.lineTo(0, radius * 0.18); ctx.lineTo(radius * 0.46, -radius * 0.24); ctx.stroke();
   } else {
     ctx.beginPath(); ctx.arc(0, 0, radius * 0.52, 0, Math.PI * 2); ctx.stroke();
@@ -4022,6 +4035,29 @@ function drawSkinAccessory(snake, skin, now) {
   } else if (accessory === "sun") {
     ctx.strokeStyle = "#fff06a"; ctx.lineWidth = Math.max(2, size * 0.14); ctx.beginPath(); ctx.arc(0, 0, size * 1.45, 0, Math.PI * 2); ctx.stroke();
     for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.beginPath(); ctx.moveTo(Math.cos(a) * size * 1.55, Math.sin(a) * size * 1.55); ctx.lineTo(Math.cos(a) * size * 1.9, Math.sin(a) * size * 1.9); ctx.stroke(); }
+  } else if (accessory === "sensor") {
+    ctx.fillStyle = "#071a2f"; ctx.fillRect(size * 0.22, -size * 0.72, size * 0.62, size * 1.44);
+    ctx.fillStyle = "#00ffc3"; for (const y of [-1, 1]) { ctx.beginPath(); ctx.arc(size * 0.62, y * size * 0.34, size * 0.13, 0, Math.PI * 2); ctx.fill(); }
+    ctx.strokeStyle = "#00ffc3"; ctx.beginPath(); ctx.moveTo(0, -size * 0.75); ctx.lineTo(-size * 0.3, -size * 1.35); ctx.stroke();
+  } else if (accessory === "ronin") {
+    ctx.strokeStyle = "#f8fafc"; ctx.lineWidth = Math.max(2, size * 0.16);
+    for (const y of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-size * 0.45, y * size * 0.7); ctx.lineTo(size * 0.85, y * size * 1.22); ctx.stroke(); }
+    ctx.fillStyle = "#fb7185"; ctx.beginPath(); ctx.moveTo(-size * 0.25, -size); ctx.lineTo(size * 0.48, 0); ctx.lineTo(-size * 0.25, size); ctx.closePath(); ctx.fill();
+  } else if (accessory === "mech") {
+    ctx.fillStyle = "#26350f"; ctx.fillRect(size * 0.15, -size * 0.9, size * 0.78, size * 1.8);
+    ctx.fillStyle = "#a3e635"; for (const y of [-1, 1]) { ctx.beginPath(); ctx.arc(-size * 0.25, y * size * 1.0, size * 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    ctx.strokeStyle = "#d9f99d"; ctx.beginPath(); ctx.moveTo(size * 0.72, -size * 0.65); ctx.lineTo(size * 1.18, 0); ctx.lineTo(size * 0.72, size * 0.65); ctx.stroke();
+  } else if (accessory === "warden") {
+    ctx.fillStyle = "#dbeafe"; ctx.beginPath(); ctx.moveTo(-size * 0.42, -size * 0.8); ctx.lineTo(size * 0.08, -size * 1.55); ctx.lineTo(size * 0.55, -size * 0.72); ctx.lineTo(size * 0.55, size * 0.72); ctx.lineTo(size * 0.08, size * 1.55); ctx.lineTo(-size * 0.42, size * 0.8); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#2563eb"; ctx.fillRect(size * 0.25, -size * 0.48, size * 0.45, size * 0.96);
+  } else if (accessory === "dragon") {
+    ctx.fillStyle = "#fbbf24";
+    for (const y of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-size * 0.15, y * size * 0.55); ctx.quadraticCurveTo(-size * 0.65, y * size * 1.35, size * 0.15, y * size * 1.7); ctx.lineTo(size * 0.48, y * size * 0.72); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = "#fff7ed"; ctx.beginPath(); ctx.arc(size * 0.62, 0, size * 0.17, 0, Math.PI * 2); ctx.fill();
+  } else if (accessory === "dj") {
+    ctx.strokeStyle = "#22d3ee"; ctx.lineWidth = Math.max(3, size * 0.22); ctx.beginPath(); ctx.arc(0, 0, size * 1.08, -Math.PI * 0.7, Math.PI * 0.7); ctx.stroke();
+    ctx.fillStyle = "#f472b6"; for (const y of [-1, 1]) { ctx.beginPath(); ctx.arc(0, y * size * 1.08, size * 0.34, 0, Math.PI * 2); ctx.fill(); }
+    ctx.strokeStyle = "#f472b6"; ctx.lineWidth = Math.max(1.5, size * 0.12); ctx.beginPath(); ctx.arc(0, 0, size * (1.45 + Math.sin(now * 0.01) * 0.08), 0, Math.PI * 2); ctx.stroke();
   } else if (accessory === "bread") {
     ctx.fillStyle = "#f6c453"; ctx.beginPath(); ctx.ellipse(-size * 0.05, -size * 0.95, size * 0.7, size * 0.45, -0.12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.strokeStyle = "#8b4513"; for (const x of [-0.25, 0.12, 0.45]) { ctx.beginPath(); ctx.moveTo(size * x, -size * 1.22); ctx.lineTo(size * (x + 0.08), -size * 0.78); ctx.stroke(); }
@@ -4168,7 +4204,7 @@ function drawSnake(snake, now = performance.now()) {
   if (powered || dashing || golden || shielded || splitting || locked || skin.aura) {
     ctx.save();
     ctx.globalAlpha = golden ? 0.46 : shielded ? 0.42 : splitting ? 0.34 : dashing ? 0.42 : locked ? 0.34 : powered ? 0.38 : 0.18;
-    ctx.strokeStyle = golden ? "#ffd166" : shielded ? "#4ff3ff" : splitting ? "#ff5db8" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : skin.aura === "storm" ? "#38bdf8" : skin.aura === "admin" ? "#fff06a" : skin.aura === "bread" ? "#f6c453" : "#b8ff5d";
+    ctx.strokeStyle = golden ? "#ffd166" : shielded ? "#4ff3ff" : splitting ? "#ff5db8" : dashing ? "#4ff3ff" : locked ? "#ff3d6e" : skin.aura === "solar" ? "#ffb347" : skin.aura === "phantom" ? "#2dd4bf" : skin.aura === "nebula" ? "#c084fc" : skin.aura === "storm" ? "#38bdf8" : skin.aura === "admin" ? "#fff06a" : skin.aura === "bread" ? "#f6c453" : skin.aura === "frost" ? "#60a5fa" : skin.aura === "dragon" ? "#ef4444" : skin.aura === "dj" ? "#f472b6" : "#b8ff5d";
     ctx.lineWidth = golden ? 6 : shielded ? 5 : splitting ? 4 : dashing ? 5 : locked ? 4 : powered ? 5 : 2;    ctx.beginPath();
     ctx.arc(snake.x, snake.y, snake.radius + (golden ? 28 : shielded ? 26 : splitting ? 22 : dashing ? 24 : locked ? 20 : powered ? 24 : 9), 0, Math.PI * 2);
     ctx.stroke();    ctx.restore();

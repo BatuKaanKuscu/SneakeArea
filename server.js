@@ -27,9 +27,12 @@ const epicSkins = [
   { id: "nebula", matches: 10 },
   { id: "phantom", matches: 14 },
   { id: "solar", matches: 18 },
+  { id: "warden", matches: 22 },
+  { id: "dragon", matches: 28 },
+  { id: "cosmic_dj", matches: 35 },
 ];
 const epicSkinIds = epicSkins.map((skin) => skin.id);
-const defaultSkins = ["cyan", "lime", "pink", "amber", "violet", "ruby", "ice", "royal", ...epicSkinIds, "admin_regalia", "ekmek_legend"];
+const defaultSkins = ["cyan", "lime", "pink", "amber", "violet", "ruby", "ice", "royal", "circuit", "sakura", "toxic", ...epicSkinIds, "admin_regalia", "ekmek_legend"];
 const baseTitles = ["rookie", "hunter", "collector", "champion", "speedster", "survivor"];
 const specialTitles = ["ekmekstr"];
 const defaultTitles = ["rookie"];
