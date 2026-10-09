@@ -1684,6 +1684,7 @@ function focusRoomCodeSuffix() {
 
 function showQuickPanel(kind) {
   quickPanel.classList.remove("is-hidden");
+  quickPanel.classList.toggle("is-profile-view", kind === "profile");
   const titleMap = { profile: "Profil", friends: "Arkada\u015flar", shop: "D\u00fckkan", achievements: "Ba\u015far\u0131mlar", quests: "G\u00f6revler", palette: "Renk Katalo\u011fu", settings: "Ayarlar" };
   quickTitle.textContent = titleMap[kind] || "Panel";
   if (quickAuth) quickAuth.classList.toggle("is-hidden", kind !== "profile");
@@ -1722,6 +1723,7 @@ function renderProfile() {
   const avatar = getAvatar(profile.avatar);
   const titleText = isGuest || !isSignedIn ? "Misafir" : TITLE_CATALOG[profile.title] || "Çaylak";
   const career = careerProgress();
+  if (quickAuth) quickAuth.classList.toggle("is-signed-in", isSignedIn);
   if (profileName) profileName.value = isSignedIn ? profile.name : "Guest";
   if (profileAvatar) profileAvatar.textContent = isSignedIn ? avatar.mark : shownName.charAt(0).toUpperCase();
   if (topUserName) topUserName.textContent = shownName;
@@ -1755,17 +1757,54 @@ function renderProfile() {
   if (authOnlineCount) authOnlineCount.textContent = `${onlineTotal} çevrim içi`;
   setAuthStatus(isGuest ? "Misafir modu" : authToken ? `${profile.name} olarak giriş yapıldı` : "Giriş yap veya hesap oluştur");
 
-  const avatarOptions = AVATARS.map((item) => `<button class="choice-card ${profile.avatar === item.id ? "is-selected" : ""}" data-profile-avatar="${item.id}"><b>${item.mark}</b><span>${item.name}</span></button>`).join("");
-  const titleOptions = (profile.unlockedTitles || ["rookie"]).map((title) => `<button class="choice-card ${profile.title === title ? "is-selected" : ""}" data-profile-title="${title}"><b>${TITLE_CATALOG[title] || title}</b><span>Ünvan</span></button>`).join("");
+  const activeSkin = getSkin(selectedSkin);
+  const completedAchievements = ACHIEVEMENTS.filter((item) => itemProgress(item).done).length;
+  const unlockedTitles = profile.unlockedTitles || ["rookie"];
+  const avatarOptions = AVATARS.map((item) => `<button class="choice-card avatar-choice ${profile.avatar === item.id ? "is-selected" : ""}" data-profile-avatar="${item.id}" ${!isSignedIn ? "disabled" : ""}><b>${item.mark}</b><span>${item.name}</span><small>${profile.avatar === item.id ? "Kullanılıyor" : "Seç"}</small></button>`).join("");
+  const titleOptions = unlockedTitles.map((title) => `<button class="choice-card title-choice ${profile.title === title ? "is-selected" : ""}" data-profile-title="${title}" ${!isSignedIn ? "disabled" : ""}><b>${TITLE_CATALOG[title] || title}</b><span>${profile.title === title ? "Aktif ünvan" : "Kullan"}</span></button>`).join("");
+  const nextGoals = QUESTS.filter((quest) => !profile.claimedQuests.includes(quest.id)).map((quest) => ({ quest, progress: itemProgress(quest) })).sort((a, b) => b.progress.percent - a.progress.percent).slice(0, 3);
+  const goalHtml = nextGoals.length ? nextGoals.map(({ quest, progress }) => `<article class="profile-goal"><div><b>${quest.name}</b><small>${Math.min(Math.floor(progress.value), progress.target)}/${progress.target} · +${quest.coin} coin</small></div><div class="reward-progress"><i style="width:${progress.percent}%"></i></div></article>`).join("") : `<p class="profile-empty">Tüm mevcut görev ödüllerini topladın.</p>`;
+  const skinPreview = `<div class="skin-preview profile-skin-preview skin-preview-${activeSkin.motif || "rings"}" style="--skin-a:${activeSkin.colors[0]};--skin-b:${activeSkin.colors[1]}"><span></span><span></span><span></span><i></i><em></em><strong></strong><u></u><u></u></div>`;
   quickProfile.innerHTML = `
-    <section class="profile-hero"><div class="profile-avatar-large">${isSignedIn ? avatar.mark : shownName.charAt(0).toUpperCase()}</div><div><span>Oyuncu profili</span><strong>@${shownName}</strong><small>${titleText}</small></div></section>
-    <section class="career-level"><div class="career-level-head"><span>ARENA SEVİYESİ</span><strong>${isSignedIn ? `LVL ${career.level}` : "-"}</strong></div><div class="career-track"><i style="width:${isSignedIn ? career.percent : 0}%"></i></div><small>${isSignedIn ? `${career.xp} XP · sonraki seviye ${career.nextXp} XP` : "İlerlemeni kaydetmek için giriş yap"}</small></section>
-    <div><span>Coin</span><strong>${isSignedIn ? Math.floor(profile.coins).toLocaleString("tr-TR") : "-"}</strong></div>
-    <div><span>En iyi</span><strong>${isSignedIn ? Math.floor(profile.bestScore).toLocaleString("tr-TR") : "-"}</strong></div>
-    <section class="profile-choice"><h3>Profil resmini seç</h3><div class="choice-grid">${avatarOptions}</div></section>
-    <section class="profile-choice"><h3>Ünvanını seç</h3><div class="choice-grid">${titleOptions}</div></section>`;
+    <section class="profile-dashboard-hero">
+      <div class="profile-avatar-large">${isSignedIn ? avatar.mark : shownName.charAt(0).toUpperCase()}</div>
+      <div class="profile-identity"><span>OYUNCU PROFİLİ</span><strong>@${shownName}</strong><div><b>${titleText}</b><i>${isSignedIn ? "Çevrim içi" : "Misafir"}</i></div></div>
+      <div class="profile-level-badge"><span>SEVİYE</span><strong>${isSignedIn ? career.level : "-"}</strong></div>
+    </section>
+    <section class="profile-metric-grid">
+      <article><span>Coin</span><strong>${isSignedIn ? Math.floor(profile.coins).toLocaleString("tr-TR") : "-"}</strong><small>Cüzdan</small></article>
+      <article><span>En iyi skor</span><strong>${isSignedIn ? Math.floor(profile.bestScore).toLocaleString("tr-TR") : "-"}</strong><small>Kişisel rekor</small></article>
+      <article><span>Maç</span><strong>${isSignedIn ? Math.floor(profile.matches) : "-"}</strong><small>Tamamlanan</small></article>
+      <article><span>Arkadaş</span><strong>${isSignedIn ? friendTotal : "-"}</strong><small>${onlineTotal} çevrim içi</small></article>
+      <article><span>Kostüm</span><strong>${isSignedIn ? profile.ownedSkins.length : "-"}</strong><small>${SKINS.length} toplam</small></article>
+      <article><span>Başarım</span><strong>${isSignedIn ? completedAchievements : "-"}</strong><small>${ACHIEVEMENTS.length} toplam</small></article>
+    </section>
+    <section class="career-level profile-career">
+      <div class="career-level-head"><div><span>ARENA İLERLEMESİ</span><b>${isSignedIn ? `${career.xp} XP` : "Profil gerekli"}</b></div><strong>${isSignedIn ? `LVL ${career.level}` : "-"}</strong></div>
+      <div class="career-track"><i style="width:${isSignedIn ? career.percent : 0}%"></i></div>
+      <small>${isSignedIn ? `Sonraki seviye ${career.nextXp} XP` : "Maçlarını ve koleksiyonunu kaydetmek için giriş yap."}</small>
+    </section>
+    <div class="profile-dashboard-main">
+      <section class="profile-showcase">
+        <header><div><span>AKTİF KOSTÜM</span><h3>${activeSkin.name}</h3></div><button data-profile-open="shop">Dükkana git</button></header>
+        ${skinPreview}
+        <p>${activeSkin.note || "Snake Area kostümü"}</p>
+      </section>
+      <section class="profile-goals">
+        <header><div><span>SIRADAKİ HEDEFLER</span><h3>Görev ilerlemesi</h3></div><button data-profile-open="quests">Tümünü gör</button></header>
+        <div>${goalHtml}</div>
+      </section>
+    </div>
+    <section class="profile-customization">
+      <header><span>PROFİLİ DÜZENLE</span><h3>Avatar ve ünvan</h3><p>Oyunda diğer oyuncuların göreceği kimliğini seç.</p></header>
+      <div class="profile-editor-grid">
+        <div class="profile-choice"><h3>Profil resmi</h3><div class="choice-grid avatar-grid">${avatarOptions}</div></div>
+        <div class="profile-choice"><h3>Ünvan</h3><div class="choice-grid title-grid">${titleOptions}</div></div>
+      </div>
+    </section>`;
   document.querySelectorAll("[data-profile-avatar]").forEach((button) => button.addEventListener("click", () => setProfileAvatar(button.dataset.profileAvatar)));
   document.querySelectorAll("[data-profile-title]").forEach((button) => button.addEventListener("click", () => setProfileTitle(button.dataset.profileTitle)));
+  document.querySelectorAll("[data-profile-open]").forEach((button) => button.addEventListener("click", () => showQuickPanel(button.dataset.profileOpen)));
   renderFriends();
   renderShop();
   renderAchievements();
