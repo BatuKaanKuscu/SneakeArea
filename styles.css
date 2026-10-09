@@ -2900,3 +2900,90 @@ body.palette-graphite .game-shell { background: radial-gradient(circle at 72% 18
   .friend-actions { width: 100%; }
   .friend-actions .icon-danger { flex: 0 0 38px; }
 }
+/* Career progression, lobby invites and match summary */
+.career-level {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: 8px;
+  background: #eef8f4;
+}
+.career-level-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.career-level-head span { color: #5f7270; font-size: 0.68rem; font-weight: 1000; }
+.career-level-head strong { color: #0f766e; font-size: 0.9rem; }
+.career-level small { color: #6f6677; font-size: 0.7rem; font-weight: 800; }
+.career-track, .reward-progress { overflow: hidden; height: 7px; border-radius: 999px; background: #d8e5e1; }
+.career-track i, .reward-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0f766e, #8fd14f); transition: width 260ms ease; }
+
+.progress-panel-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  padding: 14px 2px 6px;
+}
+.progress-panel-head span { color: #0f766e; font-size: .68rem; font-weight: 1000; }
+.progress-panel-head h3 { margin: 3px 0 0; color: #07110f; }
+.progress-panel-head > strong { color: #0f766e; font-size: 1.35rem; }
+.progress-card { gap: 10px; }
+.progress-card.is-complete { border-color: rgba(143, 209, 79, .48); background: #f7fdeb; }
+.progress-card.is-complete .reward-progress i { background: #69bd35; }
+.quest-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.quest-foot > span { color: #6f6677; font-size: .74rem; font-weight: 900; }
+.quest-foot button { min-width: 118px; }
+
+.lobby-panel { max-height: calc(100vh - 28px); overflow-y: auto; }
+.lobby-invites {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7faf9;
+}
+.lobby-invites > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lobby-invites > header div { display: grid; gap: 2px; }
+.lobby-invites > header span { color: #0f766e; font-size: .64rem; font-weight: 1000; }
+.lobby-invites > header strong { color: #07110f; font-size: .9rem; }
+.lobby-invites > header small, .lobby-invites > p { margin: 0; color: #6f6677; font-size: .72rem; font-weight: 800; }
+.lobby-friend-list { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.lobby-friend-list button {
+  display: grid;
+  grid-template-columns: 8px minmax(80px, 1fr);
+  flex: 0 0 150px;
+  align-items: center;
+  gap: 3px 7px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1px solid #d7e5e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #07110f;
+  text-align: left;
+}
+.lobby-friend-list button i { grid-row: 1 / 3; width: 8px; height: 8px; border-radius: 50%; background: #a8b6b1; }
+.lobby-friend-list button i.is-online { background: #69bd35; box-shadow: 0 0 0 3px rgba(105,189,53,.13); }
+.lobby-friend-list button span { overflow: hidden; font-size: .75rem; font-weight: 950; text-overflow: ellipsis; white-space: nowrap; }
+.lobby-friend-list button b { color: #0f766e; font-size: .64rem; }
+.lobby-friend-list button:disabled { opacity: .58; cursor: default; }
+
+.death-panel { width: min(520px, calc(100vw - 28px)); gap: 15px; }
+.death-panel > p { margin: 0; }
+.match-result-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 8px; }
+.match-result-grid > div { display: grid; min-width: 0; gap: 5px; padding: 12px 8px; border: 1px solid #d7e5e1; border-radius: 8px; background: #f7faf9; }
+.match-result-grid span { color: #6f6677; font-size: .64rem; font-weight: 950; text-transform: uppercase; }
+.match-result-grid strong { overflow: hidden; color: #0f766e; font-size: 1.05rem; text-overflow: ellipsis; white-space: nowrap; }
+.death-panel .primary-action { width: 100%; }
+
+@media (max-width: 620px) {
+  .match-result-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lobby-invites { padding: 10px; }
+  .quest-foot { align-items: stretch; flex-direction: column; }
+  .quest-foot button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .career-track i, .reward-progress i, .friend-person, .invite-row { transition: none; }
+  .skin-preview::after, .palette-swatch::after { animation: none; }
+}

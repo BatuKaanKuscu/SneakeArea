@@ -43,6 +43,10 @@ const startPanel = document.getElementById("startPanel");
 const deathPanel = document.getElementById("deathPanel");
 const deathTitle = deathPanel ? deathPanel.querySelector("h2") : null;
 const deathText = document.getElementById("deathText");
+const resultPlacement = document.getElementById("resultPlacement");
+const resultScore = document.getElementById("resultScore");
+const resultLength = document.getElementById("resultLength");
+const resultCoins = document.getElementById("resultCoins");
 const playButton = document.getElementById("playButton");
 const playButtonText = document.getElementById("playButtonText");
 const retryButton = document.getElementById("retryButton");
@@ -61,6 +65,7 @@ const addonSpeedGates = document.getElementById("addonSpeedGates");
 const lobbyCode = document.getElementById("lobbyCode");
 const lobbyStatus = document.getElementById("lobbyStatus");
 const lobbyPlayersEl = document.getElementById("lobbyPlayers");
+const lobbyInvitePanel = document.getElementById("lobbyInvitePanel");
 const leaveLobbyButton = document.getElementById("leaveLobbyButton");
 const copyRoomButton = document.getElementById("copyRoomButton");
 const startRoomButton = document.getElementById("startRoomButton");
@@ -267,18 +272,21 @@ const AVATARS = [
 ];
 
 const ACHIEVEMENTS = [
-  { id: "first_match", name: "İlk Maç", desc: "Bir maç bitir.", check: () => profile.matches >= 1 },
-  { id: "score_500", name: "500 Skor", desc: "Tek profilde 500 en iyi skora ulaş.", check: () => profile.bestScore >= 500 },
-  { id: "skin_owner", name: "Koleksiyoncu", desc: "En az 3 kostüm aç.", check: () => profile.ownedSkins.length >= 3 },
+  { id: "first_match", name: "İlk Maç", desc: "Bir maç tamamla.", value: () => profile.matches, target: 1 },
+  { id: "match_five", name: "Arena Müdavimi", desc: "5 maç tamamla.", value: () => profile.matches, target: 5 },
+  { id: "score_500", name: "500 Skor", desc: "500 en iyi skora ulaş.", value: () => profile.bestScore, target: 500 },
+  { id: "score_2000", name: "Zirve Avcısı", desc: "2000 en iyi skora ulaş.", value: () => profile.bestScore, target: 2000 },
+  { id: "skin_owner", name: "Koleksiyoncu", desc: "En az 3 kostüm aç.", value: () => profile.ownedSkins.length, target: 3 },
+  { id: "skin_master", name: "Vitrin Ustası", desc: "8 kostüm aç.", value: () => profile.ownedSkins.length, target: 8 },
+  { id: "coin_keeper", name: "Kasa Muhafızı", desc: "2500 coin biriktir.", value: () => profile.coins, target: 2500 },
 ];
-
 const QUESTS = [
-  { id: "play_one", name: "Arenaya Gir", desc: "Bir maç tamamla.", coin: 60, title: "rookie", check: () => profile.matches >= 1 },
-  { id: "play_three", name: "Isınma Turu", desc: "3 maç tamamla.", coin: 90, title: "survivor", check: () => profile.matches >= 3 },
-  { id: "reach_800", name: "Avcı Skoru", desc: "800 en iyi skora ulaş.", coin: 160, title: "hunter", check: () => profile.bestScore >= 800 },
-  { id: "reach_1500", name: "Şampiyon Yolu", desc: "1500 en iyi skora ulaş.", coin: 260, title: "champion", check: () => profile.bestScore >= 1500 },
-  { id: "own_four", name: "Renk Ustası", desc: "4 kostüme sahip ol.", coin: 220, title: "collector", check: () => profile.ownedSkins.length >= 4 },
-  { id: "coin_1000", name: "Coin Kasası", desc: "1000 coin biriktir.", coin: 180, title: "speedster", check: () => profile.coins >= 1000 },
+  { id: "play_one", name: "Arenaya Gir", desc: "Bir maç tamamla.", coin: 60, title: "rookie", value: () => profile.matches, target: 1, check: () => profile.matches >= 1 },
+  { id: "play_three", name: "Isınma Turu", desc: "3 maç tamamla.", coin: 90, title: "survivor", value: () => profile.matches, target: 3, check: () => profile.matches >= 3 },
+  { id: "reach_800", name: "Avcı Skoru", desc: "800 en iyi skora ulaş.", coin: 160, title: "hunter", value: () => profile.bestScore, target: 800, check: () => profile.bestScore >= 800 },
+  { id: "reach_1500", name: "Şampiyon Yolu", desc: "1500 en iyi skora ulaş.", coin: 260, title: "champion", value: () => profile.bestScore, target: 1500, check: () => profile.bestScore >= 1500 },
+  { id: "own_four", name: "Renk Ustası", desc: "4 kostüme sahip ol.", coin: 220, title: "collector", value: () => profile.ownedSkins.length, target: 4, check: () => profile.ownedSkins.length >= 4 },
+  { id: "coin_1000", name: "Coin Kasası", desc: "1000 coin biriktir.", coin: 180, title: "speedster", value: () => profile.coins, target: 1000, check: () => profile.coins >= 1000 },
 ];
 
 const PALETTES = [
@@ -322,6 +330,7 @@ let roomChatHistory = [];
 let selectedFriendChat = "";
 let friendChatHistory = [];
 let pendingInviteFriend = "";
+const invitedLobbyFriends = new Set();
 const ROOM_PREFIX = "AREA";
 const ADMIN_ROOM_CODE = `${ROOM_PREFIX}51`;
 let botCountSetting = 9;
@@ -1573,7 +1582,9 @@ async function inviteFriend(friend) {
   try {
     const result = await api("/api/friends/invite", { method: "POST", body: JSON.stringify({ token: authToken, friend, room: currentRoom }) });
     setAuthStatus(`${friend} davet edildi · ${result.invite?.room || currentRoom}`);
+    invitedLobbyFriends.add(friend);
     renderFriends();
+    renderLobby();
   } catch (error) {
     setAuthStatus(error?.message === "not_friends" ? "Yalnızca arkadaşlarını davet edebilirsin" : "Oda daveti gönderilemedi");
   }
@@ -1677,12 +1688,27 @@ function hideQuickPanel() {
   quickPanel.classList.add("is-hidden");
 }
 
+function careerProgress() {
+  const xp = Math.max(0, Math.floor((profile.matches || 0) * 120 + (profile.bestScore || 0) / 8 + (profile.ownedSkins?.length || 1) * 45));
+  const level = Math.max(1, Math.floor(Math.sqrt(xp / 180)) + 1);
+  const floorXp = Math.pow(level - 1, 2) * 180;
+  const nextXp = Math.pow(level, 2) * 180;
+  const percent = clamp(((xp - floorXp) / Math.max(1, nextXp - floorXp)) * 100, 0, 100);
+  return { xp, level, nextXp, percent };
+}
+
+function itemProgress(item) {
+  const value = Math.max(0, Number(item.value?.()) || 0);
+  const target = Math.max(1, Number(item.target) || 1);
+  return { value, target, done: value >= target, percent: clamp((value / target) * 100, 0, 100) };
+}
 function renderProfile() {
   const isGuest = guestMode.checked;
   const isSignedIn = Boolean(authToken) && !isGuest;
   const shownName = isGuest ? cleanName(profileName.value, "Guest") : isSignedIn ? profile.name : "Misafir";
   const avatar = getAvatar(profile.avatar);
   const titleText = isGuest || !isSignedIn ? "Misafir" : TITLE_CATALOG[profile.title] || "Çaylak";
+  const career = careerProgress();
   if (profileName) profileName.value = isSignedIn ? profile.name : "Guest";
   if (profileAvatar) profileAvatar.textContent = isSignedIn ? avatar.mark : shownName.charAt(0).toUpperCase();
   if (topUserName) topUserName.textContent = shownName;
@@ -1720,6 +1746,7 @@ function renderProfile() {
   const titleOptions = (profile.unlockedTitles || ["rookie"]).map((title) => `<button class="choice-card ${profile.title === title ? "is-selected" : ""}" data-profile-title="${title}"><b>${TITLE_CATALOG[title] || title}</b><span>Ünvan</span></button>`).join("");
   quickProfile.innerHTML = `
     <section class="profile-hero"><div class="profile-avatar-large">${isSignedIn ? avatar.mark : shownName.charAt(0).toUpperCase()}</div><div><span>Oyuncu profili</span><strong>@${shownName}</strong><small>${titleText}</small></div></section>
+    <section class="career-level"><div class="career-level-head"><span>ARENA SEVİYESİ</span><strong>${isSignedIn ? `LVL ${career.level}` : "-"}</strong></div><div class="career-track"><i style="width:${isSignedIn ? career.percent : 0}%"></i></div><small>${isSignedIn ? `${career.xp} XP · sonraki seviye ${career.nextXp} XP` : "İlerlemeni kaydetmek için giriş yap"}</small></section>
     <div><span>Coin</span><strong>${isSignedIn ? Math.floor(profile.coins).toLocaleString("tr-TR") : "-"}</strong></div>
     <div><span>En iyi</span><strong>${isSignedIn ? Math.floor(profile.bestScore).toLocaleString("tr-TR") : "-"}</strong></div>
     <section class="profile-choice"><h3>Profil resmini seç</h3><div class="choice-grid">${avatarOptions}</div></section>
@@ -2209,19 +2236,21 @@ function renderSettings() {
   });
 }
 function renderAchievements() {
-  quickAchievements.innerHTML = ACHIEVEMENTS.map((achievement) => {
-    const done = achievement.check();
-    const unlocked = profile.achievements.includes(achievement.id);
-    return `<article class="reward-card"><header><b>${achievement.name}</b><small>${unlocked || done ? "Tamam" : "Devam"}</small></header><p>${achievement.desc}</p></article>`;
+  const completed = ACHIEVEMENTS.filter((item) => itemProgress(item).done).length;
+  quickAchievements.innerHTML = `<header class="progress-panel-head"><div><span>KOLEKSİYON</span><h3>${completed}/${ACHIEVEMENTS.length} başarım</h3></div><strong>${Math.round((completed / ACHIEVEMENTS.length) * 100)}%</strong></header>` + ACHIEVEMENTS.map((achievement) => {
+    const progress = itemProgress(achievement);
+    const unlocked = profile.achievements.includes(achievement.id) || progress.done;
+    return `<article class="reward-card progress-card ${unlocked ? "is-complete" : ""}"><header><b>${achievement.name}</b><small>${unlocked ? "Tamam" : `${Math.floor(progress.value)}/${progress.target}`}</small></header><p>${achievement.desc}</p><div class="reward-progress"><i style="width:${progress.percent}%"></i></div></article>`;
   }).join("");
 }
 
 function renderQuests() {
   quickQuests.innerHTML = QUESTS.map((quest) => {
+    const progress = itemProgress(quest);
     const ready = quest.check();
     const claimed = profile.claimedQuests.includes(quest.id);
     const rewardTitle = TITLE_CATALOG[quest.title] || "Ünvan";
-    return `<article class="reward-card"><header><b>${quest.name}</b><small>+${quest.coin} coin / ${rewardTitle}</small></header><p>${quest.desc}</p><button data-quest="${quest.id}" ${!ready || claimed || guestMode.checked || !authToken ? "disabled" : ""}>${claimed ? "Alındı" : ready ? "Ödülü Al" : "Kilitli"}</button></article>`;
+    return `<article class="reward-card progress-card ${claimed ? "is-complete" : ""}"><header><b>${quest.name}</b><small>+${quest.coin} coin · ${rewardTitle}</small></header><p>${quest.desc}</p><div class="reward-progress"><i style="width:${progress.percent}%"></i></div><div class="quest-foot"><span>${Math.min(Math.floor(progress.value), progress.target)}/${progress.target}</span><button data-quest="${quest.id}" ${!ready || claimed || guestMode.checked || !authToken ? "disabled" : ""}>${claimed ? "Alındı" : ready ? "Ödülü Al" : "Kilitli"}</button></div></article>`;
   }).join("");
   document.querySelectorAll("[data-quest]").forEach((button) => button.addEventListener("click", () => claimQuest(button.dataset.quest)));
 }
@@ -2236,7 +2265,7 @@ function renderPalette() {
 
 function refreshAchievements() {
   for (const achievement of ACHIEVEMENTS) {
-    if (achievement.check() && !profile.achievements.includes(achievement.id)) profile.achievements.push(achievement.id);
+    if (itemProgress(achievement).done && !profile.achievements.includes(achievement.id)) profile.achievements.push(achievement.id);
   }
 }
 
@@ -2763,6 +2792,13 @@ function renderLobby() {
   }
   if (startRoomButton) startRoomButton.classList.toggle("is-hidden", !isRoomHost);
   if (lobbyStatus) lobbyStatus.textContent = isRoomHost ? "Oda hazır. Arkadaşların katılınca oyunu sen başlatırsın." : "Oda kurucusunun oyunu başlatması bekleniyor.";
+  if (lobbyInvitePanel) {
+    const friends = (profile.friends || []).slice().sort((a, b) => Number(friendOnline(b)) - Number(friendOnline(a)));
+    lobbyInvitePanel.innerHTML = authToken && !guestMode.checked
+      ? `<header><div><span>ARKADAŞLAR</span><strong>Odaya davet et</strong></div><small>${friends.filter(friendOnline).length} çevrim içi</small></header><div class="lobby-friend-list">${friends.length ? friends.slice(0, 8).map((friend) => { const name = friendNameOf(friend); const invited = invitedLobbyFriends.has(name); return `<button data-lobby-invite="${name}" ${invited ? "disabled" : ""}><i class="${friendOnline(friend) ? "is-online" : ""}"></i><span>${name}</span><b>${invited ? "Gönderildi" : "Davet et"}</b></button>`; }).join("") : `<p>Henüz arkadaşın yok. Arkadaş panelinden oyuncu ekleyebilirsin.</p>`}</div>`
+      : `<p>Arkadaşlarını doğrudan davet etmek için profilinle giriş yap.</p>`;
+    lobbyInvitePanel.querySelectorAll("[data-lobby-invite]").forEach((button) => button.addEventListener("click", () => inviteFriend(button.dataset.lobbyInvite)));
+  }
 }
 
 function seedRoomRemotePlayers() {
@@ -2856,6 +2892,7 @@ function enterLobby() {
   lobbyPlayers = [];
   lobbyHostId = "";
   pendingRoomSpawn = null;
+  invitedLobbyFriends.clear();
   droppedOnlineCorpses.clear();
   roomCodeLabel.textContent = currentRoom;
   rememberActiveRoom(false);
@@ -2905,6 +2942,7 @@ function closeOnline() {
   lobbyPlayers = [];
   lobbyHostId = "";
   pendingRoomSpawn = null;
+  invitedLobbyFriends.clear();
   droppedOnlineCorpses.clear();
 }
 
@@ -3678,6 +3716,7 @@ function finishMatch(options = {}) {
     profile.coins += earnedCoins;
     profile.bestScore = Math.max(profile.bestScore, finalScore);
     profile.matches += 1;
+    refreshAchievements();
     syncEpicSkinUnlock();
     saveProfile();
   }
@@ -3688,6 +3727,10 @@ function finishMatch(options = {}) {
   } else {
     deathText.textContent = canSaveMatch ? `${rankText} ${bestHuman.name} skoru ${finalScore}. +${earnedCoins} coin kazandın.` : `${rankText} ${bestHuman.name} skoru ${finalScore}. Misafir modunda profil kaydedilmedi.`;
   }
+  if (resultPlacement) resultPlacement.textContent = `${placement}/${totalPlaces}`;
+  if (resultScore) resultScore.textContent = finalScore.toLocaleString("tr-TR");
+  if (resultLength) resultLength.textContent = Math.round(bestHuman.targetLength).toString();
+  if (resultCoins) resultCoins.textContent = canSaveMatch ? `+${earnedCoins}` : "Kaydedilmedi";
   const retryLabel = retryButton ? retryButton.querySelector("span") : null;
   if (retryLabel) retryLabel.textContent = "ANA SAYFAYA DÖN";
   setGameHudVisible(false);

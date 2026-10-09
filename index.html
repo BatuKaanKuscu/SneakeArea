@@ -184,6 +184,7 @@
           <button class="secondary-action" id="copyRoomButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v11H8V8Z"/><path d="M5 16H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span>KODU KOPYALA</span></button>
           <button class="primary-action" id="startRoomButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7-11-7Z"/></svg><span>OYUNU BAŞLAT</span></button>
         </div>
+        <section class="lobby-invites" id="lobbyInvitePanel" aria-label="Arkadaşlarını davet et"></section>
         <div class="lobby-players" id="lobbyPlayers"></div>
       </section>
       <aside class="room-chat is-hidden" id="roomChat" aria-label="Oda sohbeti">
@@ -197,6 +198,12 @@
       <section class="death-panel is-hidden" id="deathPanel" aria-label="Oyun bitti">
         <h2>Yılan dağıldı</h2>
         <p id="deathText">Skorun 0.</p>
+        <div class="match-result-grid">
+          <div><span>Sıralama</span><strong id="resultPlacement">-</strong></div>
+          <div><span>Skor</span><strong id="resultScore">0</strong></div>
+          <div><span>Uzunluk</span><strong id="resultLength">0</strong></div>
+          <div><span>Ödül</span><strong id="resultCoins">0</strong></div>
+        </div>
         <button class="primary-action" id="retryButton"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v6h-6"/></svg><span>ANA SAYFAYA DÖN</span></button>
       </section>
 
